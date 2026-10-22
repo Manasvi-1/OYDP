@@ -1,0 +1,15 @@
+{
+  "name": "validation",
+  "version": "1.0.0",
+  "description": "Disposable embedded PostgreSQL test harness; not a production database",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@electric-sql/pglite-socket": "^0.2.14"
+  },
+  "private": true
+}

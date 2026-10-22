@@ -1,0 +1,567 @@
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+MASTER BLUEPRINT • VERSION 2.0
+
+PROPERTYTRUST
+OS
+All 13 engines in first launch. Bounded scope per engine, with advanced capabilities
+deferred.
+Scope: Bengaluru-first | Baseline: 16 October 2026 | ID: PTOS-MASTER-2.0
+Status: Engineering specification and production-launch roadmap. Software implementation and regulatory
+clearances remain in progress.
+Covers: Property intelligence, property lifecycle and deal workflows, AI guidance, Academy, GIS, valuation, layout
+studio, feasibility, marketplace, spatial twin and institutional API.
+
+Important: The accompanying runnable repository is a development preview with 13 tested API vertical slices. It is
+not production-ready or legally certified.
+
+PTOS-MASTER-2.0 • OCT 2026 • 1
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+Controlled document: PTOS-MASTER-2.0
+Baseline: 16 October 2026
+Decision: All 13 product engines ship with a genuine, bounded functional capability at first general availability
+(GA). Only advanced features within those engines may be deferred.
+Initial region: Bengaluru / Karnataka, starting with resale apartments; geographic availability is disclosed.
+Status: Approved scope for planning and engineering; not a claim of software completion or regulatory approval.
+
+1. Executive decision and product definition
+PropertyTrust OS is a single property intelligence, collaboration and lifecycle platform supporting buyers, sellers,
+property owners, brokers, qualified lawyers, developers, learners and authorized institutional consumers. It
+combines a property identity and evidence record, context-aware guides, a transaction workspace, ongoing
+ownership operations, geospatial data, comparative valuation, conceptual development design, feasibility
+calculations, a controlled marketplace, a time-versioned spatial view and a restricted institutional API.
+The key strategic correction from v1 is breadth of engine availability at GA rather than deferring entire modules.
+Each engine starts with a deliberately narrow, well-tested capability. Advanced reconstruction, nationwide realtime registry integrations, bespoke generative CAD, predictive prices, autonomous registration and cryptographic
+title-verdict claims are outside the first release.
+Company promise: Help people make informed property decisions and coordinate tasks with linked evidence,
+clear uncertainties, professional accountability and transferable records. Never promise guaranteed legal title,
+guaranteed development approvals, guaranteed investment returns, or government affiliation.
+
+2. Consolidated sources and evidence boundaries
+SpatialLedger — The Universal Spatial Intelligence & Title Infrastructure: proposes multi-dimensional
+property indexing, links among legal/physical/economic data, advanced spatial records, institutional APIs and
+privacy-preserving verification. Adopt spatial identity, time-versioned GIS layers and documented sources; do not
+adopt unvalidated claims of fraud elimination, universal millimeter-scale spatial hashes, sub-second conclusive title
+opinions or underwriting in seconds. A hash authenticates a committed data object, not the underlying property
+rights.
+PropertyPulse — Real Estate Startup Opportunity Research (October 2026): proposes a private living passport
+for owners, document organization, jurisdiction-aware actions, evidence and source links, professional handoff,
+transfer packs, and a Bengaluru-first post-purchase entry point. Incorporate these as PropertyTrust Ownership and
+Actions. Respect its warning that low-frequency individual usage and difficult government access may constrain
+monetization.
+Earlier PropertyTrust OS blueprint: includes buyers, sellers, professional roles, the Deal OS, educational
+guidance, a marketplace, investment intelligence, valuation, developer feasibility and conceptual designs. These
+remain in one integrated product, not independent startups.
+Research status: Product innovation, willingness to pay, lawful source access, patentability, competitive edge,
+institutional adoption and profitability remain hypotheses. Resolve through user research and signed
+commercial/data agreements rather than treating the source theses as proofs.
+
+PTOS-MASTER-2.0 • OCT 2026 • 2
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+3. User roles and first-launch boundaries
+Role
+Visitor
+
+Initial controlled capabilities
+
+Exclusions/controls
+
+Public educational content and
+
+No private document viewing; public
+
+moderated summaries
+
+listings opt-in only
+
+Create a diligence case, ask questions,
+Buyer
+
+invite a seller/professional, compare
+
+Cannot infer ownership automatically
+
+submitted price evidence
+Add property profile, provide selected
+Seller
+
+evidence, answer requests, publish
+consenting listing
+
+Owner
+Broker
+
+Changes to authoritative government
+
+tasks and exports
+
+records require official channels
+
+Coordinate invited cases, enquiries,
+
+Cannot access unrelated owner or
+
+view granted documents
+
+lawyer files
+
+concerns, issue attributable scoped
+opinion
+
+Developer / designer
+
+Learner
+Institutional partner
+Administrator
+
+complete deeds
+
+Maintain property passport, relevant
+
+Review permitted case data, flag
+Qualified legal reviewer
+
+No automatic disclosure of identity or
+
+Assess site inputs, concept layouts and
+feasibility
+Take course lessons and quizzes
+
+Must not be represented as platform AI
+legal certification
+Concepts are not sanctioned
+architectural, structural or planning
+documents
+Academy completion is not government
+accreditation
+
+Consent-scoped and contract-authorized
+
+No bulk personal record resale or
+
+API responses
+
+universal title assertions
+
+Support and policy management with
+
+Break-glass access requires secondary
+
+audited limited access
+
+approval and audit
+
+4. Unified domain architecture
+The primary domain entity is a Property, which may link to official parcel numbers, building identifiers and unit
+identifiers, each tagged by jurisdiction, source, period and confidence. A property may have many documents,
+relationships, evidence assertions, risks, transactions, market comparables, plan scenarios, maintenance events
+and owners/organizations with different lawful access grants.
+Core domain aggregates: PropertyIdentity, ParcelGeometry, PropertyUnit, EvidenceObject, EvidenceAssertion,
+SourcePublication, ProvenanceEvent, DiligenceCase, ParticipantGrant, ReviewOpinion, OwnershipPassport,
+ActionTask, MarketplaceListing, Inquiry, ComparableTransaction, ValuationRun, LayoutScenario, CostScenario,
+TwinSnapshot, Lesson, Course, InstitutionalAccessGrant and SecurityAuditEvent.
+Standard evidence attributes: source_kind, source_name, jurisdiction, source_reference, retrieved_at, valid_from, valid_to,
+record_date, observed_date, effective_date, original_object_hash, extraction_model, page_coordinate, extraction_confidence,
+human_review_status, disclosure_scope and retention_basis as applicable. Distinguish a user claim, a downloaded record,
+
+a professional conclusion and an official confirmed status.
+Shared state logic: cases transition through created → evidence gathering → professional review → negotiation →
+conditions → official completion recorded → archived, with cancellation and reopening branches. Approvals and
+evidentiary statements are never silently overwritten: publish new versions and link to preceding versions.
+
+PTOS-MASTER-2.0 • OCT 2026 • 3
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+Data isolation: Every private resource belongs to a specific organization/ownership context and a property, then
+has actor-specific permitted actions. An invite must not grant access to unrelated cases or previous owners'
+sensitive documents by default.
+
+5. The 13 launch engines: functional acceptance contracts
+Engine 01 — Property Identity & Evidence Graph
+GA minimum: create/search a property from user-provided fields; link available official identifiers and
+approximate coordinates; upload and categorize source documents; label claims as verified, conflicting, pending or
+unknown only after an accountable process; show provenance relationships and duplicate-candidate alerts. Permit
+a source-supported correction workflow. Acceptance: no property marked legally verified from owner self-report;
+ambiguous address/parcel matches flag manual review; each claim has evidence and access controls.
+
+Engine 02 — AI Buyer, Seller, Owner & Developer Guide
+GA minimum: persona- and location-aware procedures, explanations, question/answer workflow grounded in a
+versioned approved source corpus, clear unknowns, user-specific task generation and professional escalation. A
+general-language-model response is never treated as authoritative. Acceptance: test at least 100 evaluated tasks and
+adversarial prompts per supported jurisdiction and role; all consequential procedural guidance cites applicable
+sources; unsupported legal conclusions abstain.
+
+Engine 03 — Transaction & Legal Workspace
+GA minimum: create an invited case, manage parties, issue permissions, request and review documents, record
+buyer questions and seller replies, track offers/status and professional review outcomes, maintain append-only
+activity events. Acceptance: cross-party revocation, audit replay and task ownership tested; no transfer of title is
+claimed until external official completion evidence is recorded.
+
+Engine 04 — PropertyPulse Living Property Passport
+GA minimum: owner-controlled encrypted files, dated property events, loan/insurance/maintenance metadata,
+document retention controls and owner-authorized signed export manifest. Acceptance: no original-document
+disclosure in public profiles; export and deletion workflows validated; files verifiable against stored hashes.
+
+Engine 05 — Ownership Action Engine
+GA minimum: customizable and rule-suggested action lists, jurisdiction/source-backed explanations, due dates, task
+assignment, completion evidence and opt-in email notifications. Acceptance: no unsupported mandatory claims, no
+duplicates for a single event, task notifications respect opt-in and access revocation.
+
+Engine 06 — Real Estate Academy
+GA minimum: structured introductory buyer, seller, owner, developer and investing learning tracks; quizzes,
+progress tracking and source-dated materials, with integrated simulations using synthetic properties. Acceptance:
+course facts reviewed; certificates only describe course completion and never imply professional or governmental
+accreditation.
+
+Engine 07 — SpatialLedger GIS Intelligence
+GA minimum: map-enabled property records, coordinates, uploaded permissible survey geometry, parcel overlays
+for licensed/authorized data, basic distance/context displays and spatial-source provenance. Acceptance:
+approximate pins never masquerade as surveyed cadastral boundaries; coordinate reference systems recorded and
+boundaries source-labeled.
+
+PTOS-MASTER-2.0 • OCT 2026 • 4
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+Engine 08 — Price & Market Intelligence
+GA minimum: manual or licensed comparable transactions, normalized area units, simple comparable-based
+ranges, historical price facts where licensed, filters on sale date/area/asset class, and warnings about sparse/biased
+data. Acceptance: never label listing asks as completed sale prices; source type and vintage visible; no fake
+precision for insufficient evidence.
+
+Engine 09 — AI Layout & Architecture Concept Studio
+GA minimum: allow land dimensions and allowed design constraints to be entered; generate simple conceptual
+plot/building massing alternatives with approximate area breakdown, road/amenity assumptions and
+downloadable scenario summary. Acceptance: concepts visibly stamped 'not surveyed, engineered or approved';
+professional review required before statutory use.
+
+Engine 10 — Development & Business Feasibility
+GA minimum: input-driven capex, infrastructure, saleable-area and asking/realized-price assumptions; compute
+break-even, operating margin, downside sensitivities and project scenarios. Basic local-business use comparison
+permitted with disclosed assumptions. Acceptance: calculations tested and transparent; no unsupported
+guaranteed ROI or price-appreciation claims.
+
+Engine 11 — Marketplace & Professional Network
+GA minimum: voluntary property summary listing, appropriate moderation, owner-controlled enquiries, qualified
+professional profiles with verifiable eligibility status, invited engagements and disclosed referral relationships.
+Acceptance: seller permission documented; restricted evidence never public; reporting/moderation and anti-spam
+controls present.
+
+Engine 12 — Time-Versioned Spatial Twin
+GA minimum: owner/partner-provided building massing observations and dated geometry versions with a basic
+2.5D/3D view and explicit observation provenance. A history slider compares versions. Acceptance: building
+changes not inferred as facts from unsourced estimates; no claim of live LiDAR, millimeter precision or complete
+subsurface rights.
+
+Engine 13 — Institutional API & Evidence Attestations
+GA minimum: contracted read-only, consent-scoped access to specified fields, tenant-bound credentials, audit
+events, API versioning, pagination and response digests/signatures to demonstrate payload integrity. Acceptance:
+no bulk data access outside grants; revocation tested; no ZK proof or legal title certification promised.
+
+6. Short list deferred until after general availability
+These capabilities are optional within engines, not deferred engines:
+1.
+
+Nationwide live sync with all state registries and unrestricted automatic history reconstruction.
+
+2.
+
+Fully automated, legally conclusive title or fraud certification (never promise as automatic).
+
+3.
+
+High-resolution LiDAR/3D building reconstruction, subsurface scans, real-time sensors and city-scale twins.
+
+4.
+
+Advanced 3D generative architecture and CAD/BIM-ready permit drawings without professional participation.
+
+5.
+
+Predictive appreciation forecasts and high-confidence automated valuations without adequate licensed
+historical data.
+
+6.
+
+Zero-knowledge cryptographic proofs beyond well-defined validated attestation use cases.
+
+7.
+
+Fully automated filing, escrow, disbursement and land registration without approved regulatory partners.
+
+8.
+
+National-scale academy accreditations and broad multilingual course libraries beyond validated initial tracks.
+
+9.
+
+Autonomous bank underwriting/large-government deployment and major institutional procurement programs.
+PTOS-MASTER-2.0 • OCT 2026 • 5
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+7. Production reference stack and implementation separation
+Web: Next.js + TypeScript, component design system, accessible responsive UI, localization keys. Backend: Python
+FastAPI, modular domain services and strict API models. Primary database: PostgreSQL with PostGIS; use rowlevel security and typed ORM/migrations. Files: encrypted S3-compatible object storage, malware scanning, MIME
+verification, short-lived signed URLs, content-security controls. Identity: audited managed OIDC, MFA for sensitive
+roles, organization invites, explicit grants. Async tasks: queue/worker, rate controls, retries and dead-letter
+monitoring. Search: PostgreSQL initially; dedicated search only after profiling. GIS: PostGIS + authorized mapping
+layers; coordinate-source fidelity. Audit: append-only events, integrity hashes, a separate immutable log store. AI:
+approved-source retrieval, citation chain, tool allowlist, prompt-injection defenses, output schema validation and
+evaluation harness. Infrastructure: EU/India cloud availability evaluated for legal/data considerations, CI/CD,
+ephemeral preview environments, IaC and isolated dev/staging/prod.
+A monolith with domain modules is preferred until teams and scale justify separate services. Do not create 13
+microservices at launch. Separation of authorization/evidence from agent output is mandatory.
+
+Example API namespaces
+
+
+/v1/properties, /v1/identity, /v1/evidence, /v1/permissions
+
+
+
+/v1/guides, /v1/tasks, /v1/transactions, /v1/owners/passports
+
+
+
+/v1/courses, /v1/maps, /v1/valuation, /v1/layouts, /v1/feasibility
+
+
+
+/v1/listings, /v1/enquiries, /v1/twin, /v1/partners/evidence
+
+Every endpoint has a published scope, consent requirement, resource ownership rule, input caps, supported data
+version and audit category.
+
+8. AI architecture, responsibility and evaluations
+Use AI for explanations, semantic search, draft extraction, document comparisons and procedural task suggestions.
+Use deterministic calculators for prices and project margins, deterministic policy checks for allowable actions, and
+accountable professionals for licensed legal/technical conclusions. Uploaded documents are untrusted inputs that
+can contain malicious instructions; models must never execute tool operations because a document requests them.
+An AI answer should include: question, supported factual statements with source references, rule/jurisdiction
+version, evidence gaps, actionable next steps, explicit limitations, and qualified reviewer escalation. Unknown or
+inaccessible status is displayed as unknown, never passed off as clean/verified.
+Evaluation gates: measure source relevance, citation correctness, harmful overclaims, evidence extraction
+precision/recall, duplicate property-matching errors, hallucination, language parity, access-control bypass via
+prompts, calculator accuracy and geographic errors. Require human sign-off for any launch context claiming
+regulatory compliance. Log evaluated model/prompt versions without exposing protected user data in general
+telemetry.
+
+9. Karnataka-first legal and data procurement plan
+Validate separately with local counsel and official providers: property registration and EC services; municipal
+khata/e-Aasthi systems; RERA records; revenue and land-use rules; planning authorities; court and charge searches;
+map/parcel services; and permitted transaction price evidence. Capture service availability, geographic coverage,
+lawful access modality, rate limits, licensing, fees, publication permissions, and retention restrictions before
+making 'live verified' claims.
+
+PTOS-MASTER-2.0 • OCT 2026 • 6
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+Review applicable data privacy duties under India's DPDP framework and implementation timing, intermediary
+and consumer-protection obligations, India geospatial guidance, contracts, professional-practice rules, payment
+handling restrictions and RERA-related obligations as relevant. Real legal opinions must be scoped and attributable
+to qualified practitioners; architecture and civil engineering sign-off must remain with licensed and appropriately
+qualified professionals.
+
+10. Security, privacy, operations and reliability gates
+Launch-blocking controls: verified identity and MFA; strict per-object authorization and tenancy isolation;
+encryption at rest/in transit; file malware and active-content checks; data minimization; clear
+privacy/retention/deletion/export policies; user consent, revocation and professional invitations; audit logs and
+secure secrets; infrastructure hardening; cloud data backups and independently tested restore; vulnerability
+management; abuse prevention, rate limiting and monitored alerts; staging penetration test with critical/high
+findings resolved or formally accepted by accountable security leadership; incident handling and breach processes;
+independent legal review of marketing and title claims.
+Operational runbooks: onboarding a law firm, customer support escalation, missing/inaccurate source records,
+disputed ownership, document removal, compromised session, infrastructure outage, database recovery,
+emergency permission revocation and erroneous AI guidance.
+SLO targets to validate with pilots: 99.5% monthly availability for the early GA core, P95 read request under 1
+second for non-computational endpoints at expected load, 100% of sensitive file access auditable, and zero known
+critical open vulnerabilities at public launch. Targets are engineering objectives, not achieved metrics.
+
+11. Delivery roadmap: all 13 before first public GA
+Window
+
+Engineering milestone
+
+Engine coverage
+
+User discovery, rule review,
+Weeks 1–4
+
+system design, design system
+
+Scope all 13
+
+and threat modelling
+Identity and consent, property
+Weeks 5–10
+
+data, encrypted evidence,
+action engine, basic guide,
+
+3, 6, 11
+
+listings and enquiry controls
+GIS property views, source
+Weeks 17–22
+
+provenance, manual comps
+
+7, 8, 10
+
+and deterministic feasibility
+Concept layouts, temporal
+Weeks 23–28
+
+spatial viewer and contract-
+
+rights, first pilot partners
+
+retention, export and audit
+tests
+
+Transactions, professional
+reviews, Academy, simple
+
+Named user journeys, real data
+
+Access controls, document
+1–5
+
+owner passport
+Weeks 11–16
+
+Exit gate
+
+9, 12, 13
+
+scoped institutional API
+
+First full guided transaction
+with accountable review
+Geospatial correctness and
+calculator/property-data QA
+Clear caveats, source review,
+revocable partner grants
+
+Secure integrations, Kannada
+quality verification, file
+Weeks 29–36
+
+scanning, model evaluations,
+accessibility, performance and
+
+Pilot completion, security
+All 13
+
+review and operational
+runbooks
+
+monitoring
+
+PTOS-MASTER-2.0 • OCT 2026 • 7
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+Paid controlled beta, defect
+Weeks 37–44
+
+remediation, external testing,
+legal sign-off, incident
+
+All 13
+
+All eight GA release gates pass
+
+rehearsal and launch decision
+
+Schedule is a planning hypothesis for an appropriately staffed team. External government/data licensing or legally
+complex integration could push completion materially beyond this range. Do not cut launch security to protect
+calendar dates.
+
+12. Commercialization, staffing and budget
+First target users: Bengaluru law practices, credible transaction advisers and brokerages coordinating resale
+apartment cases; include opt-in sellers and owners. Adjacent revenue: developer feasibility and professional GIS
+planning support where permitted; discounted paid training; per-case property dossiers; professional
+subscriptions; institutional integrations later. A first customer paying for reduced admin effort is better proof than
+thousands of free registrations.
+Indicative team: founder/product lead, tech lead, 2–3 backend/data engineers, 2 frontend engineers, 1
+geospatial/quant specialist, 1 AI evaluation/document engineer, part-time DevSecOps, QA, privacy/legal counsel and
+partner operations. Some roles may be contracted. Founder-led prototype can cost far less but will not replace
+independent security, legal and geospatial expertise.
+Capital planning bands, not supplier quotes: 4–8 weeks of self-funded development to validate demo is distinct
+from GA. For 13-engine GA, provisionally plan a 9–15 month execution program and approximately ₹1.0–3.5
+crore in aggregate people, cloud, legal, security, data licensing and pilot operations, with very high uncertainty. The
+37–44 week schedule above is a target with strong staffing and limited geographic/data scope; realistic dates depend
+on discovery. Cash budget can fall materially with founder execution and firm partnerships, but data rights and
+legal verification cannot be skipped.
+Business KPIs: partner commitments, invited deal activation, workflows completed, document review effort, cost
+per case, paid renewal, process cycle time, false confidence flags, customer data incident rate, successful export and
+referral rate. Do not use gross property GMV as the same thing as recognized company revenue.
+
+13. Release acceptance gates (all required)
+10. Functional completeness: each of 13 engines has at least one genuine customer-facing use case with
+documented limitations; E2E success in staging and selected real pilots.
+11. Data and legal rights: sources, licenses, professional claims, data handling and service terms cleared for the
+release geographies.
+12. Security: independent pen-test, authorization test matrix, malware screening, key management and incident
+procedures completed.
+13. Privacy: deletion, consent, export, data retention, cross-party permissions and model-processing disclosure
+reviewed and tested.
+14. AI and computation: grounded procedural guidance, abstention behavior, calculator accuracy and evaluation
+pass criteria approved.
+15. Operations: monitoring, logs, backups/restore, support coverage and incident response drills completed.
+16. Commercial proof: paying pilot or sufficiently strong signed partner demand, plus evidence of worthwhile
+unit economics.
+17. Governance: named approvers (engineering, security, operations, legal and founder) sign the actual
+production release record.
+PTOS-MASTER-2.0 • OCT 2026 • 8
+
+PROPERTYTRUST OS / MASTER PRODUCT SPECIFICATION
+
+A green build pipeline alone does not satisfy any of the above by itself.
+
+14. Definition of done for an engine
+Feature works in deployed staging and mobile-responsive web UI; API and storage contracts documented;
+authorization checked server-side; expected/negative-path tests pass; data quality and evidence source surfaced;
+localization/accessible errors checked; monitoring and audit defined; security and privacy review completed;
+support and rollback path exists; user documentation and limits are clear. For externally authoritative data, actual
+permissions and source provenance must be recorded.
+
+15. What has been implemented as of this deliverable
+The accompanying development repository contains 13 functional demonstration API flows and a local web
+control panel: property identity/evidence references, educational procedure steps, deal creation, passport events
+and manifest, tasks, Academy quiz, basic GIS point, manual comparable estimation, conceptual plot grid,
+deterministic feasibility, listings/enquiries, dated building snapshots and a minimal institutional evidence
+summary. The FastAPI preview uses SQLite, a single development token and synthetic owner context.
+The repository is NOT production-ready and explicitly fails if `APP_ENV=production`. It lacks audited
+OIDC/MFA, multi-tenant policy enforcement, encrypted document blob service, scoped signed consent, real
+professional review, licensed market feeds, geospatial parcel validation, a full 3D viewer, official regulatory
+integrations, full source-grounded LLM operations, and independent production acceptance evidence. Those are
+scheduled engineering deliverables rather than hidden assumptions.
+
+16. Immediate next sprint — implementation ticket outline
+PT-001 Replace demo auth with OIDC/MFA and isolated tenant memberships. PT-002 PostgreSQL/PostGIS data
+model and migrations. PT-003 Tenant and property permission matrix and negative tests. PT-004 Encrypted
+malware-scanned document storage. PT-005 Source provenance and evidence assertion model. PT-006 Rule
+registry/version approval workflow. PT-007 Grounded AI guide API plus offline evaluation harness. PT-008
+Transaction workflow and legal reviewer actions. PT-009 Owner export pack and retention/deletion. PT-010 Build
+UI for true GIS/comparable/layout/time view. PT-011 Instrument observability, backups and rollout. PT-012 Pilot
+customer and professional validation.
+
+17. Source notes and changes from v1
+This v2 document intentionally supersedes v1's P0/P1/P2 division where entire engines were postponed. All 13
+engines are launch commitments, but each has bounded features and release gates. The source documents remain
+preserved separately; any precise market sizes, transaction speeds, fraud prevention percentages, enterprise prices
+and returns from earlier theses are hypotheses until independently proven. No government partnership is
+assumed.
+
+PTOS-MASTER-2.0 • OCT 2026 • 9
+
+

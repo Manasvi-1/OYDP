@@ -1,0 +1,205 @@
+OYDP / OWN YOUR DREAM PROPERTY
+
+Data flow diagrams and trust boundaries
+Level 0 and Level 1 architecture with thirteen level 2 model sources.
+
+DOCUMENT ID
+
+OYDP-MASTER-001
+
+RELEASE
+
+1.0 | 16 OCT 2026
+
+DELIVERABLE
+
+Research and engineering design
+
+IMPLEMENTATION
+
+Unverified / not production-ready
+
+GEO SCOPE
+
+Bengaluru Urban; Rural; Karnataka; Hyderabad
+
+Controlled baseline: precise legal claims, external official integrations, customer demand and production readiness remain subject to independent
+verification.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 1
+
+Document contents
+01. DFD level 0 — external context
+02. DFD level 1 — engine groups
+03. DFD level 2 registry
+04. Other detailed diagram sources
+Supporting sources and current implementation status
+
+01. DFD level 0 — external context
+Users and invited professionals act on their own data and consent; official systems remain independent authorities, never
+assumed API partners. Institutional reads are scoped to contracts and revocable grants. The platform stores private evidence and
+audit event trails with document-level lineage.
+
+Figure: DFD_LEVEL_0. Editable source: 13_DIAGRAMS/DFD_LEVEL_0.mmd
+
+02. DFD level 1 — engine groups
+Shared property identity routes referenced data to diligence, ownership, education, GIS, valuation, concepts, marketplace and
+partner API. No transfer of restricted document bytes through public listing APIs. The trust boundary is checked at every
+inter-engine invocation, not only the UI.
+
+Figure: DFD_LEVEL_1. Editable source: 13_DIAGRAMS/DFD_LEVEL_1.mmd
+
+03. DFD level 2 registry
+Engine
+
+Editable source
+
+Sensitive boundary
+
+E01
+
+13_DIAGRAMS/ENGINE_01_DFD_LEVEL_2.mmd
+
+False ownership certification,
+cross-tenant document leakage,
+malicious duplicate merges.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 2
+
+Engine
+
+Editable source
+
+Sensitive boundary
+
+E02
+
+13_DIAGRAMS/ENGINE_02_DFD_LEVEL_2.mmd
+
+Prompt injection in deeds,
+hallucinated stamp duty,
+cross-property retrieval, legal-advice
+overclaims.
+
+E03
+
+13_DIAGRAMS/ENGINE_03_DFD_LEVEL_2.mmd
+
+Privilege escalation via invites; stale
+permissions; forged lawyer status;
+mutable audit.
+
+E04
+
+13_DIAGRAMS/ENGINE_04_DFD_LEVEL_2.mmd
+
+Public file exposure, historical owner
+leakage, undeleted object versions.
+
+E05
+
+13_DIAGRAMS/ENGINE_05_DFD_LEVEL_2.mmd
+
+Erroneous mandatory claims,
+repeated reminders, leaking task
+data across participants.
+
+E06
+
+13_DIAGRAMS/ENGINE_06_DFD_LEVEL_2.mmd
+
+Misrepresented certifications,
+outdated legal facts,
+cheating/injection in generated
+quizzes.
+
+E07
+
+13_DIAGRAMS/ENGINE_07_DFD_LEVEL_2.mmd
+
+Wrong CRS, sensitive map
+disclosure, unauthorized map
+scraping, fake boundary precision.
+
+E08
+
+13_DIAGRAMS/ENGINE_08_DFD_LEVEL_2.mmd
+
+Fabricated transactions, unit
+conversion errors, biased sparse
+comps, data licensing breaches.
+
+E09
+
+13_DIAGRAMS/ENGINE_09_DFD_LEVEL_2.mmd
+
+Unlawful automated permit claim,
+unsafe architectural suggestions,
+coordinate mismatch.
+
+E10
+
+13_DIAGRAMS/ENGINE_10_DFD_LEVEL_2.mmd
+
+Numerical rounding, omitted land
+cost, false guaranteed returns,
+tampered inputs.
+
+E11
+
+13_DIAGRAMS/ENGINE_11_DFD_LEVEL_2.mmd
+
+Seller impersonation, doxxing,
+harassment, document leaks, spam.
+
+E12
+
+13_DIAGRAMS/ENGINE_12_DFD_LEVEL_2.mmd
+
+Imaginary structures passed as
+surveyed, map copyright
+infringement, incompatible
+coordinate systems.
+
+E13
+
+13_DIAGRAMS/ENGINE_13_DFD_LEVEL_2.mmd
+
+Mass record extraction,
+cross-partner grant bypass, stale
+revoked key, misleading
+cryptographic claims.
+
+04. Other detailed diagram sources
+The diagram bundle contains DOT+Mermaid for DFDs, ERD, security, AI, feasibility and deployment; additional Mermaid
+sequence sources cover buyer/seller, consent, document processing, valuation, time history and partner API. Each source is
+maintained under version control and can be rendered independently. Dataflow arrows convey proposed contracts, not
+confirmed API integrations.
+
+Associated editable diagrams
+• DFD_LEVEL_0.mmd / DFD_LEVEL_0.dot and rendered PNG/SVG where available
+• DFD_LEVEL_1.mmd / DFD_LEVEL_1.dot and rendered PNG/SVG where available
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 3
+
+Research sources and evidence restrictions
+[S01] PropertyTrust OS Master Product Specification v2.0 — OYDP source attachment (2026-10-16). Original supplied source. Implemented status is
+self-reported, not repo-verified.
+[S02] OYDP master execution prompt — OYDP source attachment (2026-10-16). User-approved new name, regions, all engines and 38 document
+requirements.
+
+Verification state
+Documentation generated; no production application or integration has been deployed or independently audited. Sources are
+dated and source-specific; professional legal and architectural reviewers remain required.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 4
+
+
