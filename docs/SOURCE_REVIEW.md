@@ -18,6 +18,6 @@ All six supplied PDFs were text-extracted and reviewed for architecture, scope a
 - Supporting source labels cite other documents, deep engine contracts and editable diagram files that are not among these six PDFs. Do not claim to have inspected them.
 - Several reference entries contain the generic text “Source URL” rather than a recoverable URL in extracted text. These cannot serve as independently verified citations until resolved from primary sources.
 - Source access agreements, legal review, external security audit, paid pilots and production approvals are not supplied.
-- Do not assume existing GitHub repository, live services or an installed Ubuntu distribution. None has been connected or inspected for this work.
+- Update, 23 October 2026: private GitHub repository `Manasvi-1/OYDP` was inspected and contained setup instructions only. The supplied foundation ZIP was separately tested and extended. No workstation Ubuntu installation or live deployment was verified.
 
-The six PDFs are preserved unchanged. SHA-256 checksums in `source_manifest.json` identify precisely the supplied bytes used for this review.
+The supplied PDFs were not modified. This branch includes their extracted text and current checksums in `reference/manifest.json`; original PDFs remain the source for figures and layout. `source_manifest.json` is retained from the original foundation ZIP.
