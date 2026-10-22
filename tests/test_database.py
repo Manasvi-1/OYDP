@@ -200,3 +200,27 @@ def test_foreign_key_rejects_cross_tenant_property_claim(setup_db):
         with pytest.raises(psycopg.errors.ForeignKeyViolation):
             c.execute('INSERT INTO oydp.claims(tenant_id,property_id,id,created_by,statement) VALUES(%s,%s,%s,%s,%s)',
                       (other,p['id'],uuid4(),peer.subject,'Cross-tenant'))
+
+
+@pytest.mark.skipif(EMBEDDED, reason='Requires native PostgreSQL concurrent connections')
+@pytest.mark.parametrize('target', ['membership', 'grant'])
+def test_revocation_serializes_with_active_transaction(setup_db, target):
+    repo,t,_,a,_=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with repo.transaction(t,a) as conn:
+        if target == 'grant':
+            repo.check_grant(conn,t,a.subject,p['id'],'property:read')
+        with admin() as revoker:
+            revoker.execute("SET lock_timeout='100ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                if target == 'membership':
+                    revoker.execute('UPDATE oydp.memberships SET active=false WHERE tenant_id=%s AND subject_id=%s',(t,a.subject))
+                else:
+                    revoker.execute("UPDATE oydp.grants SET revoked=true WHERE tenant_id=%s AND subject_id=%s AND action='property:read'",(t,a.subject))
+    with admin() as revoker:
+        if target == 'membership':
+            revoker.execute('UPDATE oydp.memberships SET active=false WHERE tenant_id=%s AND subject_id=%s',(t,a.subject))
+        else:
+            revoker.execute("UPDATE oydp.grants SET revoked=true WHERE tenant_id=%s AND subject_id=%s AND action='property:read'",(t,a.subject))
+    with pytest.raises(Unavailable):
+        repo.get(t,a,p['id'])

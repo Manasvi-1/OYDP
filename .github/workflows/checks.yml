@@ -34,7 +34,7 @@ jobs:
           import os, psycopg
           with psycopg.connect(os.environ['OYDP_TEST_ADMIN_DSN'], autocommit=True) as conn:
               conn.execute("CREATE ROLE oydp_runtime LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'isolated-ci-runtime'")
-              conn.execute('CREATE EXTENSION postgis')
+              conn.execute('CREATE EXTENSION IF NOT EXISTS postgis')
           PY
       - run: python -m pytest -q
       - run: python -m compileall -q oydp tests
