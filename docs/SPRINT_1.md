@@ -1,6 +1,6 @@
 # Current milestone note — 23 October 2026
 
-The original 21 October record below is historical. See `VALIDATION.md` and `IMPLEMENTATION_PLAN.md` for the current backend slice. PT-002 now has PostgreSQL migrations and restricted-role embedded database tests; PT-003 has repository/API enforcement; PT-005 persists user claims with atomic audit events. Native PostgreSQL/PostGIS checks, managed OIDC, file quarantine, Next.js UI, source registry, and pilot validation remain incomplete. No Sprint 1 completion is claimed.
+The original 21 October record below is historical. See `VALIDATION.md` and `IMPLEMENTATION_PLAN.md` for the current backend slice. PT-002 now has PostgreSQL migrations and restricted-role native/embedded database tests; PT-003 has repository/API enforcement and creator-managed sharing/revocation; PT-005 persists attributed user claims with atomic audit events. Native CI passed 87 tests plus 13 subtests, including concurrent revocation. Managed OIDC, file quarantine, Next.js UI, source registry, PostGIS product workflows, and pilot validation remain incomplete. No Sprint 1 completion is claimed.
 
 ---
 

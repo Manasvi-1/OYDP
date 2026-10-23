@@ -4,7 +4,8 @@
 
 - Original ZIP baseline: 18 standard-library tests passed before edits.
 - Current sharing increment, local Python suite: **84 passed, 3 native-concurrency tests skipped, 13 subtests passed** in 1.56 seconds.
-- Prior native foundation CI: **60 passed, 13 subtests passed**, PostgreSQL 17.5 with PostGIS and a restricted login, including concurrent membership/grant revocation. [Run 39874641464](https://github.com/Manasvi-1/OYDP/actions/runs/39874641464), commit `36314eabbca636d2bd580382ea8d8b0c532f91c4`. Current sharing increment native result will be recorded after CI.
+- Current native sharing CI: **87 passed, 13 subtests passed** in 2.91 seconds, PostgreSQL 17.5 with PostGIS and a restricted login. [Run 39903706389](https://github.com/Manasvi-1/OYDP/actions/runs/39903706389), code commit `da38f5ba826532aea44a058bc6e9877b718b1f75`. All three concurrent membership/grant/shared-access revocation tests passed; compilation also passed.
+- Prior foundation CI: **60 passed, 13 subtests passed**. [Run 39874641464](https://github.com/Manasvi-1/OYDP/actions/runs/39874641464), commit `36314eabbca636d2bd580382ea8d8b0c532f91c4`.
 - Embedded PostgreSQL engine: PostgreSQL 18.6 / PGlite 0.5.11. The SQL ran through psycopg over a loopback socket, with `SET ROLE oydp_runtime` in the test harness. Production code has no embedded database mode.
 - API-to-database path: RS256-signed synthetic identity -> authenticated create -> persisted read -> user claim -> audit events -> cross-tenant denial.
 - Negative checks: wrong signature/issuer/audience/algorithm, expired/future-issued tokens, malformed subject/AMR, missing MFA, forged request fields, invalid pagination, no grants, inactive membership, revoked/expired grants, cross-tenant reads/inserts/references, and attempted claim promotion/audit deletion.
@@ -19,6 +20,8 @@
 - `python -m pip check`: no broken requirements found.
 
 One test-client warning remains: Starlette deprecates its httpx adapter in favor of httpx2. Requests passed; this warning is not suppressed.
+
+CI also reports that checkout/setup-python action versions target deprecated Node.js 20 and are forced onto Node.js 24 by the runner. These actions succeeded; updating their versions is tracked maintenance, not completed here.
 
 ## Reproduce embedded tests
 
