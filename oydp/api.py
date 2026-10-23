@@ -1,7 +1,7 @@
 """Small authenticated property slice; no demo-token or in-memory production mode."""
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 from datetime import datetime
 import jwt
@@ -9,9 +9,9 @@ from fastapi import FastAPI, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from oydp.auth import TokenVerifier
-from oydp.repository import Repository, Unavailable
+from oydp.repository import Repository, Unavailable, InvalidAccess
 
 
 class StrictModel(BaseModel):
@@ -27,6 +27,15 @@ class ClaimInput(StrictModel):
     statement: str = Field(min_length=1, max_length=10000)
 
 
+class AccessInput(StrictModel):
+    actions: set[Literal['property:read', 'property:write']] = Field(min_length=1, max_length=2)
+    expires_at: AwareDatetime
+
+
+class AccessOutput(StrictModel):
+    changed: bool
+
+
 class PropertyOutput(PropertyInput):
     id: UUID
     created_at: datetime
@@ -35,12 +44,13 @@ class PropertyOutput(PropertyInput):
 class ClaimOutput(ClaimInput):
     id: UUID
     property_id: UUID
+    created_by: UUID
     kind: str
     recorded_at: datetime
 
 
 def create_app(repository, verifier):
-    app = FastAPI(title='OYDP Property Foundation', version='0.2.0', docs_url=None, redoc_url=None)
+    app = FastAPI(title='OYDP Property Foundation', version='0.3.0', docs_url=None, redoc_url=None)
     bearer = HTTPBearer(auto_error=False)
 
     def identity(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)]):
@@ -75,6 +85,10 @@ def create_app(repository, verifier):
         # Never echo raw input, bearer tokens or private statements into error responses.
         return JSONResponse(status_code=422, content={'detail': 'Invalid request'})
 
+    @app.exception_handler(InvalidAccess)
+    async def invalid_access(request, exc):
+        return JSONResponse(status_code=422, content={'detail': 'Invalid access request'})
+
     @app.get('/health/live')
     def health():
         return {'status': 'alive'}
@@ -95,6 +109,19 @@ def create_app(repository, verifier):
     @app.post('/v1/properties/{property_id}/claims', response_model=ClaimOutput, status_code=201)
     def record_claim(property_id: UUID, data: ClaimInput, ctx=Depends(sensitive)):
         return repository.claim(*ctx, property_id, data)
+
+    @app.get('/v1/properties/{property_id}/claims', response_model=list[ClaimOutput])
+    def list_claims(property_id: UUID, ctx=Depends(context), limit: int = Query(25, ge=1, le=100),
+                    offset: int = Query(0, ge=0, le=10000)):
+        return repository.claims(*ctx, property_id, limit, offset)
+
+    @app.put('/v1/properties/{property_id}/access/{recipient}', response_model=AccessOutput)
+    def set_access(property_id: UUID, recipient: UUID, data: AccessInput, ctx=Depends(sensitive)):
+        return repository.access(*ctx, property_id, recipient, data)
+
+    @app.delete('/v1/properties/{property_id}/access/{recipient}', response_model=AccessOutput)
+    def revoke_access(property_id: UUID, recipient: UUID, ctx=Depends(sensitive)):
+        return repository.access(*ctx, property_id, recipient)
 
     return app
 

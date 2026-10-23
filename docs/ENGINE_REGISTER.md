@@ -4,7 +4,7 @@ All 13 remain GA commitments. Only the domain foundations listed below exist in 
 
 | ID | Engine | State |
 |---|---|---|
-| E01 | Property Identity & Evidence Graph | Provenance value object only; persistence/API/UI planned |
+| E01 | Property Identity & Evidence Graph | Candidate and unverified-claim persistence/API; provenance value object; evidence graph and UI pending |
 | E02 | AI Property Advisor | Planned |
 | E03 | Transaction & Legal Workspace | Planned |
 | E04 | Living Property Passport | Planned |
@@ -18,4 +18,4 @@ All 13 remain GA commitments. Only the domain foundations listed below exist in 
 | E12 | Time-Versioned Spatial Digital Twin | Planned |
 | E13 | Institutional API & Evidence Attestations | Planned |
 
-Shared authorization is a domain policy only. No engine is declared complete. No public deployment, official integration, legal title certification or paid pilot is implied.
+Shared authorization includes authenticated API context, tenant RLS, property grants, creator-managed sharing/revocation, and atomic audit outbox records. Document delivery remains a domain policy only. No engine is declared complete. No public deployment, official integration, legal title certification or paid pilot is implied.

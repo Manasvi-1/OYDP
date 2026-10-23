@@ -10,6 +10,10 @@ class Unavailable(Exception):
     """Missing or forbidden resource; intentionally indistinguishable."""
 
 
+class InvalidAccess(Exception):
+    """An access expiry or permission set is invalid."""
+
+
 class Repository:
     def __init__(self, dsn):
         self.dsn = dsn
@@ -76,7 +80,28 @@ class Repository:
         with self.transaction(tenant, identity) as conn:
             self.check_grant(conn, tenant, identity.subject, property_id, 'property:write')
             result = conn.execute('''INSERT INTO oydp.claims(tenant_id,property_id,id,created_by,statement)
-                VALUES(%s,%s,%s,%s,%s) RETURNING id,property_id,statement,kind,recorded_at''',
+                VALUES(%s,%s,%s,%s,%s) RETURNING id,property_id,created_by,statement,kind,recorded_at''',
                 (tenant, property_id, uuid4(), identity.subject, data.statement)).fetchone()
             self.audit(conn, tenant, identity.subject, property_id, 'claim.recorded')
             return result
+
+    def access(self, tenant, identity, property_id, recipient, data=None):
+        if not identity.mfa:
+            raise Unavailable()
+        try:
+            with self.transaction(tenant, identity) as conn:
+                result = conn.execute('SELECT oydp.set_property_access(%s,%s,%s,%s,%s) AS changed',
+                    (tenant, property_id, recipient,
+                     sorted(data.actions) if data else [], data.expires_at if data else None)).fetchone()
+                return {'changed': result['changed']}
+        except psycopg.errors.NoDataFound:
+            raise Unavailable() from None
+        except psycopg.errors.InvalidParameterValue:
+            raise InvalidAccess() from None
+
+    def claims(self, tenant, identity, property_id, limit, offset):
+        with self.transaction(tenant, identity) as conn:
+            self.check_grant(conn, tenant, identity.subject, property_id, 'property:read')
+            return conn.execute('''SELECT id,property_id,created_by,statement,kind,recorded_at FROM oydp.claims
+                WHERE tenant_id=%s AND property_id=%s ORDER BY recorded_at,id LIMIT %s OFFSET %s''',
+                (tenant, property_id, limit, offset)).fetchall()

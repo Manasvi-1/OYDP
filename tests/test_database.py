@@ -1,14 +1,15 @@
 """Disposable DB only. Native CI uses a real restricted login; embedded mode uses SET ROLE."""
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 import pytest
 import psycopg
 from fastapi.testclient import TestClient
-from oydp.api import create_app, PropertyInput, ClaimInput
+from oydp.api import create_app, PropertyInput, ClaimInput, AccessInput
 from oydp.auth import Identity
-from oydp.repository import Repository, Unavailable
+from oydp.repository import Repository, Unavailable, InvalidAccess
 from test_api import keys, token, verifier
 
 ADMIN = os.environ.get('OYDP_TEST_ADMIN_DSN')
@@ -47,6 +48,9 @@ def schema():
         if EMBEDDED:
             c.execute('CREATE ROLE oydp_runtime NOLOGIN NOSUPERUSER NOBYPASSRLS')
         c.execute((ROOT/'migrations/001_foundation.up.sql').read_text())
+        c.execute((ROOT/'migrations/002_property_access.up.sql').read_text())
+        c.execute((ROOT/'migrations/002_property_access.down.sql').read_text())
+        c.execute((ROOT/'migrations/002_property_access.up.sql').read_text())
     yield
     with admin() as c:
         c.execute((ROOT/'migrations/001_foundation.down.sql').read_text())
@@ -224,3 +228,179 @@ def test_revocation_serializes_with_active_transaction(setup_db, target):
             revoker.execute("UPDATE oydp.grants SET revoked=true WHERE tenant_id=%s AND subject_id=%s AND action='property:read'",(t,a.subject))
     with pytest.raises(Unavailable):
         repo.get(t,a,p['id'])
+
+
+def access_input(*actions, days=1):
+    return AccessInput(actions=set(actions or ['property:read']),
+                       expires_at=datetime.now(timezone.utc)+timedelta(days=days))
+
+
+def test_share_read_downgrade_and_revoke(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Sharing'))
+    repo.claim(t,a,p['id'],ClaimInput(statement='An unverified claim'))
+    assert repo.access(t,a,p['id'],peer.subject,access_input()) == {'changed':True}
+    assert repo.get(t,peer,p['id'])['name']=='Sharing'
+    assert repo.claims(t,peer,p['id'],25,0)[0]['kind']=='user_claim'
+    with pytest.raises(Unavailable): repo.claim(t,peer,p['id'],ClaimInput(statement='Denied'))
+    repo.access(t,a,p['id'],peer.subject,access_input('property:read','property:write'))
+    repo.claim(t,peer,p['id'],ClaimInput(statement='Collaborator claim'))
+    repo.access(t,a,p['id'],peer.subject,access_input())
+    with pytest.raises(Unavailable): repo.claim(t,peer,p['id'],ClaimInput(statement='Downgraded'))
+    assert repo.access(t,a,p['id'],peer.subject)=={'changed':True}
+    assert repo.list(t,peer,25,0)==[]
+    with pytest.raises(Unavailable): repo.claims(t,peer,p['id'],25,0)
+    with pytest.raises(Unavailable): repo.get(t,peer,p['id'])
+
+
+def test_access_idempotence_and_audit_details(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Sharing'))
+    data=access_input()
+    repo.access(t,a,p['id'],peer.subject,data)
+    assert repo.access(t,a,p['id'],peer.subject,data)=={'changed':False}
+    repo.access(t,a,p['id'],peer.subject)
+    assert repo.access(t,a,p['id'],peer.subject)=={'changed':False}
+    with admin() as c:
+        rows=c.execute('''SELECT event_type,target_subject_id,granted_actions,access_expires_at
+            FROM oydp.audit_outbox WHERE tenant_id=%s AND target_subject_id IS NOT NULL ORDER BY occurred_at''',(t,)).fetchall()
+    assert rows==[('access.changed',peer.subject,['property:read'],data.expires_at),
+                  ('access.revoked',peer.subject,[],None)]
+
+
+def test_writer_cannot_reshare_or_revoke(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    repo.access(t,a,p['id'],peer.subject,access_input('property:read','property:write'))
+    with pytest.raises(Unavailable): repo.access(t,peer,p['id'],a.subject,access_input())
+    with pytest.raises(Unavailable): repo.access(t,peer,p['id'],a.subject)
+    assert repo.get(t,a,p['id'])
+
+
+@pytest.mark.parametrize('case',['self','missing','inactive','different_tenant','wrong_property','missing_mfa'])
+def test_invalid_access_targets(setup_db,case):
+    repo,t,other,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    target=peer.subject
+    if case=='self': target=a.subject
+    if case=='missing': target=uuid4()
+    if case=='missing_mfa': a=Identity(a.subject,False)
+    if case=='wrong_property': p['id']=uuid4()
+    with admin() as c:
+        if case=='inactive': c.execute('UPDATE oydp.memberships SET active=false WHERE tenant_id=%s AND subject_id=%s',(t,target))
+        if case=='different_tenant':
+            target=uuid4()
+            c.execute('INSERT INTO oydp.memberships VALUES(%s,%s,true)',(other,target))
+    with pytest.raises(Unavailable): repo.access(t,a,p['id'],target,access_input())
+
+
+@pytest.mark.parametrize('days',[-1,31])
+def test_expiry_policy(setup_db,days):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with pytest.raises(InvalidAccess): repo.access(t,a,p['id'],peer.subject,access_input(days=days))
+
+
+def test_write_only_access_denied(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with pytest.raises(InvalidAccess):
+        repo.access(t,a,p['id'],peer.subject,access_input('property:write'))
+
+
+def test_expired_controller_cannot_share(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with admin() as c:
+        c.execute("UPDATE oydp.grants SET expires_at=clock_timestamp()-interval '1 second' WHERE tenant_id=%s",(t,))
+    with pytest.raises(Unavailable): repo.access(t,a,p['id'],peer.subject,access_input())
+
+
+def test_revocation_for_inactive_recipient_still_works(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    repo.access(t,a,p['id'],peer.subject,access_input())
+    with admin() as c:
+        c.execute('UPDATE oydp.memberships SET active=false WHERE tenant_id=%s AND subject_id=%s',(t,peer.subject))
+    assert repo.access(t,a,p['id'],peer.subject)=={'changed':True}
+
+
+def test_access_audit_failure_rolls_back_grants(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with admin() as c:
+        c.execute("ALTER TABLE oydp.audit_outbox ADD CONSTRAINT injected_failure CHECK(event_type NOT IN ('access.changed','access.revoked')) NOT VALID")
+    try:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            repo.access(t,a,p['id'],peer.subject,access_input())
+        assert repo.list(t,peer,25,0)==[]
+    finally:
+        with admin() as c: c.execute('ALTER TABLE oydp.audit_outbox DROP CONSTRAINT injected_failure')
+
+
+def test_sharing_http_journey(keys,setup_db):
+    repo,t,_,a,peer=setup_db
+    client=TestClient(create_app(repo,verifier(keys)))
+    owner={'Authorization':'Bearer '+token(keys,a.subject),'X-Tenant-ID':str(t)}
+    guest={'Authorization':'Bearer '+token(keys,peer.subject),'X-Tenant-ID':str(t)}
+    p=client.post('/v1/properties',headers=owner,json={'name':'Shared record'}).json()['id']
+    url=f'/v1/properties/{p}/access/{peer.subject}'
+    r=client.put(url,headers=owner,json=access_input().model_dump(mode='json'))
+    assert r.status_code==200 and r.json()=={'changed':True}
+    assert client.get(f'/v1/properties/{p}',headers=guest).status_code==200
+    assert client.get(f'/v1/properties/{p}/claims',headers=guest).json()==[]
+    assert client.delete(url,headers=owner).status_code==200
+    assert client.get(f'/v1/properties/{p}',headers=guest).status_code==404
+
+
+def test_runtime_cannot_insert_another_members_grant(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with repo.transaction(t,peer) as c:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            c.execute("INSERT INTO oydp.grants VALUES(%s,%s,%s,'property:read',clock_timestamp()+interval '1 day',false)",
+                      (t,p['id'],peer.subject))
+
+
+def test_delegation_cannot_outlive_controller(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    with admin() as c:
+        c.execute("UPDATE oydp.grants SET expires_at=clock_timestamp()+interval '1 hour' WHERE tenant_id=%s",(t,))
+    with pytest.raises(InvalidAccess): repo.access(t,a,p['id'],peer.subject,access_input())
+
+
+def test_access_rollback_preserves_audit_history(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Private'))
+    repo.access(t,a,p['id'],peer.subject,access_input())
+    with admin() as c:
+        with pytest.raises(psycopg.errors.RaiseException):
+            c.execute((ROOT/'migrations/002_property_access.down.sql').read_text())
+        c.execute('ROLLBACK')
+    assert repo.get(t,peer,p['id'])
+
+
+def test_access_function_not_executable_by_public(setup_db):
+    with admin() as c:
+        row=c.execute("""SELECT prosecdef,proconfig,
+          NOT EXISTS(SELECT 1 FROM aclexplode(proacl) acl WHERE acl.grantee=0 AND acl.privilege_type='EXECUTE')
+          FROM pg_proc WHERE oid='oydp.set_property_access(uuid,uuid,uuid,text[],timestamptz)'::regprocedure""").fetchone()
+    assert row==(True,['search_path=pg_catalog, pg_temp'],True)
+
+
+@pytest.mark.skipif(EMBEDDED, reason='Requires native PostgreSQL concurrent connections')
+def test_shared_access_revocation_waits_for_active_reader(setup_db):
+    repo,t,_,a,peer=setup_db
+    p=repo.create(t,a,PropertyInput(name='Concurrent sharing'))
+    repo.access(t,a,p['id'],peer.subject,access_input())
+    with repo.transaction(t,peer) as reader:
+        repo.check_grant(reader,t,peer.subject,p['id'],'property:read')
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            with repo.transaction(t,a) as revoker:
+                revoker.execute("SET LOCAL lock_timeout='100ms'")
+                revoker.execute('SELECT oydp.set_property_access(%s,%s,%s,%s,%s)',
+                                (t,p['id'],peer.subject,[],None))
+    assert repo.get(t,peer,p['id'])
+    assert repo.access(t,a,p['id'],peer.subject)=={'changed':True}
+    with pytest.raises(Unavailable): repo.get(t,peer,p['id'])

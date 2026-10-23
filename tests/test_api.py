@@ -122,3 +122,22 @@ def test_missing_and_denied_same_response(keys):
         def get(self,*args): raise Unavailable()
     c=TestClient(create_app(Denied(),verifier(keys)))
     assert c.get('/v1/properties/'+str(uuid4()),headers=headers(keys)).json()=={'detail':'Resource unavailable'}
+
+
+@pytest.mark.parametrize('method',['put','delete'])
+def test_access_requires_mfa(client,keys,method):
+    kwargs={'headers':headers(keys,amr=[])}
+    if method=='put':
+        kwargs['json']={'actions':['property:read'],'expires_at':'2026-10-24T00:00:00Z'}
+    assert getattr(client,method)(f'/v1/properties/{uuid4()}/access/{uuid4()}',**kwargs).status_code==403
+
+
+@pytest.mark.parametrize('body',[
+    {'actions':['admin'],'expires_at':'2026-10-24T00:00:00Z'},
+    {'actions':[],'expires_at':'2026-10-24T00:00:00Z'},
+    {'actions':['property:read'],'expires_at':'2026-10-24T00:00:00'},
+    {'actions':['property:read'],'expires_at':'2026-10-24T00:00:00Z','verified':True},
+])
+def test_access_input_rejected(client,keys,body):
+    r=client.put(f'/v1/properties/{uuid4()}/access/{uuid4()}',headers=headers(keys),json=body)
+    assert r.status_code==422

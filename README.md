@@ -6,7 +6,7 @@ Private development workspace for a property evidence and lifecycle platform. Th
 
 ## What runs
 
-- FastAPI: create/list/read property candidates and record user claims; generated OpenAPI contract.
+- FastAPI: create/list/read property candidates, record/read attributed user claims, and grant/downgrade/revoke time-limited collaborator access; generated OpenAPI contract.
 - PostgreSQL: forced tenant RLS, composite foreign keys, current membership checks, explicit property grants, and business writes committed atomically with audit outbox events.
 - Authentication: pinned RS256 verification, issuer/audience/expiry checks, UUID subject and issuer-provided `mfa` authentication-method check for writes.
 - Existing domain policy: document-scoped download/scan-state gate and attributed provenance models. These remain domain logic; file delivery is not implemented.
@@ -43,7 +43,7 @@ Requests need `Authorization: Bearer <provider-issued-token>` and `X-Tenant-ID: 
 
 RLS is a tenant boundary, while per-property grants are enforced by repository operations. Database credentials and transaction context are trusted server inputs, never client-controlled SQL. Runtime cannot update/delete audit records; the outbox is **not** an independently immutable audit sink. Authorized administrators can alter the database.
 
-Property creation issues explicit creator read/write grants for 30 days. Grant renewal, invitations and administrative revocation interfaces remain pending. Each request checks current database state. Write paths lock membership and relevant grants for their transaction; native PostgreSQL concurrent revocation testing remains required.
+Property creation issues explicit creator read/write grants for 30 days. Creators can share with existing tenant members, change permissions, and revoke access with MFA. Shared grants cannot outlive the creator's current write grant. Grant renewal, invitations and administrator recovery remain pending. Each request checks current database state. Write paths lock membership and relevant grants for their transaction. See [access workflow and migration instructions](docs/PROPERTY_ACCESS.md) and the validation record for concurrency evidence.
 
 Missing and forbidden property requests both return 404. Claims have no automatic legal authority. Jurisdiction defaults to `unresolved`; free text does not validate an administrative boundary. UUID subjects and `amr: ["mfa"]` require an explicit identity-provider contract. JWT verification alone is not a full OIDC integration.
 

@@ -15,4 +15,5 @@ with psycopg.connect(os.environ['OYDP_ADMIN_DATABASE_URL'], autocommit=True) as 
     conn.execute(sql.SQL('CREATE ROLE oydp_runtime LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD {}').format(sql.Literal(password)))
     conn.execute('CREATE EXTENSION IF NOT EXISTS postgis')
     conn.execute((Path(__file__).resolve().parents[1]/'migrations/001_foundation.up.sql').read_text())
+    conn.execute((Path(__file__).resolve().parents[1]/'migrations/002_property_access.up.sql').read_text())
 print('Local schema initialized. Provision explicit memberships separately; no default user is authorized.')
