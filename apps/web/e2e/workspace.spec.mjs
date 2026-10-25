@@ -30,7 +30,7 @@ test('real property/claim persistence, read grant/revocation, tenant and MFA den
  await expect(page.locator('.statement')).toContainText('A user assertion');
  await page.getByLabel('Statement',{exact:true}).fill('Reader cannot write');
  await page.getByRole('button',{name:'Record unverified claim'}).click();
- await expect(page.getByRole('status')).toHaveText('Permission or MFA required.');await disconnect();
+ await expect(page.getByRole('status')).toHaveText('Property or recipient unavailable.');await disconnect();
  await connect(credentials.withoutMfa);await candidate.click();
  await page.getByLabel('Statement',{exact:true}).fill('No MFA cannot write');
  await page.getByRole('button',{name:'Record unverified claim'}).click();
