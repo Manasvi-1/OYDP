@@ -20,3 +20,7 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 ## Next work
 
 Property write delegation/attributed claims in the active API, paginated property discovery, the Next.js authenticated workspace, provider onboarding/MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
+
+## API 0.4.0 discovery/claim increment
+
+Adds paginated private property discovery and attributed immutable user claims, fixed unverified status, claim-linked atomic audit, strict scoped cursors, exported active OpenAPI checks and commit-before-success handling. See DISCOVERY_CLAIMS.md. Local unit/API tests: 43 passed; native PostgreSQL acceptance and current-head checks must pass before merge. UI and live identity-provider integration remain pending.

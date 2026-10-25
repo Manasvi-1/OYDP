@@ -25,3 +25,7 @@ Real identity-provider enrollment, MFA freshness and production configuration; N
 Code, tests, migrations, contracts and status updates travel together in feature PRs. Review CI for the latest head, not an earlier success. After merging, verify main's tree matches that head and check post-merge workflows. There is no unattended continuous chat-to-repository synchronization.
 
 Latest-head checks, merge SHA and post-merge verification are recorded on [PR #3](https://github.com/Manasvi-1/OYDP/pull/3). Documentation-only follow-ups do not replace the requirement to check their own CI before merging.
+
+## Current discovery/claims increment (API 0.4.0)
+
+Code/tests/contracts are authored for keyset property/claim pages, creator/MFA claim append, immutable unverified attribution, audit rollback and deferred commit failure. Local active API/unit tests: 43 passed; native PostgreSQL cases require fresh CI. Final checks, reviewed head and merge evidence must be recorded on the feature PR. Existing 0.3.0 results above do not validate this change.

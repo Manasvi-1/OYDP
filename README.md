@@ -157,3 +157,7 @@ The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and
 ## Active API privacy update
 
 API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation/sharing/revocation and audited access changes. See [canonical access contracts and upgrade](docs/implementation/CANONICAL_PROPERTY_ACCESS.md). This supersedes earlier tenant-shared behavior. CI on the current feature head is the acceptance evidence.
+
+## Active API 0.4.0 increment
+
+Paginated private property discovery and attributed unverified claim recording/history are implemented for verification. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.

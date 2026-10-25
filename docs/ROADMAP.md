@@ -12,7 +12,9 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Implement and test JWT signature, issuer, audience and expiry (live provider onboarding pending)
 - [x] Resolve tenant membership from trusted database state
 - [x] Cross-tenant integration tests with distinct tenant fixtures
-- [ ] Create/read/update property API and OpenAPI client contract
+- [x] Private property create/read and read-sharing API with tested contract
+- [ ] Paginated property discovery and attributed claims (API 0.4.0 under verification)
+- [ ] Property update/write delegation and correction workflows
 - [ ] Next.js frontend for the first authenticated property journey
 
 ## Milestone 1 — Trusted evidence

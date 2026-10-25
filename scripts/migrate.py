@@ -64,6 +64,8 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT EXECUTE ON FUNCTION public.set_property_read_access(uuid,uuid,text,timestamptz) TO oydp_app')
         conn.execute('REVOKE ALL ON property_audit_events FROM oydp_app')
         conn.execute('GRANT SELECT, INSERT ON property_audit_events TO oydp_app')
+        conn.execute('REVOKE ALL ON property_claims FROM oydp_app')
+        conn.execute('GRANT SELECT, INSERT ON property_claims TO oydp_app')
         conn.execute("ALTER ROLE oydp_app SET search_path = public")
 
 
