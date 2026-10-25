@@ -40,3 +40,19 @@ test('does not forward upstream cookies',async()=>{
  const response=await proxy(request(),['v1','properties'],{...options,fetcher:async()=>Response.json({}, {headers:{'Set-Cookie':'secret=value'}})});
  assert.equal(response.headers.get('set-cookie'),null);
 });
+
+
+test('rejects malformed JSON and invalid UTF-8 from upstream without reflecting content',async()=>{
+ for (const body of ['{secret infrastructure text', new Uint8Array([0xff])]) {
+   const response=await proxy(request(),['v1','properties'],{...options,fetcher:async()=>new Response(body,{headers:{'Content-Type':'application/json'}})});
+   assert.equal(response.status,502);
+   assert.deepEqual(await response.json(),{detail:'Invalid service response'});
+ }
+});
+test('bounds chunked upstream responses and cancels oversized streams',async()=>{
+ let cancelled=false;
+ const stream=new ReadableStream({pull(controller){controller.enqueue(new Uint8Array(1024*1024));},cancel(){cancelled=true;}});
+ const response=await proxy(request(),['v1','properties'],{...options,fetcher:async()=>new Response(stream,{headers:{'Content-Type':'application/json'}})});
+ assert.equal(response.status,502);assert.equal(cancelled,true);
+ assert.deepEqual(await response.json(),{detail:'Invalid service response'});
+});

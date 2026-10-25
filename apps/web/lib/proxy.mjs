@@ -52,6 +52,23 @@ export async function proxy(request, parts, config = {}) {
     // Do not reflect upstream infrastructure errors or authentication cookies.
     if (upstream.status >= 500) return error(503, 'Property service unavailable');
     if (!upstream.headers.get('content-type')?.includes('application/json')) return error(502, 'Invalid service response');
-    return new Response(await upstream.text(), {status:upstream.status, headers:{...headers,'Content-Type':'application/json'}});
+    // Bound decoded response bytes, including chunked responses with no length.
+    // A page of 100 maximum-length claims fits within this 8 MiB ceiling.
+    const reader = upstream.body?.getReader();
+    const chunks = []; let size = 0;
+    if (reader) while (true) {
+      const {done, value} = await reader.read(); if (done) break;
+      size += value.byteLength;
+      if (size > 8 * 1024 * 1024) {
+        await reader.cancel(); return error(502, 'Invalid service response');
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    try { JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
+    catch { return error(502, 'Invalid service response'); }
+    return new Response(bytes, {status:upstream.status, headers:{...headers,'Content-Type':'application/json'}});
   } catch { return error(503, 'Property service unavailable'); }
 }
+
