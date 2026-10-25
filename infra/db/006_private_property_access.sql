@@ -66,6 +66,8 @@ CREATE POLICY assertion_creator_insert ON public.evidence_assertions FOR INSERT 
  tenant_id=nullif(current_setting('app.tenant_id',true),'')::uuid
  AND EXISTS (SELECT 1 FROM public.properties p WHERE p.tenant_id=evidence_assertions.tenant_id
  AND p.id=evidence_assertions.property_id AND p.created_by=nullif(current_setting('app.subject_id',true),''))
+ AND EXISTS (SELECT 1 FROM public.tenant_memberships m WHERE m.tenant_id=evidence_assertions.tenant_id
+ AND m.subject_id=nullif(current_setting('app.subject_id',true),'') AND m.role IN ('owner','editor'))
 );
 DROP POLICY audit_read ON public.property_audit_events;
 CREATE POLICY audit_private_read ON public.property_audit_events FOR SELECT USING (

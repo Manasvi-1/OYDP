@@ -41,9 +41,9 @@ Browser / role-specific Next.js interfaces  [planned]
                     |
          OIDC identity + policy layer        [planned]
                     |
-         FastAPI modular backend             [initial scaffold]
+         FastAPI modular backend             [property API implemented]
                     |
-       PostgreSQL / PostGIS + RLS            [schema drafted]
+       PostgreSQL / PostGIS + RLS            [migrations + native tests]
                     |
      Evidence storage / workers / audit      [planned]
 ```
@@ -57,7 +57,7 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Area | State | Evidence |
 | --- | --- | --- |
 | Product requirements and architecture | Documented | Controlled source blueprints |
-| API foundation | Initial code committed | `apps/api/app/main.py` |
+| API foundation | Authenticated property and read-access API | `apps/api/app/main.py` |
 | Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
 | Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 24 PostgreSQL/API integration cases passed at `1cc4398` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** Authenticated property create/read and transactional audit passed 48 CI tests; complete real provider setup, property-specific permissions and the first UI.  
+**Now:** Verify private property/read-grant API 0.3.0; complete real provider setup, paginated discovery and the first UI.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 

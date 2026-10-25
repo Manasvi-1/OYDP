@@ -397,3 +397,17 @@ def test_migration_attributes_only_audited_records(tmp_path):
     finally:
         with psycopg.connect(DSN,autocommit=True) as conn:
             conn.execute(sql.SQL('DROP DATABASE {} WITH (FORCE)').format(sql.Identifier(name)))
+
+
+def test_downgraded_creator_cannot_share_or_write_evidence(api, private_record):
+    pid,peer,h,data,_ = private_record
+    with psycopg.connect(DSN) as conn:
+        conn.execute("UPDATE tenant_memberships SET role='viewer' WHERE tenant_id=%s AND subject_id='alice'",(A,))
+    try:
+        assert api.get('/v1/properties/'+pid,headers=h).status_code == 200
+        assert api.put('/v1/properties/'+pid+'/access',headers=h,json=data).status_code == 404
+        with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+            conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES(%s,%s,'claim','denied after downgrade','user_claim')",(A,pid))
+    finally:
+        with psycopg.connect(DSN) as conn:
+            conn.execute("UPDATE tenant_memberships SET role='owner' WHERE tenant_id=%s AND subject_id='alice'",(A,))

@@ -1,3 +1,7 @@
+# Property Identity API
+
+Current contract and upgrade guide: [API 0.3.0 private property access](CANONICAL_PROPERTY_ACCESS.md). The sections below document the previous 0.2.0 slice and its historical validation; tenant-shared behavior and non-MFA writes described there are superseded.
+
 # Property Identity API — executable backend slice
 
 This change implements property create/read, not the whole OYDP platform. Records are shared within a tenant; per-property invitations and granular grants are not implemented. Do not use this pre-alpha slice for real property documents or customer data.
