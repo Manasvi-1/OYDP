@@ -15,7 +15,7 @@ PR #1 has been reconciled and merged, preserving its native-tested root-package 
 
 ## Verification
 
-PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests passed without skips. First private-access implementation `71ffa34`: 71 active tests and 87 reference tests + 13 subtests passed without skips. A final review additionally tightened evidence writes after creator role downgrade and added an acceptance test; final-head CI must validate that change before merge. See VERIFICATION_REGISTER.md and the PR for exact commit/run links.
+PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests passed without skips. First private-access implementation `71ffa34`: 71 active tests and 87 reference tests + 13 subtests passed without skips. Final reviewed implementation `21d9bc0` tightened evidence writes after creator role downgrade and passed 72 active tests plus 87 reference tests and 13 subtests, with no skips. See VERIFICATION_REGISTER.md and the PR for exact commit/run links.
 
 ## Next work
 
