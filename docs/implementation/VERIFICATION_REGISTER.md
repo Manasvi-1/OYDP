@@ -44,3 +44,8 @@
 
 ## Approval policy
 GitHub Actions success is not a security certification or legal approval. No merge, production deployment or public release without the required owner approvals.
+
+
+## Database foundation update — 25 October 2026
+
+See [database implementation and acceptance](DATABASE_FOUNDATION.md) for migration tooling, runtime-role provisioning, composite tenant integrity, 13 PostgreSQL tests and the dedicated CI job. Local API tests: 3 passed; database tests: 13 skipped pending PostgreSQL execution. Earlier unverified items remain open unless this record explicitly supersedes them. OIDC and property CRUD remain disabled.

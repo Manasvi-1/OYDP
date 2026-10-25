@@ -59,9 +59,9 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Product requirements and architecture | Documented | Controlled source blueprints |
 | API foundation | Initial code committed | `apps/api/app/main.py` on feature branch |
 | Property database schema | Draft migration SQL | `infra/db/` on feature branch |
-| Tenant isolation | RLS policies drafted | Not yet integration-tested |
+| Tenant isolation | RLS plus evidence tenant integrity and scoped membership | Real PostgreSQL CI tests authored; see database foundation record |
 | Authentication | Not integrated | Property routes intentionally fail closed |
-| API smoke tests | Authored, execution unverified | `apps/api/tests/` |
+| API smoke tests | 3 passed locally on 25 October 2026 | `apps/api/tests/` |
 | Next.js application | Not implemented | Pending |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
@@ -76,7 +76,7 @@ OYDP/
 ├── apps/
 │   ├── api/                 # FastAPI backend
 │   └── web/                 # Reserved for Next.js UI
-├── infra/db/                # SQL schemas; migration tooling pending
+├── infra/db/                # Versioned SQL migrations
 ├── docs/
 │   ├── architecture/        # Architecture decisions and boundaries
 │   ├── security/            # Threats, authorization and release gates
@@ -108,7 +108,7 @@ PYTHONPATH=apps/api uvicorn app.main:app --reload
 
 On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
 
-The current Compose service starts the database only. SQL files are not automatically migrated, database runtime credentials are not provisioned, and property routes return 503 until verified OIDC integration. These instructions are **not** a complete working application setup.
+The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes return 503 until verified OIDC integration. These instructions are **not** a complete working application setup.
 
 ## Engineering workflow
 
@@ -144,3 +144,4 @@ Copyright and licensing decisions have not yet been finalized. **No open-source 
 ---
 
 **OYDP is being engineered for verifiable property workflows, not unsupported claims of certainty.**
+

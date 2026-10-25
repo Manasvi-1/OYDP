@@ -17,3 +17,8 @@ This branch begins the Property Identity foundation. It is **not** a functional 
 7. Obtain approval before public deployment.
 
 No official property source integrations or legal ownership verification are implemented.
+
+
+## Database foundation update — 25 October 2026
+
+See [database implementation and acceptance](DATABASE_FOUNDATION.md) for migration tooling, runtime-role provisioning, composite tenant integrity, 13 PostgreSQL tests and the dedicated CI job. Local API tests: 3 passed; database tests: 13 skipped pending PostgreSQL execution. Earlier unverified items remain open unless this record explicitly supersedes them. OIDC and property CRUD remain disabled.

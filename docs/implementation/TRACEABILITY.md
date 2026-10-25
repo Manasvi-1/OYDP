@@ -29,3 +29,8 @@ Source hierarchy: controlled OYDP master blueprint (2026-10-16), 13-engine produ
 5. After merge, update the README status and roadmap against main's merged commit.
 6. Future conversations should re-fetch GitHub state before reporting progress.
 7. There is no continuous two-way sync between ChatGPT conversations and GitHub without an explicitly configured integration or scheduled workflow.
+
+
+## Database foundation update — 25 October 2026
+
+See [database implementation and acceptance](DATABASE_FOUNDATION.md) for migration tooling, runtime-role provisioning, composite tenant integrity, 13 PostgreSQL tests and the dedicated CI job. Local API tests: 3 passed; database tests: 13 skipped pending PostgreSQL execution. Earlier unverified items remain open unless this record explicitly supersedes them. OIDC and property CRUD remain disabled.
