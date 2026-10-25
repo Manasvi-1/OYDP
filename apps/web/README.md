@@ -1,0 +1,21 @@
+# OYDP private property workspace
+
+Draft Next.js frontend for the active API 0.4.0. Requires Node 22+ and the active FastAPI service plus migrated PostgreSQL runtime role. No browser sign-in provider is bundled.
+
+```sh
+cd apps/web
+npm install
+OYDP_API_ORIGIN=http://127.0.0.1:8000 npm run dev
+```
+
+Open http://127.0.0.1:3000. Use an operator-issued API access token and an existing tenant UUID. The backend requires configured HTTPS JWKS/issuer/audience, RS256 `at+jwt` access tokens, current membership, and signed `amr: ["mfa"]` for writes. Never use production records/tokens in test fixtures. No API URL or service secret is exposed through NEXT_PUBLIC variables.
+
+```sh
+npm test
+npm run build
+npm start
+```
+
+The proxy accepts only a fixed HTTPS upstream or local loopback HTTP. Credentials remain in React memory, cleared on disconnect/reload/401. Run privately over HTTPS outside loopback. There is no tenant/user provisioning bypass. API responses and pages carry no-store headers. CSP currently permits Next inline scripts; nonce-based CSP hardening remains pending alongside provider login. No analytics or external fonts are loaded.
+
+See `docs/implementation/POST_PR4_AUDIT.md` for verified baseline and outstanding acceptance gates. The absence of live identity/provider browser tests prevents a production-ready claim.
