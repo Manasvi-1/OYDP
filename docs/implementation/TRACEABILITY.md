@@ -37,3 +37,10 @@ See [database implementation and acceptance](DATABASE_FOUNDATION.md) for migrati
 
 ## Current slice — supersedes historical status above
 RS256 access-token validation, per-request membership, tenant-shared property create/read, transactional append-only audit, and 24 additional/expanded API and DB cases are authored. See PROPERTY_API.md and the current CI result; real provider interoperability, property grants, UI and all other engines remain incomplete.
+
+## Verified authenticated API execution — 25 October 2026
+
+Implementation commit: `1cc439843c354d119222e243a5dd051df5b11d8c`.
+[Database security CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858): **48 passed, zero skipped**, one TestClient dependency deprecation warning. This includes 24 API/auth tests and 24 PostgreSQL/API integration cases.
+[API and dependency audit CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853): passed; hash-locked dependency installation and pip-audit succeeded with no known vulnerabilities reported.
+All 36 tracked source files matched GitHub blob hashes before this evidence-only update. These results supersede pending CI status above for the tested implementation. This follow-up changes documentation only; its own checks must also pass before merge. Independent security/human review, live provider onboarding and production approval remain unfulfilled. One passing suite does not validate the whole platform.

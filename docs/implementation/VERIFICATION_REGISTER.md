@@ -71,3 +71,10 @@ audit and reviewed action upgrades remain follow-up work.
 Supersedes historical pending entries where explicitly implemented: RS256 access-token verifier, trusted database membership, property create/read and transactional append-only audit. Local execution: 24 API/auth tests passed; 24 real PostgreSQL cases not executed locally. Dependency audit reported no known vulnerabilities; hashed dependency lock and CI audit added. See PROPERTY_API.md. Latest-head CI acceptance remains pending until GitHub reports it.
 
 The repository owner explicitly instructed pushing and merging in this development session. This authorizes merge of the tested pre-alpha slice; it is not an independent human/security review or production approval. Copilot quota failures remain non-approvals. GitHub-enforced protection rules must not be bypassed.
+
+## Verified authenticated API execution — 25 October 2026
+
+Implementation commit: `1cc439843c354d119222e243a5dd051df5b11d8c`.
+[Database security CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858): **48 passed, zero skipped**, one TestClient dependency deprecation warning. This includes 24 API/auth tests and 24 PostgreSQL/API integration cases.
+[API and dependency audit CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853): passed; hash-locked dependency installation and pip-audit succeeded with no known vulnerabilities reported.
+All 36 tracked source files matched GitHub blob hashes before this evidence-only update. These results supersede pending CI status above for the tested implementation. This follow-up changes documentation only; its own checks must also pass before merge. Independent security/human review, live provider onboarding and production approval remain unfulfilled. One passing suite does not validate the whole platform.

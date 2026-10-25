@@ -4,7 +4,7 @@
 
 OYDP is an India-first property decision and lifecycle platform under active development. It is designed to connect property identity, evidence provenance, collaborative due diligence, ownership workflows, geospatial context, transparent financial models and professional services within a single permissioned workspace.
 
-> **Engineering status — pre-alpha.** This repository contains the controlled product design and an initial backend/database foundation. It is **not** a launched product, government-integrated verification service, or completed 13-engine application. The default branch may lag behind the active feature branch.
+> **Engineering status — pre-alpha.** This repository contains the controlled product design and an initial backend/database foundation. It is **not** a launched product, government-integrated verification service, or completed 13-engine application. This is a tested pre-alpha backend slice; the full application remains under development.
 
 ## Why OYDP exists
 
@@ -57,11 +57,11 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Area | State | Evidence |
 | --- | --- | --- |
 | Product requirements and architecture | Documented | Controlled source blueprints |
-| API foundation | Initial code committed | `apps/api/app/main.py` on feature branch |
-| Property database schema | Draft migration SQL | `infra/db/` on feature branch |
-| Tenant isolation | RLS plus evidence tenant integrity and scoped membership | 13 PostgreSQL tests passed at `11fda6b`; see database foundation record |
+| API foundation | Initial code committed | `apps/api/app/main.py` |
+| Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
+| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 24 PostgreSQL/API integration cases passed at `1cc4398` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
-| API and authentication tests | 24 passed locally on 25 October 2026 | `apps/api/tests/` |
+| API and authentication tests | 24 passed locally and in GitHub CI | `apps/api/tests/`; 48 total with DB integration |
 | Next.js application | Not implemented | Pending |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
@@ -96,7 +96,7 @@ Prerequisites: Python 3.12+, Docker with Compose, and Git. Create a private loca
 ```bash
 git clone https://github.com/Manasvi-1/OYDP.git
 cd OYDP
-git switch feat/property-identity-foundation
+git switch main
 cp .env.example .env
 docker compose up -d db
 python -m venv .venv
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** Verify the authenticated property create/read slice and transactional audit against PostgreSQL CI.  
+**Now:** Authenticated property create/read and transactional audit passed 48 CI tests; complete real provider setup, property-specific permissions and the first UI.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 
@@ -145,3 +145,7 @@ Copyright and licensing decisions have not yet been finalized. **No open-source 
 
 **OYDP is being engineered for verifiable property workflows, not unsupported claims of certainty.**
 
+
+## Latest verified backend build
+
+Implementation `1cc4398`: [48 tests passed on PostgreSQL CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).

@@ -42,3 +42,10 @@ Local command: `PYTHONPATH=apps/api:. python -m pytest -q apps/api/tests tests/i
 Local result: 24 passed; 24 PostgreSQL cases skipped because no local server is available. Skips do not count as acceptance. CI must run all 48 against a disposable PostgreSQL database. Dependency scan of requirements reported no known vulnerabilities locally; hash-pinned lock and CI audit are included. A dependency scan is not an independent security review.
 
 Remaining release gates: real identity-provider integration, property-specific grants, UI, secret scanning, read audit, external audit delivery, documents/scanning/encryption, all remaining engines, independent review and production approval.
+
+## Verified authenticated API execution — 25 October 2026
+
+Implementation commit: `1cc439843c354d119222e243a5dd051df5b11d8c`.
+[Database security CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858): **48 passed, zero skipped**, one TestClient dependency deprecation warning. This includes 24 API/auth tests and 24 PostgreSQL/API integration cases.
+[API and dependency audit CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853): passed; hash-locked dependency installation and pip-audit succeeded with no known vulnerabilities reported.
+All 36 tracked source files matched GitHub blob hashes before this evidence-only update. These results supersede pending CI status above for the tested implementation. This follow-up changes documentation only; its own checks must also pass before merge. Independent security/human review, live provider onboarding and production approval remain unfulfilled. One passing suite does not validate the whole platform.
