@@ -11,8 +11,10 @@
 9. Do not claim governmental verification, property ownership certification, or official API integrations.
 10. Review CI and dependency scanning before merging to main.
 
-This foundation is intentionally fail-closed. No production auth, official sources, or scanned documents are implemented.
-
 ## Current implementation clarification
 
-JWT and tenant membership are implemented for the limited tenant-shared create/read API (PROPERTY_API.md). Route configuration alone is not release approval. Property-specific grants and external audit delivery remain required before private real-data workflows; evidence upload remains absent. The application audit table is append-only for the runtime role, not immune to privileged administrators. Dependencies are hash-locked and scanned in CI; independent review and release gates remain open.
+The active apps/api service implements configured-JWKS JWT validation, database membership, creator-private property records, expiring read grants/revocation, signed-MFA-gated writes, attributed unverified claims, and atomic audit writes. Native database tests exercise tenant and property authorization. Live identity-provider onboarding, provider-backed browser login and MFA freshness remain pending.
+
+PR #5 adds an API-connected Next.js operator workspace, not completed customer authentication. Tokens are manually entered and remain in memory. The root oydp package is a separately tested reference backend; its functionality and test counts are not additional active service features.
+
+The application audit table is append-only for the runtime role, not immune to privileged administrators. External immutable delivery, scanned/encrypted document handling, independent security review and production release acceptance remain open. Evidence upload stays disabled. No engine is complete.
