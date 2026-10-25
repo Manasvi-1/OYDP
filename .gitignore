@@ -10,3 +10,10 @@ __pycache__/
 .DS_Store
 coverage/
 *.log
+
+# Private browser acceptance credentials and generated web output
+apps/web/.e2e/
+apps/web/.next/
+apps/web/node_modules/
+apps/web/test-results/
+apps/web/playwright-report/
