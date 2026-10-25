@@ -153,3 +153,7 @@ Implementation `1cc4398`: [48 tests passed on PostgreSQL CI](https://github.com/
 ## Reconciled earlier foundation (PR #1)
 
 The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and `tests/test_*.py`, with its own native PostGIS CI. It is a separately tested compatibility/reference backend, not mounted by `app.main:app`. Its UUID-subject/pinned-key API and `oydp` schema differ from the canonical `apps/api` string-subject/JWKS API and public schema. Do not run both as interchangeable APIs or assume data is synchronized. See [reconciliation and next implementation](docs/implementation/PR1_RECONCILIATION.md).
+
+## Active API privacy update
+
+API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation/sharing/revocation and audited access changes. See [canonical access contracts and upgrade](docs/implementation/CANONICAL_PROPERTY_ACCESS.md). This supersedes earlier tenant-shared behavior. CI on the current feature head is the acceptance evidence.

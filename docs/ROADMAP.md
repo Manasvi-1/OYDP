@@ -7,11 +7,11 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Initial FastAPI skeleton and fail-closed property routes committed
 - [x] Initial PostgreSQL RLS policies committed
 - [x] API smoke tests authored
-- [ ] Run tests in CI and capture results
+- [x] Run backend suites in CI and capture results (PR #1 and PR #2)
 - [ ] Provision migration/runtime roles; apply migrations to a clean PostGIS instance
-- [ ] Verify OIDC token signature, issuer, audience and expiry
-- [ ] Resolve tenant membership from trusted database state
-- [ ] Cross-tenant integration tests with distinct tenant fixtures
+- [x] Implement and test JWT signature, issuer, audience and expiry (live provider onboarding pending)
+- [x] Resolve tenant membership from trusted database state
+- [x] Cross-tenant integration tests with distinct tenant fixtures
 - [ ] Create/read/update property API and OpenAPI client contract
 - [ ] Next.js frontend for the first authenticated property journey
 
