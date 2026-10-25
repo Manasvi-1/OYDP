@@ -16,7 +16,7 @@ npm run build
 npm start
 ```
 
-The proxy accepts only a fixed HTTPS upstream or local loopback HTTP. Credentials remain in React memory, cleared on disconnect/reload/401. Run privately over HTTPS outside loopback. There is no tenant/user provisioning bypass. API responses and pages carry no-store headers. CSP currently permits Next inline scripts; nonce-based CSP hardening remains pending alongside provider login. No analytics or external fonts are loaded.
+The proxy accepts only a fixed HTTPS upstream or local loopback HTTP. Credentials remain in React memory, cleared on disconnect/reload/401. Run privately over HTTPS outside loopback. There is no tenant/user provisioning bypass. API responses and pages carry no-store headers. HTML responses use a fresh 256-bit nonce CSP with dynamic rendering; production scripts/styles require a matching nonce, and inline/eval bypasses are disabled. The development server permits eval for framework debugging. Caller-provided nonce/CSP headers are replaced. Browser provider login remains pending. No analytics or external fonts are loaded.
 
 See `docs/implementation/POST_PR4_AUDIT.md` for verified baseline and outstanding acceptance gates. The absence of live identity/provider browser tests prevents a production-ready claim.
 
