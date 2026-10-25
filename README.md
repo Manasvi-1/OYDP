@@ -59,9 +59,9 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Product requirements and architecture | Documented | Controlled source blueprints |
 | API foundation | Authenticated property and read-access API | `apps/api/app/main.py` |
 | Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
-| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 41 PostgreSQL/API cases passed at `21d9bc0` |
+| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 67 PostgreSQL/API cases passed at `68f2875` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
-| API and authentication tests | 31 passed locally and in GitHub CI | `apps/api/tests/`; 72 total with DB integration |
+| API/authentication/pagination/CI guard tests | 48 passed in GitHub CI | `apps/api/tests/`; 115 total with DB integration |
 | Next.js application | Not implemented | Pending |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** Verify private property/read-grant API 0.3.0; complete real provider setup, paginated discovery and the first UI.  
+**Now:** API 0.4.0 private discovery and unverified claims passed native CI; complete the first authenticated UI and real provider setup.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 
@@ -148,7 +148,7 @@ Copyright and licensing decisions have not yet been finalized. **No open-source 
 
 ## Latest verified backend build
 
-Implementation `21d9bc0`: [72 active API/PostgreSQL tests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370379), zero skips. [87 reference-backend tests plus 13 subtests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370432), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370460). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
+Implementation `68f2875`: [115 active API/PostgreSQL tests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203433997), zero skips. [87 reference-backend tests plus 13 subtests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203430633), zero skips. [API, OpenAPI and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203434051). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
 
 ## Reconciled earlier foundation (PR #1)
 
@@ -160,4 +160,4 @@ API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation
 
 ## Active API 0.4.0 increment
 
-Paginated private property discovery and attributed unverified claim recording/history are implemented for verification. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
+Paginated private property discovery and attributed unverified claim recording/history passed native CI. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
