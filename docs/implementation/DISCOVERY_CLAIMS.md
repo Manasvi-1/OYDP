@@ -38,3 +38,7 @@ Apply migrations 001–007 and re-run runtime provisioning before API 0.4.0. Rol
 ## Current verification
 
 Local active unit/API checks: 43 passed. Native PostgreSQL acceptance cases are authored and pending CI; skipped local database cases do not count as passing. CI must also preserve the full root reference suite, dependency audit, compilation and contract check before merge.
+
+## CI acceptance guard and fixture correction
+
+Native acceptance jobs now reject empty, skipped or failed JUnit reports using scripts/check_test_report.py, rather than relying on a green pytest exit with accidentally missing database environment variables. Unit tests exercise that guard. The first database run executed 110 cases: 108 passed, while two direct-handler concurrency cases failed because their test connection used tuple rows instead of the application's dictionary-row factory. Those fixtures now use the application row format; the lock assertions are retained unchanged. The signed-token integration journey now covers discovery and claim recording/history end to end. Fresh current-head CI must validate these changes; no local execution after the workspace disconnected is claimed.

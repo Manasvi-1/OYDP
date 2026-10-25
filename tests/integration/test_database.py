@@ -211,6 +211,13 @@ def test_api_full_signed_token_journey(api, monkeypatch):
     r = api.post('/v1/properties', headers=headers, json={'label':'Signed request','jurisdiction':'KA'})
     assert r.status_code == 201, r.text
     assert api.get('/v1/properties/'+r.json()['id'], headers=headers).status_code == 200
+    claims_url='/v1/properties/'+r.json()['id']+'/claims'
+    claim=api.post(claims_url,headers=headers,json={'statement':'Signed and explicitly unverified'})
+    assert claim.status_code==201,claim.text
+    assert claim.json()['created_by']=='alice' and claim.json()['verification_status']=='unverified'
+    assert api.get(claims_url,headers=headers).json()['items'][0]['id']==claim.json()['id']
+    assert r.json()['id'] in [item['id'] for item in api.get('/v1/properties',headers=headers).json()['items']]
+    assert api.post(claims_url,headers={'X-Tenant-ID':str(A)},json={'statement':'No token'}).status_code==401
     assert api.get('/v1/properties/'+str(PA), headers={'X-Tenant-ID':str(A)}).status_code == 401
 
 
@@ -634,6 +641,8 @@ def test_paginated_reads_serialize_with_grant_revocation(api, discovery, kind):
     api.post('/v1/properties/'+pid+'/claims',headers=h,json={'statement':'Read transaction'})
     assert api.put('/v1/properties/'+pid+'/access',headers=h,json={'recipient_subject':reader,'expires_at':(datetime.now(timezone.utc)+timedelta(days=1)).isoformat()}).status_code==200
     with runtime(tenant,reader) as conn:
+        from psycopg.rows import dict_row
+        conn.row_factory = dict_row
         if kind=='properties': result=list_properties(access=(conn,'viewer'),limit=1,cursor=None)
         else: result=list_claims(__import__('uuid').UUID(pid),access=(conn,'viewer'),limit=1,cursor=None)
         assert len(result['items'])==1

@@ -29,3 +29,5 @@ Latest-head checks, merge SHA and post-merge verification are recorded on [PR #3
 ## Current discovery/claims increment (API 0.4.0)
 
 Code/tests/contracts are authored for keyset property/claim pages, creator/MFA claim append, immutable unverified attribution, audit rollback and deferred commit failure. Local active API/unit tests: 43 passed; native PostgreSQL cases require fresh CI. Final checks, reviewed head and merge evidence must be recorded on the feature PR. Existing 0.3.0 results above do not validate this change.
+
+The first discovery/claims DB CI run executed 110 cases (108 passed, two test row-factory failures). Fixtures were corrected to dictionary rows without removing lock assertions. Added signed-token claim/discovery coverage and CI JUnit guards that reject skipped/empty acceptance reports. Current source is committed directly through GitHub after the local environment disconnected; do not claim a synchronized local checkout or local execution for these follow-ups. Fresh head CI is required.
