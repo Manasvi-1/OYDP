@@ -4,12 +4,12 @@ Source hierarchy: controlled OYDP master blueprint, 13-engine specification, arc
 
 | Requirement | Active implementation | Evidence / state |
 | --- | --- | --- |
-| E01 property identity | apps/api/app/main.py; infra/db/001,004,006 | Create/read implemented; full identity/evidence engine partial |
+| E01 property identity | apps/api/app/main.py; infra/db/001,004,006 | Private create/read/share implemented; discovery/claim ledger in API 0.4.0 tested in native CI; full engine partial |
 | Identity verification | apps/api/app/auth.py | RSA negative tests, JWKS selection, issuer/audience/expiry/type and AMR validation; real provider onboarding pending |
 | Tenant membership and RLS | infra/db/002,004,006; scripts/migrate.py | Native PostgreSQL/API denial tests; restricted runtime role |
 | Private property reads | infra/db/006; active API access endpoints | Creator/read-grant checks, same-tenant denial, expiry/revoke and concurrency tests |
 | Access audit | infra/db/005,006 | Atomic append-only runtime audit, idempotence/rollback tests; external immutable delivery pending |
-| Evidence provenance | infra/db/003,004,006 | Source-kind constraints and private evidence access; upload/claim API pending |
+| Evidence provenance | infra/db/003,004,006 | Unverified attributed claim ledger + atomic claim audit tested in native CI; document upload/professional/official verification pending |
 | Earlier grant/claim model | Root oydp package; migrations/001,002 | Separately tested compatibility/reference backend from merged PR #1; no schema synchronization |
 | E02 AI advisor | Not implemented | Pending |
 | E03 transaction workspace | Not implemented | Pending |

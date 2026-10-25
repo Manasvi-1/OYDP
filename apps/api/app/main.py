@@ -2,17 +2,19 @@ import os
 from contextlib import contextmanager
 from datetime import datetime
 from uuid import UUID
+from typing import Literal
 
 import psycopg
 from psycopg.rows import dict_row
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.auth import verified_subject, require_mfa
+from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.3.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.4.0')
 
 
 @app.middleware('http')
@@ -76,7 +78,7 @@ def health():
 
 
 @app.post('/v1/properties', status_code=201, response_model=PropertyRecord)
-def create_property(payload: PropertyCreate, access=Depends(authorized_db), mfa=Depends(require_mfa)):
+def create_property(payload: PropertyCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     conn, role = access
     if role not in ('owner', 'editor'):
         raise HTTPException(403, 'Property write permission required')
@@ -87,16 +89,53 @@ def create_property(payload: PropertyCreate, access=Depends(authorized_db), mfa=
     return row
 
 
-@app.get('/v1/properties/{property_id}', response_model=PropertyRecord)
-def get_property(property_id: UUID, access=Depends(authorized_db)):
-    conn, _ = access
-    # Hold a shared grant lock through the response transaction so revocation
-    # serializes with in-flight granted reads. Creators need no delegated grant.
+def readable_property(conn, property_id, creator_only=False):
+    # Hold grant locks through the response transaction; revocation waits.
     conn.execute("SELECT 1 FROM property_read_grants WHERE property_id=%s AND NOT revoked AND expires_at>clock_timestamp() FOR SHARE", (property_id,)).fetchall()
     row = conn.execute('SELECT * FROM properties WHERE id=%s', (property_id,)).fetchone()
-    if row is None:
+    if row is None or (creator_only and row['created_by'] != conn.execute("SELECT current_setting('app.subject_id') AS subject").fetchone()['subject']):
         raise HTTPException(404, 'Property not found')
     return row
+
+
+def cursor_context(conn, kind, cursor, resource=None):
+    context = conn.execute("SELECT current_setting('app.tenant_id') AS tenant,current_setting('app.subject_id') AS subject").fetchone()
+    scope = page_scope(kind, context['tenant'], context['subject'], resource)
+    position = decode_cursor(cursor, scope)
+    return scope, position.at if position else None, position.id if position else None
+
+
+class PropertyPage(BaseModel):
+    items: list[PropertyRecord]
+    next_cursor: str | None
+
+
+@app.get('/v1/properties', response_model=PropertyPage)
+def list_properties(access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                    cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    scope, at, record_id = cursor_context(conn, 'properties', cursor)
+    # Lock a bounded candidate set of delegated grants before exposing their rows.
+    # The explicit CTE predicate supplements RLS, including after lock contention.
+    rows = conn.execute("""
+      WITH granted AS MATERIALIZED (
+        SELECT g.property_id FROM property_read_grants g
+        JOIN properties p ON p.tenant_id=g.tenant_id AND p.id=g.property_id
+        WHERE NOT g.revoked AND g.expires_at>clock_timestamp()
+          AND (%s::timestamptz IS NULL OR (p.created_at,p.id)<(%s::timestamptz,%s::uuid))
+        ORDER BY p.created_at DESC,p.id DESC LIMIT %s FOR SHARE OF g
+      )
+      SELECT p.* FROM properties p
+      WHERE (p.created_by=current_setting('app.subject_id') OR p.id IN (SELECT property_id FROM granted))
+        AND (%s::timestamptz IS NULL OR (p.created_at,p.id)<(%s::timestamptz,%s::uuid))
+      ORDER BY p.created_at DESC,p.id DESC LIMIT %s
+      """, (at,at,record_id,limit+1,at,at,record_id,limit+1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')
+
+
+@app.get('/v1/properties/{property_id}', response_model=PropertyRecord)
+def get_property(property_id: UUID, access=Depends(authorized_db, scope='function')):
+    return readable_property(access[0], property_id)
 
 
 class Recipient(BaseModel):
@@ -123,10 +162,55 @@ def change_read_access(conn, property_id, recipient, expiry):
 
 
 @app.put('/v1/properties/{property_id}/access', response_model=AccessResult)
-def share_property(property_id: UUID, payload: ReadAccess, access=Depends(authorized_db), mfa=Depends(require_mfa)):
+def share_property(property_id: UUID, payload: ReadAccess, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     return change_read_access(access[0], property_id, payload.recipient_subject, payload.expires_at)
 
 
 @app.delete('/v1/properties/{property_id}/access', response_model=AccessResult)
-def revoke_property(property_id: UUID, payload: Recipient, access=Depends(authorized_db), mfa=Depends(require_mfa)):
+def revoke_property(property_id: UUID, payload: Recipient, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     return change_read_access(access[0], property_id, payload.recipient_subject, None)
+
+
+class ClaimCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    statement: str = Field(min_length=1, max_length=10000)
+
+
+class ClaimRecord(ClaimCreate):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    created_by: str
+    kind: Literal['user_claim']
+    verification_status: Literal['unverified']
+    recorded_at: datetime
+
+
+class ClaimPage(BaseModel):
+    items: list[ClaimRecord]
+    next_cursor: str | None
+
+
+@app.post('/v1/properties/{property_id}/claims', status_code=201, response_model=ClaimRecord)
+def record_claim(property_id: UUID, payload: ClaimCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = readable_property(conn, property_id, creator_only=True)
+    if role not in ('owner','editor'):
+        raise HTTPException(403, 'Property write permission required')
+    row = conn.execute("INSERT INTO property_claims(tenant_id,property_id,statement) VALUES(%s,%s,%s) RETURNING *",
+                       (parent['tenant_id'],property_id,payload.statement)).fetchone()
+    conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type,claim_id) VALUES(%s,%s,current_setting('app.subject_id'),'claim.recorded',%s)",
+                 (parent['tenant_id'],property_id,row['id']))
+    return row
+
+
+@app.get('/v1/properties/{property_id}/claims', response_model=ClaimPage)
+def list_claims(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25,ge=1,le=100),
+                cursor: str | None = Query(None,max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'claims', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM property_claims WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (recorded_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY recorded_at DESC,id DESC LIMIT %s""", (property_id,at,at,record_id,limit+1)).fetchall()
+    return page_result(rows,limit,scope,'recorded_at')

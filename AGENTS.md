@@ -1,6 +1,6 @@
 # Codex agent instructions — OYDP
 
-You are developing OYDP (Own Your Dream Property). Treat `docs/reference/25_Master_Consolidated_Blueprint.pdf` as the controlling product-scope reference and the 13-engine specification and development roadmap as supporting artifacts. Legacy PropertyTrust documents are historical context, not the current public product name.
+You are developing OYDP (Own Your Dream Property). Treat `docs/reference/06-25_OYDP_Master_Consolidated_Blueprint-1-.txt` (controlled PDF text extract; see `docs/reference/manifest.json`) as the controlling product-scope reference and the 13-engine specification and development roadmap as supporting artifacts. Legacy PropertyTrust documents are historical context, not the current public product name.
 
 ## Non-negotiable scope
 - Preserve all 13 engines as genuine bounded launch commitments; do not silently delete, merge away, or label placeholders complete.
@@ -21,3 +21,9 @@ You are developing OYDP (Own Your Dream Property). Treat `docs/reference/25_Mast
 
 ## First task
 Read the provided PDF requirements, propose implementation tickets, and create a working initial monorepo skeleton with Next.js web, FastAPI API, PostgreSQL/PostGIS local Docker services, CI smoke tests, and a security-oriented README. First add a phased plan, then implement the smallest testable vertical slice for Property Identity + tenant isolation. Do not substitute synthetic mock endpoints for production acceptance.
+
+## Current repository boundaries
+- Inventory the current main tree and every open PR before starting a new increment; reconcile existing work before duplicating it.
+- Active service: apps/api, public schema, string OIDC subjects and configured JWKS. Root oydp/migrations is a separately tested reference backend from PR #1; no automatic data synchronization or interchangeable startup.
+- Active tests: PYTHONPATH=apps/api:. python -m pytest apps/api/tests tests/integration. Reference tests: PYTHONPATH=. python -m pytest tests/test_api.py tests/test_database.py tests/test_foundation.py. Keep discovery separate to avoid duplicate module names.
+- Preserve applied SQL migration checksums; add new migrations. Treat independent human/security review as pending unless actual reviewer evidence exists.

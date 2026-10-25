@@ -25,3 +25,20 @@ Real identity-provider enrollment, MFA freshness and production configuration; N
 Code, tests, migrations, contracts and status updates travel together in feature PRs. Review CI for the latest head, not an earlier success. After merging, verify main's tree matches that head and check post-merge workflows. There is no unattended continuous chat-to-repository synchronization.
 
 Latest-head checks, merge SHA and post-merge verification are recorded on [PR #3](https://github.com/Manasvi-1/OYDP/pull/3). Documentation-only follow-ups do not replace the requirement to check their own CI before merging.
+
+## Current discovery/claims increment (API 0.4.0)
+
+Code/tests/contracts are authored for keyset property/claim pages, creator/MFA claim append, immutable unverified attribution, audit rollback and deferred commit failure. Local active API/unit tests: 43 passed; native PostgreSQL cases require fresh CI. Final checks, reviewed head and merge evidence must be recorded on the feature PR. Existing 0.3.0 results above do not validate this change.
+
+The first discovery/claims DB CI run executed 110 cases (108 passed, two test row-factory failures). Fixtures were corrected to dictionary rows without removing lock assertions. Added signed-token claim/discovery coverage and CI JUnit guards that reject skipped/empty acceptance reports. Current source is committed directly through GitHub after the local environment disconnected; do not claim a synchronized local checkout or local execution for these follow-ups. Fresh head CI is required.
+
+## Verified native execution — 25 October 2026
+
+Reviewed implementation: `68f2875c85e4d4fb371c554664a11b9de132cf1f`.
+- Active API/PostgreSQL: **115 passed, zero skipped** — https://github.com/Manasvi-1/OYDP/actions/runs/40203433997
+- Reference native PostGIS: **87 passed + 13 subtests, zero skipped** — https://github.com/Manasvi-1/OYDP/actions/runs/40203430633
+- Unit/OpenAPI/compile/dependency audit: **passed**, no known dependency vulnerabilities reported — https://github.com/Manasvi-1/OYDP/actions/runs/40203434051
+
+The database report guard confirmed no empty/skipped/failed acceptance cases. Deferred commit failure returns 503 and rolls back claim/audit; the signed-token journey and both pagination revocation locks passed. One TestClient dependency deprecation warning remains. This evidence supersedes pending database status above for that implementation. Documentation-only follow-up checks and merged-head results are recorded on PR #4: https://github.com/Manasvi-1/OYDP/pull/4.
+
+The workspace disconnected after initial local checks. Follow-up source was committed directly in GitHub and tested by native CI; current local synchronization is not claimed. Independent human/security approval, real provider integration and production release remain pending.
