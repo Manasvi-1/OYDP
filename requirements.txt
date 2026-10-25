@@ -1,5 +1,2 @@
-fastapi==0.161.1
-uvicorn==0.54.0
-psycopg[binary]==3.3.6
-PyJWT[crypto]==2.15.1
-pydantic==2.14.0
+# Compatibility package dependencies share the canonical locked environment.
+-r apps/api/requirements.lock

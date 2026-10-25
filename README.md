@@ -1,52 +1,155 @@
 # OYDP — Own Your Dream Property
 
-Private development workspace for a property evidence and lifecycle platform. The first backend slice creates property candidates, records explicitly unverified user claims, and keeps access scoped to current memberships and property grants.
+**Property intelligence. Evidence-led decisions. One continuous property lifecycle.**
 
-**Status: tested backend foundation; not a completed Sprint 1 or production application.** All 13 engines remain launch commitments. No government integration, title certification, customer-data service or public deployment is enabled.
+OYDP is an India-first property decision and lifecycle platform under active development. It is designed to connect property identity, evidence provenance, collaborative due diligence, ownership workflows, geospatial context, transparent financial models and professional services within a single permissioned workspace.
 
-## What runs
+> **Engineering status — pre-alpha.** This repository contains the controlled product design and an initial backend/database foundation. It is **not** a launched product, government-integrated verification service, or completed 13-engine application. This is a tested pre-alpha backend slice; the full application remains under development.
 
-- FastAPI: create/list/read property candidates, record/read attributed user claims, and grant/downgrade/revoke time-limited collaborator access; generated OpenAPI contract.
-- PostgreSQL: forced tenant RLS, composite foreign keys, current membership checks, explicit property grants, and business writes committed atomically with audit outbox events.
-- Authentication: pinned RS256 verification, issuer/audience/expiry checks, UUID subject and issuer-provided `mfa` authentication-method check for writes.
-- Existing domain policy: document-scoped download/scan-state gate and attributed provenance models. These remain domain logic; file delivery is not implemented.
+## Why OYDP exists
 
-The API uses PostgreSQL, not an in-memory repository. Test fixtures are synthetic and never represent official property records. A user claim cannot promote itself to verified evidence.
+Property decisions are fragmented across documents, public portals, advisers, listings, spreadsheets and disconnected conversations. OYDP's proposed differentiator is a persistent, property-specific workspace where claims can be traced to their sources, collaborators receive revocable permissions, and every consequential result carries its evidence and limitations.
 
-## Run tests
+**No unverified ownership certification. No invented official data access. No guaranteed valuations.**
 
-Python 3.12+, preferably in a virtual environment:
+## Product scope
 
-```bash
-python -m venv .venv
-# Linux/WSL: source .venv/bin/activate
-# Windows: .venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
+All 13 engines remain planned release commitments; none is marked production-complete.
+
+| ID | Engine | Intended responsibility |
+| --- | --- | --- |
+| E01 | Property Identity & Evidence Graph | Canonical property candidates, identifiers, provenance and conflicts |
+| E02 | AI Property Advisor | Jurisdiction-scoped, source-grounded procedural guidance |
+| E03 | Transaction & Legal Workspace | Invited diligence, requests, offers and review history |
+| E04 | Living Property Passport | Private records, events, selective sharing and exports |
+| E05 | Ownership Action Engine | Tracked tasks, evidence and consent-based reminders |
+| E06 | OYDP Real Estate Academy | Reviewed learning tracks and assessments |
+| E07 | SpatialLedger GIS Intelligence | Source-attributed mapping and spatial overlays |
+| E08 | Valuation & Market Intelligence | Licensed comparables and explainable price ranges |
+| E09 | AI Layout & Architecture Concept Studio | Concept-only plot and massing alternatives |
+| E10 | Development & Business Feasibility | Reproducible scenario and cash-flow calculations |
+| E11 | Marketplace & Professional Network | Consent-based listings and moderated enquiries |
+| E12 | Time-Versioned Spatial Digital Twin | Versioned spatial representations and history |
+| E13 | Institutional API & Evidence Attestations | Grant-scoped, audited, read-only integrations |
+
+## Architecture
+
+The target is a **modular monolith**, not 13 independently deployed services.
+
+```text
+Browser / role-specific Next.js interfaces  [planned]
+                    |
+         OIDC identity + policy layer        [planned]
+                    |
+         FastAPI modular backend             [initial scaffold]
+                    |
+       PostgreSQL / PostGIS + RLS            [schema drafted]
+                    |
+     Evidence storage / workers / audit      [planned]
 ```
 
-Without database DSNs, integration tests are explicitly skipped. For a disposable, empty PostgreSQL database, provision a separate `oydp_runtime` login (non-owner, no superuser/BYPASSRLS), then set `OYDP_TEST_ADMIN_DSN`, `OYDP_TEST_RUNTIME_DSN`, and `OYDP_TEST_ALLOW_RESET=yes`. The integration suite creates and drops only the `oydp` schema; never point it at real data. CI includes a disposable PostgreSQL/PostGIS service.
+Core engineering principles: verified identity before access, server-side object authorization, tenant isolation at both application and database layers, explicit source lineage, bounded background jobs, privacy by design and deterministic calculations where correctness is essential.
 
-See [validation evidence](docs/VALIDATION.md) for actual checks and limitations. A CI configuration is not evidence of a successful CI run.
+See [architecture](docs/architecture/README.md) and [security model](docs/security/README.md).
 
-## Local database and API
+## Implementation status
 
-1. Set `OYDP_LOCAL_DB_ADMIN_PASSWORD` to a strong local-only secret, then `docker compose up -d postgres`. The database port binds to loopback. Do not use this Compose file as a production deployment.
-2. Set `OYDP_ADMIN_DATABASE_URL`, `OYDP_RUNTIME_DB_PASSWORD` and `OYDP_LOCAL_BOOTSTRAP=yes`. Run `python scripts/bootstrap_db.py` once against the new local DB. The script creates the restricted role, PostGIS and schema; it refuses an existing schema. If interrupted after role creation, inspect state before retrying.
-3. Provision approved membership rows through an administrator connection. There is no self-enrollment or default authorized account. The tenant and subject UUIDs must match the configured identity issuer's mapped subjects.
-4. Configure `OYDP_DATABASE_URL` using the restricted runtime login, `OYDP_JWT_PUBLIC_KEY_FILE`, `OYDP_JWT_ISSUER` (HTTPS), and `OYDP_JWT_AUDIENCE`. Do not pass the administrator DSN to the API. The public key is pinned by the operator; automatic JWKS/key rotation and the provider login flow remain to be integrated.
-5. Start: `python -m uvicorn oydp.api:app_from_env --factory --host 127.0.0.1 --port 8000`.
+| Area | State | Evidence |
+| --- | --- | --- |
+| Product requirements and architecture | Documented | Controlled source blueprints |
+| API foundation | Initial code committed | `apps/api/app/main.py` |
+| Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
+| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 24 PostgreSQL/API integration cases passed at `1cc4398` |
+| Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
+| API and authentication tests | 24 passed locally and in GitHub CI | `apps/api/tests/`; 48 total with DB integration |
+| Next.js application | Not implemented | Pending |
+| All 13 end-to-end engine journeys | Not implemented | GA gate |
+| Production deployment | Not performed | Not production-ready |
 
-Requests need `Authorization: Bearer <provider-issued-token>` and `X-Tenant-ID: <tenant-uuid>`. The tenant header selects context; it does not grant membership. `GET /health/live` checks process liveness only, not database readiness. `GET /openapi.json` returns the contract. Interactive docs are disabled.
+**Do not interpret committed files, passing smoke tests, or documentation as evidence of production security.**
 
-## Scope and security boundaries
+## Repository layout
 
-RLS is a tenant boundary, while per-property grants are enforced by repository operations. Database credentials and transaction context are trusted server inputs, never client-controlled SQL. Runtime cannot update/delete audit records; the outbox is **not** an independently immutable audit sink. Authorized administrators can alter the database.
+```text
+OYDP/
+├── .github/workflows/       # CI definitions
+├── apps/
+│   ├── api/                 # FastAPI backend
+│   └── web/                 # Reserved for Next.js UI
+├── infra/db/                # Versioned SQL migrations
+├── docs/
+│   ├── architecture/        # Architecture decisions and boundaries
+│   ├── security/            # Threats, authorization and release gates
+│   ├── implementation/      # Phase progress and engineering tickets
+│   └── reference/           # Controlled specifications when available
+├── AGENTS.md                # AI-assisted engineering guardrails
+├── compose.yaml             # Local PostGIS development service
+└── README.md
+```
 
-Property creation issues explicit creator read/write grants for 30 days. Creators can share with existing tenant members, change permissions, and revoke access with MFA. Shared grants cannot outlive the creator's current write grant. Grant renewal, invitations and administrator recovery remain pending. Each request checks current database state. Write paths lock membership and relevant grants for their transaction. See [access workflow and migration instructions](docs/PROPERTY_ACCESS.md) and the validation record for concurrency evidence.
+Directories described as planned may not yet exist on the default branch.
 
-Missing and forbidden property requests both return 404. Claims have no automatic legal authority. Jurisdiction defaults to `unresolved`; free text does not validate an administrative boundary. UUID subjects and `amr: ["mfa"]` require an explicit identity-provider contract. JWT verification alone is not a full OIDC integration.
+## Local development — foundation only
 
-Still required: Next.js UI and visual QA, managed OIDC login/JWKS rotation and MFA freshness, evidence encryption/scanning/delivery, source approvals, consent/export/deletion, idempotency, edge body/rate limits, DB timeouts/pooling, observability, independent audit delivery, backup/restore, PostGIS geometry, and all remaining engine journeys. The shared design-context link was inaccessible during this milestone, so no visual fidelity or frontend completion is claimed.
+Prerequisites: Python 3.12+, Docker with Compose, and Git. Create a private local `.env` from `.env.example` and replace the example password.
 
-Read [implementation plan](docs/IMPLEMENTATION_PLAN.md), [threat model](docs/THREAT_MODEL.md), and [engine register](docs/ENGINE_REGISTER.md). Changes belong on feature branches and require review before merge or release.
+```bash
+git clone https://github.com/Manasvi-1/OYDP.git
+cd OYDP
+git switch main
+cp .env.example .env
+docker compose up -d db
+python -m venv .venv
+source .venv/bin/activate
+pip install --require-hashes -r apps/api/requirements.lock
+PYTHONPATH=apps/api python -m pytest -q apps/api/tests
+PYTHONPATH=apps/api uvicorn app.main:app --reload
+```
+
+On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
+
+The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). These instructions are **not** a complete working application setup.
+
+## Engineering workflow
+
+1. Read [AGENTS.md](AGENTS.md) and the controlled master specification.
+2. Start a narrowly scoped feature branch and write an implementation plan.
+3. Add schema changes, contracts, negative authorization tests and migration verification.
+4. Run tests against real isolated infrastructure; document commands and outcomes.
+5. Submit a reviewed PR with risk notes and rollback instructions.
+6. Merge only after security and functional acceptance gates pass.
+
+## Release boundaries
+
+The initial geographic program covers Bengaluru Urban, Bengaluru Rural, other Karnataka districts and Hyderabad, subject to **jurisdiction-specific source rights and professional review**. Government portals are independent authorities; availability of a website does not grant API or redistribution rights.
+
+General availability requires 13 genuine engine journeys plus legal/data-rights review, security assessment, privacy and consent validation, grounded AI and calculator evaluation, recovery drills, pilot economics and signed release approval.
+
+## Roadmap
+
+**Now:** Authenticated property create/read and transactional audit passed 48 CI tests; complete real provider setup, property-specific permissions and the first UI.  
+**Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
+**Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
+
+See [implementation status](docs/implementation/PHASE_04_STATUS.md) and [engineering roadmap](docs/ROADMAP.md).
+
+## Security and responsible disclosure
+
+Do not open public issues containing vulnerabilities, credentials, property documents or personal information. See [SECURITY.md](SECURITY.md). Never commit live customer data, recovery keys or third-party proprietary datasets.
+
+## Ownership and licensing
+
+Copyright and licensing decisions have not yet been finalized. **No open-source license is granted by this repository as currently documented.** Third-party dependencies retain their respective licenses. Contact the repository owner for usage or contribution authorization.
+
+---
+
+**OYDP is being engineered for verifiable property workflows, not unsupported claims of certainty.**
+
+
+## Latest verified backend build
+
+Implementation `1cc4398`: [48 tests passed on PostgreSQL CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
+
+## Reconciled earlier foundation (PR #1)
+
+The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and `tests/test_*.py`, with its own native PostGIS CI. It is a separately tested compatibility/reference backend, not mounted by `app.main:app`. Its UUID-subject/pinned-key API and `oydp` schema differ from the canonical `apps/api` string-subject/JWKS API and public schema. Do not run both as interchangeable APIs or assume data is synchronized. See [reconciliation and next implementation](docs/implementation/PR1_RECONCILIATION.md).

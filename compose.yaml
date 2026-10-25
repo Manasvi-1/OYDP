@@ -1,18 +1,18 @@
 services:
-  postgres:
-    image: postgis/postgis:17-3.5
+  db:
+    image: postgis/postgis:16-3.4
     environment:
       POSTGRES_DB: oydp
-      POSTGRES_USER: oydp_admin
-      POSTGRES_PASSWORD: ${OYDP_LOCAL_DB_ADMIN_PASSWORD:?Set a local database password}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - oydp_database:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oydp_admin -d oydp"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d oydp"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 15
 volumes:
-  oydp_database:
+  pgdata:
