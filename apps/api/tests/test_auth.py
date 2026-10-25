@@ -99,3 +99,23 @@ def test_jwks_rotation(monkeypatch):
         assert jwt.decode(token, selected.key, algorithms=['RS256'])['sub'] == 'alice'
     assert client.fetch_data.call_count == 2
     jwks_client.cache_clear()
+
+
+def test_mfa_access_token(signing):
+    from app.auth import require_mfa
+    assert require_mfa('Bearer '+signing[0](amr=['pwd','mfa'])) is True
+
+
+@pytest.mark.parametrize('amr', [[], ['pwd']])
+def test_no_mfa_denied(signing, amr):
+    from app.auth import require_mfa
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=amr))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize('amr', ['mfa', [1], None])
+def test_malformed_mfa_claim_denied(signing, amr):
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0](amr=amr))
+    assert exc.value.status_code == 401

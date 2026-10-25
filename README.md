@@ -41,9 +41,9 @@ Browser / role-specific Next.js interfaces  [planned]
                     |
          OIDC identity + policy layer        [planned]
                     |
-         FastAPI modular backend             [initial scaffold]
+         FastAPI modular backend             [property API implemented]
                     |
-       PostgreSQL / PostGIS + RLS            [schema drafted]
+       PostgreSQL / PostGIS + RLS            [migrations + native tests]
                     |
      Evidence storage / workers / audit      [planned]
 ```
@@ -57,11 +57,11 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Area | State | Evidence |
 | --- | --- | --- |
 | Product requirements and architecture | Documented | Controlled source blueprints |
-| API foundation | Initial code committed | `apps/api/app/main.py` |
+| API foundation | Authenticated property and read-access API | `apps/api/app/main.py` |
 | Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
-| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 24 PostgreSQL/API integration cases passed at `1cc4398` |
+| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 41 PostgreSQL/API cases passed at `21d9bc0` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
-| API and authentication tests | 24 passed locally and in GitHub CI | `apps/api/tests/`; 48 total with DB integration |
+| API and authentication tests | 31 passed locally and in GitHub CI | `apps/api/tests/`; 72 total with DB integration |
 | Next.js application | Not implemented | Pending |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** Authenticated property create/read and transactional audit passed 48 CI tests; complete real provider setup, property-specific permissions and the first UI.  
+**Now:** Verify private property/read-grant API 0.3.0; complete real provider setup, paginated discovery and the first UI.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 
@@ -148,8 +148,12 @@ Copyright and licensing decisions have not yet been finalized. **No open-source 
 
 ## Latest verified backend build
 
-Implementation `1cc4398`: [48 tests passed on PostgreSQL CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
+Implementation `21d9bc0`: [72 active API/PostgreSQL tests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370379), zero skips. [87 reference-backend tests plus 13 subtests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370432), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40201370460). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
 
 ## Reconciled earlier foundation (PR #1)
 
 The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and `tests/test_*.py`, with its own native PostGIS CI. It is a separately tested compatibility/reference backend, not mounted by `app.main:app`. Its UUID-subject/pinned-key API and `oydp` schema differ from the canonical `apps/api` string-subject/JWKS API and public schema. Do not run both as interchangeable APIs or assume data is synchronized. See [reconciliation and next implementation](docs/implementation/PR1_RECONCILIATION.md).
+
+## Active API privacy update
+
+API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation/sharing/revocation and audited access changes. See [canonical access contracts and upgrade](docs/implementation/CANONICAL_PROPERTY_ACCESS.md). This supersedes earlier tenant-shared behavior. CI on the current feature head is the acceptance evidence.

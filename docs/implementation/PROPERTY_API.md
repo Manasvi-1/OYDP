@@ -1,3 +1,7 @@
+# Property Identity API
+
+Current contract and upgrade guide: [API 0.3.0 private property access](CANONICAL_PROPERTY_ACCESS.md). The sections below document the previous 0.2.0 slice and its historical validation; tenant-shared behavior and non-MFA writes described there are superseded.
+
 # Property Identity API — executable backend slice
 
 This change implements property create/read, not the whole OYDP platform. Records are shared within a tenant; per-property invitations and granular grants are not implemented. Do not use this pre-alpha slice for real property documents or customer data.
@@ -49,3 +53,7 @@ Implementation commit: `1cc439843c354d119222e243a5dd051df5b11d8c`.
 [Database security CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858): **48 passed, zero skipped**, one TestClient dependency deprecation warning. This includes 24 API/auth tests and 24 PostgreSQL/API integration cases.
 [API and dependency audit CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853): passed; hash-locked dependency installation and pip-audit succeeded with no known vulnerabilities reported.
 All 36 tracked source files matched GitHub blob hashes before this evidence-only update. These results supersede pending CI status above for the tested implementation. This follow-up changes documentation only; its own checks must also pass before merge. Independent security/human review, live provider onboarding and production approval remain unfulfilled. One passing suite does not validate the whole platform.
+
+## API 0.3.0 private-read access update
+
+See CANONICAL_PROPERTY_ACCESS.md: new creator-private records, MFA-gated creation/sharing/revocation, 30-day read grants, atomic access audit and populated migration upgrade tests. This supersedes earlier tenant-shared behavior. PR #1 is merged with both backend histories preserved; its root implementation remains separately identified. Current-head CI is required before accepting the new access slice. Live provider setup, write delegation, claims/UI and independent security/release review remain open.

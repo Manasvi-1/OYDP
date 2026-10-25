@@ -12,7 +12,7 @@ def jwks_client(url):
     return jwt.PyJWKClient(url, timeout=5, lifespan=300, cache_keys=False)
 
 
-def verified_subject(authorization: str | None = Header(default=None)) -> str:
+def verified_claims(authorization: str | None) -> dict:
     issuer = os.getenv('OIDC_ISSUER', '')
     audience = os.getenv('OIDC_AUDIENCE', '')
     url = os.getenv('OIDC_JWKS_URL', '')
@@ -38,8 +38,21 @@ def verified_subject(authorization: str | None = Header(default=None)) -> str:
         subject = claims['sub']
         if not isinstance(subject, str) or not subject.strip() or len(subject) > 255:
             raise jwt.InvalidTokenError('Invalid subject')
-        return subject
+        amr = claims.get('amr', [])
+        if not isinstance(amr, list) or any(not isinstance(item, str) for item in amr):
+            raise jwt.InvalidTokenError('Invalid authentication methods')
+        return claims
     except jwt.PyJWKClientConnectionError:
         raise HTTPException(503, 'Identity provider unavailable') from None
     except jwt.PyJWTError:
         raise HTTPException(401, 'Invalid access token', headers={'WWW-Authenticate': 'Bearer'}) from None
+
+
+def verified_subject(authorization: str | None = Header(default=None)) -> str:
+    return verified_claims(authorization)['sub']
+
+
+def require_mfa(authorization: str | None = Header(default=None)) -> bool:
+    if 'mfa' not in verified_claims(authorization).get('amr', []):
+        raise HTTPException(403, 'MFA access token required')
+    return True
