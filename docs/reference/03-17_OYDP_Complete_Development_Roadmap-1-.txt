@@ -1,0 +1,380 @@
+OYDP / OWN YOUR DREAM PROPERTY
+
+Production implementation program and critical
+path
+25 gated phases; all 13 engines before GA.
+
+DOCUMENT ID
+
+OYDP-MASTER-001
+
+RELEASE
+
+1.0 | 16 OCT 2026
+
+DELIVERABLE
+
+Research and engineering design
+
+IMPLEMENTATION
+
+Unverified / not production-ready
+
+GEO SCOPE
+
+Bengaluru Urban; Rural; Karnataka; Hyderabad
+
+Controlled baseline: precise legal claims, external official integrations, customer demand and production readiness remain subject to independent
+verification.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 1
+
+Document contents
+01. Planning assumptions / staffing reality
+02. Milestone and exit gate matrix
+03. Dependencies and parallel work
+04. Sprint 1 engineering contract (two-week target)
+05. Eight GA gates and release board
+Supporting sources and current implementation status
+
+01. Planning assumptions / staffing reality
+An appropriately staffed team can target 44–52+ weeks with design, engineering, professional verification and controlled paid
+pilots in parallel. A founder-led small team could require approximately 18–30+ months; a medium team 12–20+ months, and
+well-funded 9–15+ months. These are non-binding planning hypotheses, not a promise of throughput; official dataset access can
+dominate the critical path [S01].
+
+Figure: PIPELINE_CICD. Editable source: 13_DIAGRAMS/PIPELINE_CICD.mmd
+
+02. Milestone and exit gate matrix
+Phase
+
+Deliverable
+
+Window wk
+
+Exit requirement
+
+00
+
+Research and source verification — Source ledger, claims
+register, source-access agreements
+
+0-3
+
+Evidence quality baseline approved
+
+01
+
+Requirements and feasibility — All 13 requirements, role
+journeys, product KPIs
+
+1-4
+
+Owner approves GA cuts and regional disclosure
+
+02
+
+Regulatory and commercial discovery — Legal matrix,
+partner LOIs, data rights
+
+1-10
+
+Written counsel/data-risk plan
+
+03
+
+Architecture / threat model — C4, schemas, trust
+boundaries, ADRs
+
+2-5
+
+Architecture and threat model signed
+
+04
+
+Development environment — WSL verification, repo, CI
+scaffolding
+
+3-5
+
+CI smoke and developer onboarding pass
+
+05
+
+Property and evidence core — Property identity, source
+registry, assertions, versioning
+
+5-11
+
+Evidence CRUD with tenancy tests
+
+06
+
+Identity and grants — OIDC/MFA, consent, group
+membership, roles
+
+4-10
+
+Negative authorization matrix pass
+
+07
+
+Secure document infrastructure — Encryption,
+MIME/scanner pipeline, quarantine, exports
+
+7-13
+
+Malware and cross-tenant tests
+
+08
+
+AI procedural guides — Rule corpus, retrieval, abstention
+and evaluations
+
+10-19
+
+100+ vetted cases / supported jurisdiction
+
+09
+
+Deals and passports — Invites, legal review, offers, passport
+export
+
+11-20
+
+Complete pilot case and restore test
+
+10
+
+Actions and Academy — Action events, reminders, lessons
+and quizzes
+
+13-21
+
+No false official certificates
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 2
+
+Phase
+
+Deliverable
+
+Window wk
+
+Exit requirement
+
+11
+
+GIS — CRS-aware overlays, provenance, proximity
+
+15-24
+
+Geographic and data license tests
+
+12
+
+Market intelligence — Manual licensed comps, explainable
+price ranges
+
+17-25
+
+Calculation/area-basis QA
+
+13
+
+Layout concept studio — Concept geometry, area ledger,
+review flows
+
+21-30
+
+Concept disclaimers and geometry QA
+
+14
+
+Feasibility — Cost/return engines, sensitivities, workbook
+parity
+
+19-27
+
+Repeatable calculations
+
+15
+
+Marketplace — Moderation, listing consent, enquiries
+
+16-26
+
+Spam/privacy and consent tests
+
+16
+
+Twin / Institutional API — Temporal views, grant-scoped
+partner API
+
+24-33
+
+Revocation, digest and source tests
+
+17
+
+Unified UI and accessibility — Role portals, design system,
+localizations
+
+10-34
+
+WCAG and responsive evaluation
+
+18
+
+Cross-engine QA — E2E, API contract and property context
+joins
+
+29-37
+
+All 13 usable journeys pass
+
+19
+
+Security / privacy reviews — Pen-test, DPIA, breach
+playbook, restore
+
+30-40
+
+No known critical unresolved
+
+20
+
+Pilots — Law firm and brokerage paid trials, interviews
+
+30-42
+
+Signed feedback and activation thresholds
+
+21
+
+Operations hardening — Disaster drills, RTO/RPO,
+backups, SLO load
+
+36-43
+
+On-call and recovery validation
+
+22
+
+Go to market — Contracts, support, pricing experiments
+
+38-44
+
+Paying partner readiness
+
+23
+
+GA rollout — Approval matrix, staged geographic flags
+
+44-52+
+
+Eight release gates pass
+
+24
+
+Post-GA — Fixes, additional licensed coverage, R&D
+
+53+
+
+Usage evidence determines priority
+
+03. Dependencies and parallel work
+Critical path: legal/official data rights + tenant auth -> canonical property identity -> scanned evidence -> source-grounded AI
+and invited deal -> all 13 useful UI flows -> geographic/localization tests -> paid pilots -> penetration test and launch signatures.
+Academy curriculum, deterministic financial engine and frontend design system can start in parallel after schemas. GIS overlays
+and valuation depend on lawful sources; a missing licensed dataset must not be replaced by synthetic production claims.
+
+04. Sprint 1 engineering contract (two-week target)
+Ticket
+
+Deliverable
+
+Acceptance
+
+PT-001
+
+OIDC provider evaluation and threat model
+
+MFA and invite scopes designed, integration
+spike verified
+
+PT-002
+
+PostgreSQL/PostGIS schema and migration draft
+
+Clean up/down migration in synthetic database
+
+PT-003
+
+Tenant/object policy matrix
+
+Forbidden access to cross-tenant fixtures
+
+PT-004
+
+Evidence ingestion threat model
+
+MIME/size/scanner pipeline proposal
+
+PT-005
+
+Provenance assertion schema
+
+User claim vs official observation separated
+
+PT-006
+
+Jurisdiction/source approval registry
+
+Rule versions with effective dates and reviewer
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 3
+
+Ticket
+
+Deliverable
+
+Acceptance
+
+PT-012
+
+3 paying professional pilot interviews
+
+Interview evidence and signed interest where
+available
+
+05. Eight GA gates and release board
+Functional completeness (13 E2E), legal/data rights, penetration/authorization/security, privacy/consent/deletion/export, AI
+groundedness and calculators, operational restore/on-call, paying pilot unit economics, signed governance release record.
+Launch does not occur with a green CI pipeline alone. Conditional regional feature flags may exclude unsupported authoritative
+claims but must clearly disclose unsupported locations.
+
+Associated editable diagrams
+• PIPELINE_CICD.mmd / PIPELINE_CICD.dot and rendered PNG/SVG where available
+
+Research sources and evidence restrictions
+[S01] PropertyTrust OS Master Product Specification v2.0 — OYDP source attachment (2026-10-16). Original supplied source. Implemented status is
+self-reported, not repo-verified.
+[S02] OYDP master execution prompt — OYDP source attachment (2026-10-16). User-approved new name, regions, all engines and 38 document
+requirements.
+
+Verification state
+Documentation generated; no production application or integration has been deployed or independently audited. Sources are
+dated and source-specific; professional legal and architectural reviewers remain required.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 4
+
+

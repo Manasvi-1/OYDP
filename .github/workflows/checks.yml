@@ -1,0 +1,46 @@
+name: foundation checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_DB: oydp_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-ci-admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d oydp_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      OYDP_TEST_ADMIN_DSN: postgresql://postgres:isolated-ci-admin@localhost:5432/oydp_test
+      OYDP_TEST_RUNTIME_DSN: postgresql://oydp_runtime:isolated-ci-runtime@localhost:5432/oydp_test
+      OYDP_TEST_ALLOW_RESET: 'yes'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --require-hashes -r requirements-dev.txt
+      - name: Provision restricted test role and PostGIS
+        run: |
+          python - <<'PY'
+          import os, psycopg
+          with psycopg.connect(os.environ['OYDP_TEST_ADMIN_DSN'], autocommit=True) as conn:
+              conn.execute("CREATE ROLE oydp_runtime LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'isolated-ci-runtime'")
+              conn.execute('CREATE EXTENSION IF NOT EXISTS postgis')
+          PY
+      - run: python -m pytest -q tests/test_api.py tests/test_database.py tests/test_foundation.py --junitxml=test-results/pr1-foundation.xml
+      - run: python -m compileall -q oydp tests
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr1-foundation-results
+          path: test-results/pr1-foundation.xml

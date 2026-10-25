@@ -1,0 +1,226 @@
+OYDP / OWN YOUR DREAM PROPERTY
+
+13 engine product specification
+Unified 13-engine GA scope and inter-engine dependencies.
+
+DOCUMENT ID
+
+OYDP-MASTER-001
+
+RELEASE
+
+1.0 | 16 OCT 2026
+
+DELIVERABLE
+
+Research and engineering design
+
+IMPLEMENTATION
+
+Unverified / not production-ready
+
+GEO SCOPE
+
+Bengaluru Urban; Rural; Karnataka; Hyderabad
+
+Controlled baseline: precise legal claims, external official integrations, customer demand and production readiness remain subject to independent
+verification.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 1
+
+Document contents
+01. Product invariant
+02. Complete launch engine register
+03. Shared dependencies and launch wiring
+04. Cross-engine acceptance sequence
+Supporting sources and current implementation status
+
+01. Product invariant
+All thirteen engines must each deliver a genuine, accessible, secured and evaluated user workflow at general availability.
+Advanced functionality within an engine may be disabled; a placeholder dashboard, synthetic-only production API or mocked
+official integration does not satisfy release. Every claim carries source attribution or UNKNOWN.
+
+Figure: DFD_LEVEL_1. Editable source: 13_DIAGRAMS/DFD_LEVEL_1.mmd
+
+02. Complete launch engine register
+#
+
+Engine
+
+GA contract
+
+Engineer-w
+eeks¹
+
+1
+
+Property Identity & Evidence
+Graph
+
+Create/search property candidates, attach jurisdiction-tagged identifiers and evidence
+assertions, show conflicts and correction requests.
+
+10
+
+2
+
+AI Property Advisor
+
+Guided question answering from approved rule corpus, next-step task plan, dated
+citations and escalation when unknown.
+
+12
+
+3
+
+Transaction & Legal Workspace
+
+Create case, invite participants, request evidence, comment/reply, manage offers and
+legal-review outcomes, export event history.
+
+11
+
+4
+
+Living Property Passport
+
+Encrypt uploaded records, record dated events, maintain metadata, selective sharing,
+export signed manifest and deletion workflow.
+
+9
+
+5
+
+Ownership Action Engine
+
+Jurisdiction-bound suggested/manual tasks, owners, due dates, completion evidence
+and opted-in notification messages.
+
+6
+
+6
+
+OYDP Real Estate Academy
+
+Five introductory tracks, reviewed lessons, quizzes, progress, synthetic deal exercises
+and course-completion certificates.
+
+7
+
+7
+
+SpatialLedger GIS Intelligence
+
+Map view, geotagged property lookup, authorized overlay import, proximity, CRS,
+source and date metadata.
+
+10
+
+8
+
+Property Valuation & Market
+Intelligence
+
+Licensed/manual comparables, area normalization, filtered matching, range calculation
+and sparse-data warning.
+
+9
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 2
+
+#
+
+Engine
+
+GA contract
+
+Engineer-w
+eeks¹
+
+9
+
+AI Layout & Architecture Concept
+Studio
+
+Rectangular/polygon dimensions, user-entered constraints, plot-grid/massing
+scenario alternatives, PDF summaries and reviewer request.
+
+12
+
+10
+
+Development & Business
+Feasibility
+
+Capex+opex+revenue scenario worksheet, break-even, margin, NPV/IRR with
+cash-flow inputs and sensitivity.
+
+8
+
+11
+
+Marketplace & Professional
+Network
+
+Consent-based listings, buyer questions, owner-approved enquiries, professional
+profiles and moderation queue.
+
+9
+
+12
+
+Time-Versioned Spatial Digital
+Twin
+
+Basic block-model geometry, two or more dated versions, history slider and
+per-version source attribution.
+
+9
+
+13
+
+Institutional API & Evidence
+Attestations
+
+Versioned read-only API, tenant-scoped keys, field-level consent grants, audit,
+pagination, signed response digest.
+
+9
+
+03. Shared dependencies and launch wiring
+Engines 01, identity/consent and audited evidence are foundational. Engines 03–05 share case-to-ownership transitions; 02 and
+06 share approved rule revisions; 07–10 and 12 share coordinate and geometry source lineage; 11 only publishes a redacted
+consent-approved subset; 13 never escapes field-level partner grants. The 13 engineering PDFs supply the required A–AM
+contracts, negative test cases and API proposals.
+¹ The listed engineer-weeks are independent module sizing heuristics before integration, localization, legal review and
+organizational overhead. They are not estimates of elapsed schedule or vendor quotations.
+
+04. Cross-engine acceptance sequence
+Synthetic property -> identity with ambiguous-match handling -> quarantine and upload -> invited buyer/seller deal ->
+lawyer-scoped review -> owner passport and reminders -> approved-source adviser and Academy -> geospatial context ->
+manual comparable valuation -> conceptual layout -> transparent feasibility -> opt-in listing -> versioned 3D massing ->
+consented partner read-only response. A single staged journey must demonstrate explicit role grants and revocation at each
+step.
+
+Associated editable diagrams
+• DFD_LEVEL_1.mmd / DFD_LEVEL_1.dot and rendered PNG/SVG where available
+
+Research sources and evidence restrictions
+[S01] PropertyTrust OS Master Product Specification v2.0 — OYDP source attachment (2026-10-16). Original supplied source. Implemented status is
+self-reported, not repo-verified.
+[S02] OYDP master execution prompt — OYDP source attachment (2026-10-16). User-approved new name, regions, all engines and 38 document
+requirements.
+
+Verification state
+Documentation generated; no production application or integration has been deployed or independently audited. Sources are
+dated and source-specific; professional legal and architectural reviewers remain required.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 3
+
+

@@ -1,0 +1,504 @@
+OYDP / OWN YOUR DREAM PROPERTY
+
+OYDP controlled master blueprint
+Single source of truth for research scope, architecture and implementation planning.
+
+DOCUMENT ID
+
+OYDP-MASTER-001
+
+RELEASE
+
+1.0 | 16 OCT 2026
+
+DELIVERABLE
+
+Research and engineering design
+
+IMPLEMENTATION
+
+Unverified / not production-ready
+
+GEO SCOPE
+
+Bengaluru Urban; Rural; Karnataka; Hyderabad
+
+Controlled baseline: precise legal claims, external official integrations, customer demand and production readiness remain subject to independent
+verification.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 1
+
+Document contents
+01. Controlled decision summary
+02. Mission and realistic competitive claim
+03. Four-region evidence and rollout policy
+04. All 13 engines and release truth
+05. Unified architecture
+06. Commercial and release approach
+07. Required eight release gates
+08. Supporting document index
+09. Readiness report and limitations
+Supporting sources and current implementation status
+
+01. Controlled decision summary
+Project: OYDP — Own Your Dream Property; master control ID OYDP-MASTER-001; version 1.0 research/engineering baseline
+(16 October 2026). Scope: One platform, 13 bounded engines in GA; Bengaluru Urban, Bengaluru Rural, remaining Karnataka,
+Hyderabad in launch program with geography-specific availability and clear unsupported-source disclosures. Public name
+PropertyTrust OS is retired; original concepts PropertyPulse and SpatialLedger remain modules.
+
+Figure: DFD_LEVEL_1. Editable source: 13_DIAGRAMS/DFD_LEVEL_1.mmd
+
+02. Mission and realistic competitive claim
+OYDP — Own Your Dream Property — is a proposed India-first property decision and lifecycle platform that unifies evidence
+identity, buyer and seller guidance, invited diligence, ownership records, location intelligence, transparent valuation,
+development concepts, feasibility and education. The project will sell workflow utility to lawyers, brokers and property advisers
+while retaining a privacy-preserving consumer interface. The 13 engines are bounded first-release commitments, not thirteen
+companies or thirteen microservices.
+The category is competitive: marketplaces already sell discovery and legal services [S15,S16]; industry data providers and AEC
+tools provide intelligence and site optioneering [S17,S19,S20]. OYDP's differentiation must be measured through documented
+source lineage, revocable permissions and a persistent property-specific collaborative workspace—not claimed merely through
+an AI chat interface.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 2
+
+Figure: DOMAIN_ERD. Editable source: 13_DIAGRAMS/DOMAIN_ERD.mmd
+
+03. Four-region evidence and rollout policy
+ID
+
+Launch region
+
+First safe workflow
+
+Primary dependency
+
+A
+
+Bengaluru Urban
+
+Resale apartment / owner passport first
+
+Local corporation, planning authority and property
+type must be determined by polygon not string
+matching
+
+B
+
+Bengaluru Rural
+
+Owner documents and adviser; plotting only as
+clearly conceptual
+
+Survey/gram panchayat limits, conversion,
+planning zone; no assumed authoritative parcel
+API
+
+C
+
+Other Karnataka districts
+
+Software functions available; official review only
+where local rules approved
+
+District-by-district source and professional
+capacity checklist before enabling legal answer
+badge
+
+D
+
+Hyderabad
+
+Buyer/seller + owner passport; localized property
+diligence
+
+Telangana-specific statutes, GHMC/HMDA
+relevance and Telugu QA; no Karnataka rule reuse
+
+04. All 13 engines and release truth
+Engine
+
+Bounded GA capability
+
+Source
+
+E01 Property Identity & Evidence Graph
+
+Create/search property candidates, attach jurisdiction-tagged identifiers and evidence
+assertions, show conflicts and correction requests.
+
+S03, S04,
+S05, S07
+
+E02 AI Property Advisor
+
+Guided question answering from approved rule corpus, next-step task plan, dated
+citations and escalation when unknown.
+
+S10, S11,
+S03, S07
+
+E03 Transaction & Legal Workspace
+
+Create case, invite participants, request evidence, comment/reply, manage offers and
+legal-review outcomes, export event history.
+
+S01, S10,
+S11
+
+E04 Living Property Passport
+
+Encrypt uploaded records, record dated events, maintain metadata, selective sharing,
+export signed manifest and deletion workflow.
+
+S01, S11
+
+E05 Ownership Action Engine
+
+Jurisdiction-bound suggested/manual tasks, owners, due dates, completion evidence and
+opted-in notification messages.
+
+S03, S05,
+S11
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 3
+
+Engine
+
+Bounded GA capability
+
+Source
+
+E06 OYDP Real Estate Academy
+
+Five introductory tracks, reviewed lessons, quizzes, progress, synthetic deal exercises and
+course-completion certificates.
+
+S10, S03,
+S07
+
+E07 SpatialLedger GIS Intelligence
+
+Map view, geotagged property lookup, authorized overlay import, proximity, CRS, source
+and date metadata.
+
+S12, S03,
+S09
+
+E08 Property Valuation & Market
+Intelligence
+
+Licensed/manual comparables, area normalization, filtered matching, range calculation
+and sparse-data warning.
+
+S13, S14,
+S17
+
+E09 AI Layout & Architecture Concept
+Studio
+
+Rectangular/polygon dimensions, user-entered constraints, plot-grid/massing scenario
+alternatives, PDF summaries and reviewer request.
+
+S09, S12,
+S19, S20
+
+E10 Development & Business Feasibility
+
+Capex+opex+revenue scenario worksheet, break-even, margin, NPV/IRR with cash-flow
+inputs and sensitivity.
+
+S09, S13
+
+E11 Marketplace & Professional Network
+
+Consent-based listings, buyer questions, owner-approved enquiries, professional profiles
+and moderation queue.
+
+S15, S16,
+S10
+
+E12 Time-Versioned Spatial Digital Twin
+
+Basic block-model geometry, two or more dated versions, history slider and per-version
+source attribution.
+
+S12, S19
+
+E13 Institutional API & Evidence
+Attestations
+
+Versioned read-only API, tenant-scoped keys, field-level consent grants, audit,
+pagination, signed response digest.
+
+S11, S21
+
+05. Unified architecture
+A modular FastAPI monolith and Next.js front end manage property UID and evidence graph, granted user roles, source dated
+jurisdiction rules, PostGIS geometry, object storage and independent audit. AI is grounded, not authoritative; economic
+calculators are reproducible; lawyers and architects retain professionally regulated decisions. This repository of documents
+includes 13 deep A–AM engineering contracts and editable diagrams, not a production application.
+
+06. Commercial and release approach
+Paying professional coordination pilots come first; region and property type coverage only open when rules, source access,
+licensed data, localized review and support are validated. Use workbook scenarios instead of conflating house transaction value
+with OYDP software revenue. The estimate ₹1.0–3.5 crore for a staffed, legally reviewed 13-engine GA comes from the prior
+internal source as a tentative planning band [S01] and requires quotes.
+
+07. Required eight release gates
+• 13 actual E2E customer-facing engine journeys and audited source limits
+• Data rights / signed local legal source review
+• External security assessment and cross-tenant negative tests
+• Consent, deletion, export and revocation evidence
+• Grounded AI evaluation and finance/GIS calculator accuracy
+• Operational logs, monitoring, backups and restore drills
+• Independent paid demand and viable unit economics
+• Dated owner approvals from engineering, security, legal, operations and product
+
+08. Supporting document index
+Document ID
+
+Title
+
+01
+
+OYDP / Executive introduction
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 4
+
+Document ID
+
+Title
+
+02
+
+Problem statement and proposed system
+
+03
+
+Competitor and market landscape
+
+04
+
+Bottom-up TAM, SAM and SOM methodology
+
+05
+
+Business model and financial feasibility
+
+06
+
+13 engine product specification
+
+07
+
+Reference system architecture
+
+08
+
+Data flow diagrams and trust boundaries
+
+09
+
+Database and evidence lineage specification
+
+10
+
+AI and rule-grounded architecture
+
+11
+
+GIS, spatial data and temporal modeling
+
+12
+
+Legal, regulatory and source-access obligations
+
+13
+
+Security, privacy and threat model
+
+14
+
+Technology stack and decision records
+
+15
+
+Windows 11 and WSL2 development guide
+
+16
+
+Monorepo and engineering conventions
+
+17
+
+Production implementation program and critical path
+
+18
+
+Testing and quality strategy
+
+19
+
+Deployment, SRE and production operations
+
+20
+
+Commercial launch and partner program
+
+21
+
+Post-launch engineering and growth research
+
+22
+
+Risk register and contingency plans
+
+23
+
+Investor readiness and valuation discipline
+
+24
+
+Final recommendation and readiness assessment
+
+E01
+
+Property Identity & Evidence Graph
+
+E02
+
+AI Property Advisor
+
+E03
+
+Transaction & Legal Workspace
+
+E04
+
+Living Property Passport
+
+E05
+
+Ownership Action Engine
+
+E06
+
+OYDP Real Estate Academy
+
+E07
+
+SpatialLedger GIS Intelligence
+
+E08
+
+Property Valuation & Market Intelligence
+
+E09
+
+AI Layout & Architecture Concept Studio
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 5
+
+Document ID
+
+Title
+
+E10
+
+Development & Business Feasibility
+
+E11
+
+Marketplace & Professional Network
+
+E12
+
+Time-Versioned Spatial Digital Twin
+
+E13
+
+Institutional API & Evidence Attestations
+
+09. Readiness report and limitations
+Current documented: project scope, proposed architecture, issues register, sources inventory, traceability, diagrams, financial
+assumption model, test matrix and sprint backlog. Not validated: code implementation, real data acquisition rights, paid traction,
+security certification, compliance approval, SLOs or real-world deployment. The Prior PropertyTrust v2.0 describes a
+synthetic-token development demo, but the code archive was not supplied for inspection [S01]. Open-source repository
+copyrights/patents must be checked independently.
+
+Associated editable diagrams
+• DFD_LEVEL_1.mmd / DFD_LEVEL_1.dot and rendered PNG/SVG where available
+• DOMAIN_ERD.mmd / DOMAIN_ERD.dot and rendered PNG/SVG where available
+
+Research sources and evidence restrictions
+[S01] PropertyTrust OS Master Product Specification v2.0 — OYDP source attachment (2026-10-16). Original supplied source. Implemented status is
+self-reported, not repo-verified.
+[S02] OYDP master execution prompt — OYDP source attachment (2026-10-16). User-approved new name, regions, all engines and 38 document
+requirements.
+[S03] Bhoomi - land records — Bengaluru Urban district, Government of Karnataka (accessed 2026-10-16). Official description of Bhoomi RTC and
+mutation; access/redistribution terms not evaluated. Source URL
+[S04] E-Swathu (Form 9/11A/11B) — Vijayanagara District Government of Karnataka (accessed 2026-10-16). Official gram panchayat records
+description. Source URL
+[S05] e-Aasthi citizen property records — Karnataka municipal e-Aasthi portal (accessed 2026-10-16). Municipal record search options; geographic
+applicability must be tested. Source URL
+[S06] Karnataka RERA — Karnataka Real Estate Regulatory Authority (accessed 2026-10-16). Project/agent status and registration services exist; no
+automated integration rights established. Source URL
+[S07] Bhu Bharati land records — Government of Telangana (2026-06-26 records date shown). Official land-status application; interactive forms are not a
+public data license. Source URL
+[S08] Telangana RERA — Telangana Real Estate Regulatory Authority (accessed 2026-10-16). Project, agent and complaint portal; live counters are
+dynamic and not captured as stable dataset. Source URL
+[S09] HMDA planning department — Hyderabad Metropolitan Development Authority (accessed 2026-10-16). Official layout and building permission
+reference pages. Source URL
+[S10] Real Estate (Regulation and Development) Act, 2016 — India Code / Government of India (2016-03-25). National primary statute, state rules
+additionally apply. Source URL
+[S11] Digital Personal Data Protection Rules 2025 and enforcement schedule — MeitY, Government of India (2025-11-14). Rules and phased
+enforcement schedule exist; specific obligations require counsel mapping. Source URL
+[S12] Guidelines for geospatial data and map services — Department of Science and Technology (2021-02-15). Geospatial guidance; restrictions, sensitive
+attributes and foreign providers need review. Source URL
+[S13] India Real Estate H1 2026 - research library — Knight Frank India (2026-07). Developer housing-market report; samples eight cities and is not
+registry transaction census. Source URL
+[S14] Residential sales H1 2026 - Knight Frank report coverage — Economic Times Realty (2026-07-12). Reported Bengaluru 27,968 and Hyderabad
+19,249 sales; developer primary market coverage, not resale TAM. Source URL
+[S15] NoBroker home and services — NoBroker (accessed 2026-10-16). Official company description; includes listing and legal/due diligence services.
+Source URL
+[S16] Magicbricks portal and product description — Magicbricks (accessed 2026-10-16). Official listings, valuation PropWorth and residential marketplace
+features. Source URL
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 6
+
+[S17] Propstack data and workflow platform — Propstack (accessed 2026-10-16). Official description of transaction/lease/mortgage database; coverage
+and licenses not independently validated. Source URL
+[S18] Housewise property management — Housewise (accessed 2026-10-16). Official claim: rental, maintenance and NRI property management. Source
+URL
+[S19] Autodesk Forma Site Design — Autodesk (accessed 2026-10-16). Official pre-design massing, context and AI analysis functionality. Source URL
+[S20] TestFit generative design announcement — TestFit (2024-06-26). Vendor-reported site feasibility/generative optimization. Source URL
+[S21] OWASP Application Security Verification Standard — OWASP (accessed 2026-10-16). ASVS 5.0.0 cited as web-app verification reference. Source
+URL
+[S24] Greater Bengaluru Authority service portal — Greater Bengaluru Authority, Karnataka (accessed 2026-10-16). City administration and property
+services; local jurisdiction boundaries changing. Source URL
+[S25] India Real Estate 9M 2026 - press report — Business Standard / Knight Frank summary (2026-10-05). Bengaluru 43,140 new home sales in 9M
+2026, developer market, not full sales/registration census. Source URL
+[S26] Official OYDP development workstation state — Prior setup notes attachment (2026-10-16). Latest recorded WSL state had no Ubuntu
+distribution; user action unconfirmed.
+
+Verification state
+Documentation generated; no production application or integration has been deployed or independently audited. Sources are
+dated and source-specific; professional legal and architectural reviewers remain required.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 7
+
+

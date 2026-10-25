@@ -149,3 +149,7 @@ Copyright and licensing decisions have not yet been finalized. **No open-source 
 ## Latest verified backend build
 
 Implementation `1cc4398`: [48 tests passed on PostgreSQL CI](https://github.com/Manasvi-1/OYDP/actions/runs/40198550858), zero skips. [API and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40198550853). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
+
+## Reconciled earlier foundation (PR #1)
+
+The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and `tests/test_*.py`, with its own native PostGIS CI. It is a separately tested compatibility/reference backend, not mounted by `app.main:app`. Its UUID-subject/pinned-key API and `oydp` schema differ from the canonical `apps/api` string-subject/JWKS API and public schema. Do not run both as interchangeable APIs or assume data is synchronized. See [reconciliation and next implementation](docs/implementation/PR1_RECONCILIATION.md).

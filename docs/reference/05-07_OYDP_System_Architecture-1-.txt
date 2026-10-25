@@ -1,0 +1,157 @@
+OYDP / OWN YOUR DREAM PROPERTY
+
+Reference system architecture
+Modular monolith, security boundary and operations reference design.
+
+DOCUMENT ID
+
+OYDP-MASTER-001
+
+RELEASE
+
+1.0 | 16 OCT 2026
+
+DELIVERABLE
+
+Research and engineering design
+
+IMPLEMENTATION
+
+Unverified / not production-ready
+
+GEO SCOPE
+
+Bengaluru Urban; Rural; Karnataka; Hyderabad
+
+Controlled baseline: precise legal claims, external official integrations, customer demand and production readiness remain subject to independent
+verification.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 1
+
+Document contents
+01. Architecture decision ADR-001
+02. Component and deployment responsibilities
+03. Key ADR trade-offs
+04. Failure and data policies
+05. Scale triggers and constraints
+Supporting sources and current implementation status
+
+01. Architecture decision ADR-001
+Choose a modular monolith: Next.js/TypeScript frontend; one FastAPI deployment with strict internal bounded contexts;
+PostgreSQL/PostGIS authoritative data; encrypted object storage for untrusted uploads; bounded background workers and
+append-only audit records. All 13 engines share property identity and access decisions. Do not split into microservices without
+measured scale/team needs [S01].
+
+Figure: DFD_LEVEL_1. Editable source: 13_DIAGRAMS/DFD_LEVEL_1.mmd
+
+02. Component and deployment responsibilities
+Zone
+
+Component
+
+Trust boundary
+
+Internet
+
+CDN/WAF/TLS + throttling
+
+Untrusted requests
+
+Identity
+
+Managed OIDC with sensitive-role MFA
+
+Identity asserted only after signature validation
+
+App
+
+Next.js BFF + FastAPI API
+
+Server-side policy for every ID
+
+Persistence
+
+Postgres/PostGIS + row security
+
+Tenant and property isolation
+
+Evidence
+
+Quarantine, scanner, encrypted blob store
+
+User uploads never executable
+
+Async
+
+Worker, retries, DLQ
+
+Scoped idempotent work only
+
+AI
+
+Approved retrieval, schema-gated generator
+
+Documents treated as data, not instructions
+
+Audit
+
+Immutable event sink + integrity chain
+
+Separate from operational writes
+
+Observability
+
+Metrics, traces, alerting
+
+No secrets or private deed text
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 2
+
+Figure: SECURITY_TRUST. Editable source: 13_DIAGRAMS/SECURITY_TRUST.mmd
+
+03. Key ADR trade-offs
+FastAPI provides strong Pydantic and Python GIS/AI interfaces, though TypeScript-to-Python contracts require generated
+OpenAPI clients; Next.js supports complex role views but SSR caches must respect tenant isolation. PostgreSQL keeps early
+operational complexity low, but GIS ingestion requires specialized CRS expertise. Managed OIDC costs money but reduces
+custom password risk. Start with ordinary PostgreSQL search before adding a separate search cluster.
+
+04. Failure and data policies
+Idempotency keys prevent repeated invitation/export jobs. Database transactions atomically commit business state with an audit
+outbox; async worker sends audit to independent immutable sink. A file is not downloadable until malware result PASS and
+object permission evaluation. Data subject requests generate immutable legal-hold exceptions and deletion tombstones rather
+than hiding failures. Unknown source availability never becomes a positive legal assertion.
+
+05. Scale triggers and constraints
+Do not create individual engine databases at launch. Evaluate sharding, specialized search and independent GIS workers only
+when query profiles, volume, team boundaries and SLA breaches justify the separation. Provision regional object storage and DR
+only after legal residency/contract checks. Network segmentation and least privilege are mandatory irrespective of scale.
+
+Associated editable diagrams
+• DFD_LEVEL_1.mmd / DFD_LEVEL_1.dot and rendered PNG/SVG where available
+• SECURITY_TRUST.mmd / SECURITY_TRUST.dot and rendered PNG/SVG where available
+
+Research sources and evidence restrictions
+[S01] PropertyTrust OS Master Product Specification v2.0 — OYDP source attachment (2026-10-16). Original supplied source. Implemented status is
+self-reported, not repo-verified.
+[S02] OYDP master execution prompt — OYDP source attachment (2026-10-16). User-approved new name, regions, all engines and 38 document
+requirements.
+[S11] Digital Personal Data Protection Rules 2025 and enforcement schedule — MeitY, Government of India (2025-11-14). Rules and phased
+enforcement schedule exist; specific obligations require counsel mapping. Source URL
+[S12] Guidelines for geospatial data and map services — Department of Science and Technology (2021-02-15). Geospatial guidance; restrictions, sensitive
+attributes and foreign providers need review. Source URL
+[S21] OWASP Application Security Verification Standard — OWASP (accessed 2026-10-16). ASVS 5.0.0 cited as web-app verification reference. Source
+URL
+
+Verification state
+Documentation generated; no production application or integration has been deployed or independently audited. Sources are
+dated and source-specific; professional legal and architectural reviewers remain required.
+
+OYDP / OYDP-MASTER-001 / DESIGN BASELINE / 2026-10-16
+
+PAGE 3
+
+

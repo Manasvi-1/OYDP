@@ -1,0 +1,2 @@
+# Compatibility package dependencies share the canonical locked environment.
+-r apps/api/requirements.lock
