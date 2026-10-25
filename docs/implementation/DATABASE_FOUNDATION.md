@@ -69,3 +69,19 @@ PostgreSQL results on the commit under review; skipped tests are not a pass.
 4. Implement property create/read and audit events in one transaction.
 5. Add API integration tests with two tenants and revoked membership.
 6. Build the Next.js property workspace only against the verified contract.
+
+## Verified GitHub execution — 25 October 2026
+
+Tested implementation commit: `11fda6b59992e7f333c040565c0ccb8ffcd507df`.
+[Database security run #1](https://github.com/Manasvi-1/OYDP/actions/runs/40197718274)
+completed successfully on PostgreSQL 16.15 and Python 3.12.15: **16 passed,
+0 skipped, 1 dependency deprecation warning** (13 database + 3 API tests).
+[API smoke run #18](https://github.com/Manasvi-1/OYDP/actions/runs/40197718445)
+also completed successfully. JUnit artifact: `database-security-results`,
+artifact ID `12600403784`. These results supersede the pending-CI status above
+for this exact implementation commit. They do not constitute OIDC, full platform,
+independent security review or production approval.
+
+Known maintenance debt: FastAPI/Starlette warns about the httpx TestClient
+integration; GitHub also reports older action runtimes. Dependency locking,
+audit and reviewed action upgrades remain follow-up work.

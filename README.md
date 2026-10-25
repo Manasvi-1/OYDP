@@ -59,7 +59,7 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Product requirements and architecture | Documented | Controlled source blueprints |
 | API foundation | Initial code committed | `apps/api/app/main.py` on feature branch |
 | Property database schema | Draft migration SQL | `infra/db/` on feature branch |
-| Tenant isolation | RLS plus evidence tenant integrity and scoped membership | Real PostgreSQL CI tests authored; see database foundation record |
+| Tenant isolation | RLS plus evidence tenant integrity and scoped membership | 13 PostgreSQL tests passed at `11fda6b`; see database foundation record |
 | Authentication | Not integrated | Property routes intentionally fail closed |
 | API smoke tests | 3 passed locally on 25 October 2026 | `apps/api/tests/` |
 | Next.js application | Not implemented | Pending |
