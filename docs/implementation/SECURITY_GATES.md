@@ -12,3 +12,7 @@
 10. Review CI and dependency scanning before merging to main.
 
 This foundation is intentionally fail-closed. No production auth, official sources, or scanned documents are implemented.
+
+## Current implementation clarification
+
+JWT and tenant membership are implemented for the limited tenant-shared create/read API (PROPERTY_API.md). Route configuration alone is not release approval. Property-specific grants and external audit delivery remain required before private real-data workflows; evidence upload remains absent. The application audit table is append-only for the runtime role, not immune to privileged administrators. Dependencies are hash-locked and scanned in CI; independent review and release gates remain open.

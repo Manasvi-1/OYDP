@@ -4,10 +4,10 @@ Source hierarchy: controlled OYDP master blueprint (2026-10-16), 13-engine produ
 
 | Requirement | Code location | Verification | State |
 | --- | --- | --- | --- |
-| E01 property identity | apps/api/app/main.py, infra/db/001_property_identity.sql | API smoke only; property CRUD disabled | PARTIAL |
-| E01 provenance | infra/db/003_provenance.sql | No database integration tests | PARTIAL |
-| Tenant authorization | infra/db/001_property_identity.sql, 002_membership.sql | No real cross-tenant integration tests | PARTIAL |
-| Identity verification | Not implemented | No OIDC tests | PENDING |
+| E01 property identity | apps/api/app/main.py, infra/db/001_property_identity.sql | Create/read + append-only audit; real API/DB tests authored | PARTIAL |
+| E01 provenance | infra/db/003_provenance.sql | Tenant lineage PostgreSQL acceptance tests | PARTIAL |
+| Tenant authorization | infra/db/001_property_identity.sql, 002_membership.sql | PostgreSQL RLS tests and API denial tests | PARTIAL |
+| Identity verification | apps/api/app/auth.py | RSA token rejection and JWKS selection tests | PARTIAL |
 | E02 AI advisor | Not implemented | None | PENDING |
 | E03 transaction workspace | Not implemented | None | PENDING |
 | E04 property passport | Not implemented | None | PENDING |
@@ -34,3 +34,6 @@ Source hierarchy: controlled OYDP master blueprint (2026-10-16), 13-engine produ
 ## Database foundation update — 25 October 2026
 
 See [database implementation and acceptance](DATABASE_FOUNDATION.md) for migration tooling, runtime-role provisioning, composite tenant integrity, 13 PostgreSQL tests and the dedicated CI job. Local API tests: 3 passed; database tests: 13 skipped pending PostgreSQL execution. Earlier unverified items remain open unless this record explicitly supersedes them. OIDC and property CRUD remain disabled.
+
+## Current slice — supersedes historical status above
+RS256 access-token validation, per-request membership, tenant-shared property create/read, transactional append-only audit, and 24 additional/expanded API and DB cases are authored. See PROPERTY_API.md and the current CI result; real provider interoperability, property grants, UI and all other engines remain incomplete.

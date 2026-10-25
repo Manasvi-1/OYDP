@@ -38,3 +38,7 @@ independent security review or production approval.
 Known maintenance debt: FastAPI/Starlette warns about the httpx TestClient
 integration; GitHub also reports older action runtimes. Dependency locking,
 audit and reviewed action upgrades remain follow-up work.
+
+## Authenticated API slice — current update
+
+Supersedes earlier disabled-route status: property create/read, verified JWT access tokens, trusted membership lookup and transactional audit are implemented. See [API contracts, setup and limitations](PROPERTY_API.md). Local result: 24 API/authentication tests passed, 24 PostgreSQL cases await CI. Runtime tests must pass on the current PR head before merge. No UI, live identity-provider setup or production release is claimed.

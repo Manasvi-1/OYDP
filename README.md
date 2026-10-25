@@ -60,8 +60,8 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | API foundation | Initial code committed | `apps/api/app/main.py` on feature branch |
 | Property database schema | Draft migration SQL | `infra/db/` on feature branch |
 | Tenant isolation | RLS plus evidence tenant integrity and scoped membership | 13 PostgreSQL tests passed at `11fda6b`; see database foundation record |
-| Authentication | Not integrated | Property routes intentionally fail closed |
-| API smoke tests | 3 passed locally on 25 October 2026 | `apps/api/tests/` |
+| Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
+| API and authentication tests | 24 passed locally on 25 October 2026 | `apps/api/tests/` |
 | Next.js application | Not implemented | Pending |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
@@ -101,14 +101,14 @@ cp .env.example .env
 docker compose up -d db
 python -m venv .venv
 source .venv/bin/activate
-pip install -r apps/api/requirements.txt
+pip install --require-hashes -r apps/api/requirements.lock
 PYTHONPATH=apps/api python -m pytest -q apps/api/tests
 PYTHONPATH=apps/api uvicorn app.main:app --reload
 ```
 
 On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
 
-The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes return 503 until verified OIDC integration. These instructions are **not** a complete working application setup.
+The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). These instructions are **not** a complete working application setup.
 
 ## Engineering workflow
 
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** Complete Phase 04 foundation, OIDC, tenant-safe property CRUD, real database integration tests and CI.  
+**Now:** Verify the authenticated property create/read slice and transactional audit against PostgreSQL CI.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 

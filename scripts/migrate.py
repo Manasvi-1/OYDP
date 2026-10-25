@@ -58,6 +58,8 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON properties, evidence_assertions TO oydp_app')
         conn.execute('REVOKE ALL ON tenant_memberships, schema_migrations FROM oydp_app')
         conn.execute('GRANT SELECT ON tenant_memberships TO oydp_app')
+        conn.execute('REVOKE ALL ON property_audit_events FROM oydp_app')
+        conn.execute('GRANT SELECT, INSERT ON property_audit_events TO oydp_app')
         conn.execute("ALTER ROLE oydp_app SET search_path = public")
 
 

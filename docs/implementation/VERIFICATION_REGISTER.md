@@ -65,3 +65,9 @@ independent security review or production approval.
 Known maintenance debt: FastAPI/Starlette warns about the httpx TestClient
 integration; GitHub also reports older action runtimes. Dependency locking,
 audit and reviewed action upgrades remain follow-up work.
+
+## Current authenticated API slice
+
+Supersedes historical pending entries where explicitly implemented: RS256 access-token verifier, trusted database membership, property create/read and transactional append-only audit. Local execution: 24 API/auth tests passed; 24 real PostgreSQL cases not executed locally. Dependency audit reported no known vulnerabilities; hashed dependency lock and CI audit added. See PROPERTY_API.md. Latest-head CI acceptance remains pending until GitHub reports it.
+
+The repository owner explicitly instructed pushing and merging in this development session. This authorizes merge of the tested pre-alpha slice; it is not an independent human/security review or production approval. Copilot quota failures remain non-approvals. GitHub-enforced protection rules must not be bypassed.
