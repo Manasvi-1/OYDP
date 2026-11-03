@@ -15,7 +15,7 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Private property create/read and read-sharing API with tested contract
 - [x] Paginated property discovery and attributed unverified claims (API 0.4.0; native CI 115 tests)
 - [ ] Property update/write delegation and correction workflows
-- [ ] Next.js frontend for the first authenticated property journey
+- [ ] Next.js frontend for the first authenticated property journey (`apps/web` calls the API 0.4.0 contract; browser end-to-end coverage and live provider enrollment are still open)
 
 ## Milestone 1 — Trusted evidence
 - [ ] Versioned property identifiers, source registry and conflict resolution
