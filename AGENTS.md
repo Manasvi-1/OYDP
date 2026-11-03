@@ -19,6 +19,12 @@ You are developing OYDP (Own Your Dream Property). Treat `docs/reference/06-25_O
 8. Keep commits small, work on feature branches, create PRs for review; do not deploy publicly or incur paid services without explicit approval.
 9. Report changed files, tests actually run, failures, blockers, and what remains. No invented test outcomes.
 
+## Delivery standard
+The binding execution standard is `.cursor/rules/oydp-master.mdc`. For approved work: build real behavior, apply the security controls, execute the relevant tests, review the diff, then commit and push a feature branch. A test counts as passed only when that test executed and passed. Merge to `main`, deploy, and publish still require separate approval. Preserve untracked local work, `apps/web`, and PR #5.
+
+## Baseline already on main
+The Property Identity API, tenant isolation, and unverified claim ledger already exist on `main`. Do not rebuild that slice from the historical first task below. Re-inspect Git before relying on any status note.
+
 ## First task
 Read the provided PDF requirements, propose implementation tickets, and create a working initial monorepo skeleton with Next.js web, FastAPI API, PostgreSQL/PostGIS local Docker services, CI smoke tests, and a security-oriented README. First add a phased plan, then implement the smallest testable vertical slice for Property Identity + tenant isolation. Do not substitute synthetic mock endpoints for production acceptance.
 

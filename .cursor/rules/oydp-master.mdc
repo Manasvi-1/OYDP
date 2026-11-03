@@ -1,0 +1,159 @@
+---
+description: OYDP master engineering context and the mandatory build, security, test, and GitHub delivery standard
+alwaysApply: true
+---
+
+# OYDP master engineering context
+
+OYDP means Own Your Dream Property. It is one modular monolith for property identity, evidence, transactions, ownership, spatial intelligence, and related real-estate workflows. Repository: `Manasvi-1/OYDP`. Verify the branch before use.
+
+`AGENTS.md` is the short repository contract. This rule is the detailed operating standard. When they differ, follow the stricter security and evidence requirement, then align the documents. The code, migrations, and Git history are the implementation source of truth. Chat history is not.
+
+## Product and architecture
+
+- Frontend: Next.js, React, TypeScript. Backend: Python, FastAPI, Pydantic. Database: PostgreSQL, PostGIS, versioned migrations.
+- Initial geography: Bengaluru Urban, Bengaluru Rural, other Karnataka districts, and Hyderabad. Respect coverage-specific regulatory and data limits.
+- Active service: `apps/api`, public schema, string OIDC subjects, configured JWKS. Root `oydp/` and `migrations/` are the separate PR #1 reference backend. Do not treat them as interchangeable.
+- All 13 engines stay bounded launch commitments inside shared identity, authorization, evidence, and audit infrastructure. Do not silently drop an engine or split the product into 13 applications.
+- Engines: E01 Property Identity & Evidence Graph; E02 AI Property Advisor; E03 Transaction & Legal Workspace; E04 Living Property Passport; E05 Ownership Action Engine; E06 OYDP Real Estate Academy; E07 SpatialLedger GIS Intelligence; E08 Property Valuation & Market Intelligence; E09 AI Layout & Architecture Concept Studio; E10 Development & Business Feasibility; E11 Marketplace & Professional Network; E12 Time-Versioned Spatial Digital Twin; E13 Institutional API & Evidence Attestations.
+- Do not represent OYDP as a government authority, or claim guaranteed title, investment returns, valuation, or development approval.
+- Deterministic code decides authorization, money, policy, validation, and critical state changes. AI output stays source-grounded and abstains on unknowns. Uploaded documents are untrusted data.
+- Controlling product scope: `docs/reference/06-25_OYDP_Master_Consolidated_Blueprint-1-.txt`. Status evidence already in the repo includes `docs/ENGINE_REGISTER.md`, `docs/ROADMAP.md`, `docs/implementation/VERIFICATION_REGISTER.md`, and `docs/implementation/TRACEABILITY.md`. Prefer `docs/engineering/PROJECT_STATUS.md` when that file exists.
+
+## Implementation truth
+
+Use only these labels, and only with evidence: planned, UI prototype, static mockup, placeholder, generated source, executable implementation, integration-tested, production-hardened, independently reviewed.
+
+A file, a generated function, HTTP 200, a screen of data, a mock-only test, or a successful build does not raise the label. Automated tests do not prove production readiness, independent audit, or absolute security.
+
+## Session start
+
+Before editing, inspect the branch, working tree, recent commits, pull requests, `AGENTS.md`, `.cursor/rules`, both apps, both migration trees, tests, and CI. Preserve untracked user work, the local `apps/web` tree, and PR #5. Do not overwrite existing behavior to make a new test pass.
+
+## Mandatory execution standard — build, security, testing, verification, and GitHub delivery
+
+This is an execution requirement. Deliver the highest-quality, security-hardened, verifiably working implementation justified by the approved OYDP scope. Do not stop after creating files, writing code, generating scripts, or producing a plan. Build the functionality, execute it, test it, fix defects, and verify the result.
+
+### 1. Build real, functional software
+
+For every component you implement:
+
+- Implement working application functionality. Placeholder files, mock implementations, superficial UI, demonstration-only scripts, and code that only looks complete do not qualify.
+- Connect components to their real APIs, database operations, and authentication and authorization boundaries.
+- Implement meaningful input validation, output validation, error handling, and failure recovery.
+- Back frontend functionality with real backend operations where the product requires it.
+- Do not introduce fake success responses, hardcoded production data, bypasses, or tests that pass without exercising the intended behavior.
+- Preserve OYDP's established architecture, working functionality, data contracts, and security boundaries.
+- Do not silently remove, weaken, or replace existing functionality to make new tests pass.
+
+### 2. Security hardening
+
+Apply security engineering throughout the implementation. Use the strongest practical, standards-aligned controls that fit the architecture and threat model.
+
+Assess and implement the applicable protections below.
+
+**Identity and access**
+
+- Secure authentication and session management.
+- Server-side authorization on every protected operation.
+- Tenant isolation and cross-tenant access prevention.
+- Role and permission enforcement using least privilege.
+- MFA enforcement and freshness requirements where applicable.
+- Secure token validation, expiry, revocation, and storage.
+- Never trust client-side authorization or unsigned session data.
+
+**Application and API**
+
+- Strict request validation and safe response serialization.
+- Protection against injection, broken access control, IDOR/BOLA, CSRF, XSS, SSRF, request smuggling, and unsafe redirects, as applicable.
+- Secure CORS, CSP, security headers, cookie attributes, and HTTPS configuration.
+- Rate limiting, abuse prevention, and safe resource limits.
+- Secure file-upload and document-processing boundaries.
+- Safe error messages that do not leak credentials, tokens, personal data, or internal implementation details.
+
+**Database and infrastructure**
+
+- Parameterized queries and safe transaction boundaries.
+- PostgreSQL row-level security and tenant-context enforcement.
+- Least-privilege database roles.
+- Protection against migration mistakes and unauthorized schema changes.
+- Secure secrets management. No hardcoded credentials or committed `.env` files.
+- Dependency and container security checks where applicable.
+- Audit logging that ordinary application users cannot silently alter.
+
+**Engineering assurance**
+
+- Review dependency vulnerabilities and license risks.
+- Identify insecure defaults, debug endpoints, and development-only bypasses.
+- Check for exposed secrets, sensitive data in logs, and accidental information disclosure.
+- Add negative security tests, not only successful-path tests.
+- Document unresolved risks and controls that require external infrastructure or human configuration.
+
+Do not claim that OYDP is completely secure, production-ready, or independently audited because automated tests passed. Distinguish implemented controls, automated verification, external dependencies, and outstanding risks.
+
+### 3. Mandatory testing and verification
+
+Test everything you build and every existing component the change can affect.
+
+Run the relevant checks, including unit tests, integration tests, API contract and endpoint tests, database integration tests, PostgreSQL RLS and tenant-isolation tests, negative authorization tests, authentication and session and MFA tests, input-validation and error-handling tests, frontend component and interaction tests, end-to-end browser tests where supported, type checking and linting, production builds, migration validation, dependency and security scanning, secret scanning, and regression tests.
+
+Test realistic failures, including unauthenticated access, expired or invalid tokens, unauthorized roles, cross-tenant reads and writes, revoked or expired grants, invalid and malicious inputs, missing database connections, API failures and unexpected responses, concurrent or repeated operations where relevant, unauthorized document access, and direct API attempts to bypass UI controls.
+
+Testing rules:
+
+1. Execute tests. Never report an unexecuted test as passed.
+2. Fix failures caused by the implementation.
+3. Re-run affected tests after every fix.
+4. Run the complete relevant regression suite before delivery.
+5. Do not skip, disable, weaken, delete, or rewrite meaningful tests to obtain a green result.
+6. Do not hide warnings, failures, or skipped checks.
+7. If infrastructure, credentials, or an external service makes a test impossible, document the exact blocker and provide the strongest feasible alternative verification.
+8. Record the exact commands, results, counts, failures, and environment.
+
+Passing tests mean the relevant tests executed and passed. Skipped, weakened, or removed tests do not count. No automated suite proves absolute security.
+
+### 4. Independent final engineering review
+
+Before committing, review the change separately. Inspect the complete Git diff, every added, modified, and deleted file, architecture and dependency changes, authentication and authorization boundaries, database and migration changes, security-sensitive paths, test quality, secrets and generated artifacts, documentation accuracy, and compatibility with existing OYDP components.
+
+Look for regressions, hidden bypasses, incomplete implementations, dead code, duplicate functionality, unsafe assumptions, and misleading documentation. Resolve issues inside the approved scope before delivery.
+
+### 5. Git discipline, commit, and push
+
+Approved work may be committed and pushed to the private OYDP GitHub repository on a dedicated feature branch. That authorization does not include merging to `main`.
+
+1. Inspect the branch, remote, working tree, and commit history before changing anything.
+2. Preserve existing user work, untracked files, local frontend implementations, and PR #5.
+3. Do not overwrite, discard, reset, force-push, or silently incorporate unrelated work.
+4. Create a clearly named feature branch from the appropriate verified base.
+5. Stage only the files that belong to the approved implementation.
+6. Inspect the staged diff before committing.
+7. Keep out credentials, private keys, access tokens, `.env` files, personal data, generated build artifacts, and unrelated files.
+8. Commit with a message that describes the actual change.
+9. Push the feature branch to the existing private GitHub repository.
+10. Verify that the remote branch contains the exact commit created.
+11. Report the branch name, commit SHA, push result, and GitHub link when available.
+
+Do not force-push. Do not merge into `main`, deploy, publish, or change repository settings without separate approval. If branch protection or permissions block the push, report the exact blocker and do not bypass it.
+
+### 6. Definition of done
+
+Work is complete only when the approved scope is real functionality, existing functionality and user work are preserved, relevant security controls are implemented and verified, relevant tests executed and passed or every unavoidable blocker is documented, production build and type checking and applicable static checks succeed, no critical or high-severity issue introduced by the work remains, the final diff has been reviewed, documentation matches the implementation and the verification results, and the commit is pushed and independently verified on the remote.
+
+### 7. Final delivery report
+
+Report:
+
+1. What was actually built.
+2. What was secured, naming the controls and where they live.
+3. Testing results with commands, passed, failed, and skipped counts.
+4. Security verification, including scans, negative tests, findings, and remediation.
+5. Build verification, including typecheck, lint, and production build where applicable.
+6. Regression review and results.
+7. Remaining risks, including anything not implemented, not independently verified, or blocked.
+8. GitHub delivery: branch, commit SHA, push confirmation, and remote link.
+9. A truthful maturity assessment. Do not assume production approval.
+
+Use command output, test reports, Git history, and remote verification. Never invent results.
+
+Optimize for a secure, maintainable, reliable, and genuinely working OYDP implementation. If the implementation is not ready, say so, identify the blockers, and do not present it as complete.
