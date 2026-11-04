@@ -37,9 +37,9 @@ All 13 engines remain planned release commitments; none is marked production-com
 The target is a **modular monolith**, not 13 independently deployed services.
 
 ```text
-Browser / role-specific Next.js interfaces  [planned]
+Browser / role-specific Next.js interfaces  [pre-alpha workspace]
                     |
-         OIDC identity + policy layer        [planned]
+         OIDC identity + policy layer        [API verifier; provider not selected]
                     |
          FastAPI modular backend             [property API implemented]
                     |
@@ -172,3 +172,19 @@ API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation
 ## Active API 0.4.0 increment
 
 Paginated private property discovery and attributed unverified claim recording/history passed native CI. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
+
+## Active API 0.5.0 increment
+
+Property-scoped source notes, one current identifier per scheme with explicit supersede, and evidence assertions labeled `unreviewed` or `recorded`. These labels are not official identifiers, licences, or approvals. See [evidence lineage](docs/implementation/EVIDENCE_LINEAGE.md). Current-head CI is the acceptance evidence.
+
+## Active API 0.6.0 increment
+
+Creator-only private documents. Accepted PDF, PNG, and JPEG bytes are encrypted at rest. Rejected active content is recorded without the bytes. This gate is not an antivirus product. See [private documents](docs/implementation/PRIVATE_DOCUMENTS.md).
+
+## Active API 0.7.0 increment
+
+Audit events enqueue an outbox row in the same transaction. A local worker appends redacted JSON lines and then marks the row delivered. See [audit outbox](docs/implementation/AUDIT_OUTBOX.md). This is not an independent immutable archive.
+
+## Active API 0.8.0 increment
+
+Creators can open and close a diligence request. Readers with access can add a note while it is open. The text is not an offer or a legal conclusion. See [diligence requests](docs/implementation/DILIGENCE_REQUESTS.md).

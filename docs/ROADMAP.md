@@ -25,7 +25,7 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Creator consent for `passport_export` can be granted and revoked. Export requires that live consent. Read and write grants remain separate.
 
 ## Milestone 2 — Collaborative property lifecycle
-- [ ] E03 Transaction & Legal Workspace
+- [x] E03 Transaction & Legal Workspace (bounded diligence requests and notes; not offers or legal conclusions)
 - [ ] E04 Living Property Passport
 - [ ] E05 Ownership Action Engine
 - [ ] E02 Source-grounded AI Advisor
