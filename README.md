@@ -169,3 +169,7 @@ Property-scoped source notes, one current identifier per scheme with explicit su
 ## Active API 0.6.0 increment
 
 Creator-only private documents. Accepted PDF, PNG, and JPEG bytes are encrypted at rest. Rejected active content is recorded without the bytes. This gate is not an antivirus product. See [private documents](docs/implementation/PRIVATE_DOCUMENTS.md).
+
+## Active API 0.7.0 increment
+
+Audit events enqueue an outbox row in the same transaction. A local worker appends redacted JSON lines and then marks the row delivered. See [audit outbox](docs/implementation/AUDIT_OUTBOX.md). This is not an independent immutable archive.

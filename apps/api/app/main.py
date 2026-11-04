@@ -17,7 +17,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from app.auth import verified_subject, require_mfa
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.6.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.7.0')
 
 
 @app.middleware('http')
@@ -481,3 +481,29 @@ def download_document(property_id: UUID, document_id: UUID, access=Depends(autho
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
     })
+
+
+class AuditRecord(BaseModel):
+    id: UUID
+    event_type: str
+    actor_subject: str
+    created_at: datetime
+    delivered_at: datetime | None
+
+
+class AuditPage(BaseModel):
+    items: list[AuditRecord]
+    next_cursor: str | None
+
+
+@app.get('/v1/properties/{property_id}/audit', response_model=AuditPage)
+def list_audit(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+               cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'audit', cursor, property_id)
+    rows = conn.execute("""SELECT e.id, e.event_type, e.actor_subject, e.created_at, o.delivered_at
+      FROM property_audit_events e LEFT JOIN audit_outbox o ON o.event_id=e.id
+      WHERE e.property_id=%s AND (%s::timestamptz IS NULL OR (e.created_at,e.id)<(%s::timestamptz,%s::uuid))
+      ORDER BY e.created_at DESC, e.id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')

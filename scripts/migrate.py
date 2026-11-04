@@ -71,6 +71,9 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT UPDATE (superseded_at) ON property_identifiers TO oydp_app')
         conn.execute('REVOKE ALL ON property_documents FROM oydp_app')
         conn.execute('GRANT SELECT, INSERT ON property_documents TO oydp_app')
+        conn.execute('REVOKE ALL ON audit_outbox FROM oydp_app')
+        conn.execute('GRANT SELECT ON audit_outbox TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.enqueue_audit_outbox() TO oydp_app')
         conn.execute("ALTER ROLE oydp_app SET search_path = public")
 
 

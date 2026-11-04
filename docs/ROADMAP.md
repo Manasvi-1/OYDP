@@ -20,7 +20,7 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 ## Milestone 1 — Trusted evidence
 - [x] Versioned property identifiers, source registry and conflict resolution (workspace labels; not official identifiers)
 - [x] Evidence provenance assertions with professional review status (unreviewed or recorded; not an approval)
-- [ ] Transactional audit outbox, append-only audit delivery
+- [x] Transactional audit outbox, append-only audit delivery (local JSONL sink; not an independent archive)
 - [x] Quarantined, scanned, encrypted document storage (synchronous PDF/PNG/JPEG gate; not a certified scanner)
 - [ ] Consent and revocable property-level grants
 
