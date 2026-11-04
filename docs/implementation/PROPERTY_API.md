@@ -1,6 +1,6 @@
 # Property Identity API
 
-Current contract and upgrade guide: [API 0.3.0 private property access](CANONICAL_PROPERTY_ACCESS.md). The sections below document the previous 0.2.0 slice and its historical validation; tenant-shared behavior and non-MFA writes described there are superseded.
+Current workspace behavior for corrections, delegated writers, and local sign-in is [Launch 1 drop 1](LAUNCH_1_DROP_1.md). API 0.5.0 adds `PATCH /v1/properties/{id}`, correction history, and `/writers`. Earlier guides remain the history of the 0.2.0 and 0.3.0 slices.
 
 # Property Identity API — executable backend slice
 

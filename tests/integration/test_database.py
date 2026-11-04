@@ -334,6 +334,9 @@ def test_no_mfa_sensitive_routes_denied(api, private_record):
     assert api.post('/v1/properties',headers=h,json={'label':'blocked','jurisdiction':'KA'}).status_code == 403
     assert api.put('/v1/properties/'+pid+'/access',headers=h,json=data).status_code == 403
     assert api.request('DELETE','/v1/properties/'+pid+'/access',headers=h,json={'recipient_subject':peer}).status_code == 403
+    assert api.patch('/v1/properties/'+pid,headers=h,json={'label':'blocked','jurisdiction':'KA'}).status_code == 403
+    assert api.put('/v1/properties/'+pid+'/writers',headers=h,json=data).status_code == 403
+    assert api.request('DELETE','/v1/properties/'+pid+'/writers',headers=h,json={'recipient_subject':peer}).status_code == 403
 
 
 def test_share_audit_failure_is_atomic(api, private_record):
@@ -396,7 +399,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -670,3 +673,485 @@ def test_deferred_commit_failure_does_not_return_false_created(api, discovery):
         with psycopg.connect(DSN) as conn:
             conn.execute('DROP TRIGGER reject_claim_commit ON property_claims')
             conn.execute('DROP FUNCTION public.reject_claim_commit()')
+
+
+def _editor(name):
+    with psycopg.connect(DSN) as conn:
+        conn.execute('INSERT INTO tenant_memberships VALUES(%s,%s,\'editor\') ON CONFLICT DO NOTHING', (A, name))
+    return name
+
+
+def test_owner_correction_keeps_prior_values(api, private_record):
+    pid, peer, h, data, _ = private_record
+    first = api.patch('/v1/properties/'+pid, headers=h, json={'label':'Corrected label','jurisdiction':'Bengaluru Urban'})
+    assert first.status_code == 200, first.text
+    assert first.json()['changed'] is True and first.json()['label'] == 'Corrected label'
+    again = api.patch('/v1/properties/'+pid, headers=h, json={'label':'Corrected label','jurisdiction':'Bengaluru Urban'})
+    assert again.json()['changed'] is False
+    history = api.get('/v1/properties/'+pid+'/corrections', headers=h).json()['items']
+    assert len(history) == 1
+    assert history[0]['previous_label'] == 'Private record' and history[0]['actor_subject'] == 'alice'
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute("SELECT event_type FROM property_audit_events WHERE property_id=%s AND event_type='property.corrected'", (pid,)).fetchall() == [('property.corrected',)]
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'x','jurisdiction':'KA','created_by':'mallory'}).status_code == 422
+
+
+def test_delegated_editor_can_correct_and_append_only_while_granted(api, private_record):
+    from datetime import datetime, timedelta, timezone
+    pid, peer, h, data, as_subject = private_record
+    editor = _editor('editor-'+str(uuid4()))
+    expiry = (datetime.now(timezone.utc)+timedelta(days=2)).isoformat()
+    grant = {'recipient_subject': editor, 'expires_at': expiry}
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject': peer, 'expires_at': expiry}).status_code == 404
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json=grant).json() == {'changed': True}
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json=grant).json() == {'changed': False}
+    as_subject(editor)
+    assert api.get('/v1/properties/'+pid+'/writers', headers=h).json()['items'][0]['recipient_subject'] == editor
+    corrected = api.patch('/v1/properties/'+pid, headers=h, json={'label':'Editor correction','jurisdiction':'KA'})
+    assert corrected.status_code == 200 and corrected.json()['changed'] is True
+    claim = api.post('/v1/properties/'+pid+'/claims', headers=h, json={'statement':'Recorded by the delegated editor'})
+    assert claim.status_code == 201 and claim.json()['created_by'] == editor and claim.json()['verification_status'] == 'unverified'
+    assert api.put('/v1/properties/'+pid+'/access', headers=h, json=data).status_code == 404
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject':'alice','expires_at':expiry}).status_code == 404
+    as_subject(peer)
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'Reader rewrite','jurisdiction':'KA'}).status_code == 404
+    assert api.get('/v1/properties/'+pid+'/writers', headers=h).status_code == 404
+    as_subject('alice')
+    assert api.request('DELETE', '/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject': editor}).json() == {'changed': True}
+    as_subject(editor)
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'After revoke','jurisdiction':'KA'}).status_code == 404
+    assert api.post('/v1/properties/'+pid+'/claims', headers=h, json={'statement':'After revoke'}).status_code == 404
+
+
+def test_expired_writer_and_cross_tenant_delegate_denied(api, private_record):
+    from datetime import datetime, timedelta, timezone
+    pid, peer, h, data, as_subject = private_record
+    editor = _editor('temp-editor-'+str(uuid4()))
+    expiry = (datetime.now(timezone.utc)+timedelta(days=1)).isoformat()
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject': editor, 'expires_at': expiry}).status_code == 200
+    assert api.put('/v1/properties/'+pid+'/writers', headers={'X-Tenant-ID': str(B)}, json={'recipient_subject': editor, 'expires_at': expiry}).status_code == 403
+    with psycopg.connect(DSN) as conn:
+        conn.execute("UPDATE property_write_grants SET expires_at=clock_timestamp()-interval '1 second' WHERE property_id=%s AND subject_id=%s", (pid, editor))
+    as_subject(editor)
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'Expired','jurisdiction':'KA'}).status_code == 404
+    as_subject('alice')
+    with psycopg.connect(DSN) as conn:
+        conn.execute("UPDATE tenant_memberships SET role='viewer' WHERE tenant_id=%s AND subject_id='alice'", (A,))
+    try:
+        assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'Downgraded','jurisdiction':'KA'}).status_code == 403
+    finally:
+        with psycopg.connect(DSN) as conn:
+            conn.execute("UPDATE tenant_memberships SET role='owner' WHERE tenant_id=%s AND subject_id='alice'", (A,))
+
+
+def test_runtime_cannot_forge_corrections_or_write_grants(api, private_record):
+    pid, peer, h, data, _ = private_record
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("INSERT INTO property_write_grants(tenant_id,property_id,subject_id,expires_at) VALUES(%s,%s,'alice',clock_timestamp()+interval '1 day')", (A, pid))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("INSERT INTO property_corrections(tenant_id,property_id,actor_subject,previous_label,previous_jurisdiction,label,jurisdiction) VALUES(%s,%s,'alice','a','KA','b','KA')", (A, pid))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("UPDATE properties SET label='forged' WHERE id=%s", (pid,))
+
+
+def test_correction_failure_rolls_back_label(api, private_record):
+    pid, peer, h, data, _ = private_record
+    with psycopg.connect(DSN) as conn:
+        conn.execute("ALTER TABLE property_audit_events ADD CONSTRAINT injected_correction_failure CHECK(event_type<>'property.corrected') NOT VALID")
+    try:
+        assert api.patch('/v1/properties/'+pid, headers=h, json={'label':'Must roll back','jurisdiction':'KA'}).status_code == 503
+        assert api.get('/v1/properties/'+pid, headers=h).json()['label'] == 'Private record'
+        with psycopg.connect(DSN) as conn:
+            assert conn.execute('SELECT id FROM property_corrections WHERE property_id=%s', (pid,)).fetchall() == []
+    finally:
+        with psycopg.connect(DSN) as conn:
+            conn.execute('ALTER TABLE property_audit_events DROP CONSTRAINT injected_correction_failure')
+
+
+def test_write_function_privileges():
+    with psycopg.connect(DSN) as conn:
+        for name in ('public.set_property_write_access(uuid,uuid,text,timestamptz)', 'public.correct_property(uuid,uuid,text,text)'):
+            row = conn.execute("SELECT prosecdef,proconfig,NOT EXISTS(SELECT 1 FROM aclexplode(proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') FROM pg_proc WHERE oid=%s::regprocedure", (name,)).fetchone()
+            assert row == (True, ['search_path=pg_catalog, pg_temp'], True)
+
+
+def _correction_state(pid):
+    with psycopg.connect(DSN) as conn:
+        corrections = conn.execute('SELECT id FROM property_corrections WHERE property_id=%s', (pid,)).fetchall()
+        audits = conn.execute("SELECT id FROM property_audit_events WHERE property_id=%s AND event_type='property.corrected'", (pid,)).fetchall()
+    return corrections, audits
+
+
+def test_correction_denies_nonmember_cross_tenant_reader_missing_mfa_and_revoked_grant(api, private_record):
+    from datetime import datetime, timedelta, timezone
+    from fastapi import HTTPException
+    from app.main import app
+    from app.auth import require_mfa
+    pid, peer, h, data, as_subject = private_record
+    body = {'label': 'Must not apply', 'jurisdiction': 'Bengaluru Rural'}
+    original = api.get('/v1/properties/'+pid, headers=h).json()
+
+    def unchanged():
+        as_subject('alice')
+        current = api.get('/v1/properties/'+pid, headers=h).json()
+        assert current['label'] == original['label'] and current['jurisdiction'] == original['jurisdiction']
+        assert _correction_state(pid) == ([], [])
+
+    as_subject('nonmember-'+str(uuid4()))
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 403
+    assert api.get('/v1/properties/'+pid+'/corrections', headers=h).status_code == 403
+    unchanged()
+
+    outsider = 'cross-'+str(uuid4())
+    with psycopg.connect(DSN) as conn:
+        conn.execute("INSERT INTO tenant_memberships VALUES(%s,%s,'owner')", (B, outsider))
+    as_subject(outsider)
+    assert api.patch('/v1/properties/'+pid, headers={'X-Tenant-ID': str(B)}, json=body).status_code == 404
+    assert api.get('/v1/properties/'+pid+'/corrections', headers={'X-Tenant-ID': str(B)}).status_code == 404
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 403
+    assert api.get('/v1/properties/'+pid+'/corrections', headers=h).status_code == 403
+    as_subject('alice')
+    assert api.patch('/v1/properties/'+pid, headers={'X-Tenant-ID': str(B)}, json=body).status_code == 403
+    unchanged()
+
+    as_subject(peer)
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 404
+    assert api.get('/v1/properties/'+pid+'/corrections', headers=h).status_code == 404
+    as_subject('alice')
+    assert api.put('/v1/properties/'+pid+'/access', headers=h, json=data).status_code == 200
+    as_subject(peer)
+    assert api.get('/v1/properties/'+pid, headers=h).status_code == 200
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 404
+    as_subject('alice')
+    assert api.request('DELETE', '/v1/properties/'+pid+'/access', headers=h, json={'recipient_subject': peer}).json() == {'changed': True}
+    as_subject(peer)
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 404
+    assert api.get('/v1/properties/'+pid+'/corrections', headers=h).status_code == 404
+    unchanged()
+
+    other_owner = 'other-owner-'+str(uuid4())
+    with psycopg.connect(DSN) as conn:
+        conn.execute("INSERT INTO tenant_memberships VALUES(%s,%s,'owner')", (A, other_owner))
+    as_subject(other_owner)
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 404
+    unchanged()
+
+    as_subject('alice')
+    def denied():
+        raise HTTPException(403, 'MFA access token required')
+    app.dependency_overrides[require_mfa] = denied
+    try:
+        denied_response = api.patch('/v1/properties/'+pid, headers=h, json=body)
+        assert denied_response.status_code == 403
+    finally:
+        app.dependency_overrides[require_mfa] = lambda: True
+    unchanged()
+
+    writer = _editor('revoked-writer-'+str(uuid4()))
+    expiry = (datetime.now(timezone.utc)+timedelta(days=2)).isoformat()
+    as_subject('alice')
+    assert api.put('/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject': writer, 'expires_at': expiry}).json() == {'changed': True}
+    assert api.request('DELETE', '/v1/properties/'+pid+'/writers', headers=h, json={'recipient_subject': writer}).json() == {'changed': True}
+    as_subject(writer)
+    assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 404
+    assert api.get('/v1/properties/'+pid+'/corrections', headers=h).status_code == 404
+    unchanged()
+
+    as_subject('alice')
+    with psycopg.connect(DSN) as conn:
+        conn.execute("UPDATE tenant_memberships SET role='viewer' WHERE tenant_id=%s AND subject_id='alice'", (A,))
+    try:
+        assert api.patch('/v1/properties/'+pid, headers=h, json=body).status_code == 403
+    finally:
+        with psycopg.connect(DSN) as conn:
+            conn.execute("UPDATE tenant_memberships SET role='owner' WHERE tenant_id=%s AND subject_id='alice'", (A,))
+    unchanged()
+
+
+def test_editor_creator_corrects_label_or_jurisdiction(api, private_record):
+    _, _, h, _, as_subject = private_record
+    editor = _editor('creator-editor-'+str(uuid4()))
+    as_subject(editor)
+    created = api.post('/v1/properties', headers=h, json={'label': 'Editor plot', 'jurisdiction': 'KA'})
+    assert created.status_code == 201, created.text
+    pid = created.json()['id']
+    label_only = api.patch('/v1/properties/'+pid, headers=h, json={'label': 'Editor plot renamed', 'jurisdiction': 'KA'})
+    assert label_only.status_code == 200, label_only.text
+    assert label_only.json()['changed'] is True and label_only.json()['jurisdiction'] == 'KA'
+    place_only = api.patch('/v1/properties/'+pid, headers=h, json={'label': 'Editor plot renamed', 'jurisdiction': 'Bengaluru Urban'})
+    assert place_only.status_code == 200, place_only.text
+    assert place_only.json()['label'] == 'Editor plot renamed' and place_only.json()['jurisdiction'] == 'Bengaluru Urban'
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label': 'Missing jurisdiction'}).status_code == 422
+    history = api.get('/v1/properties/'+pid+'/corrections', headers=h).json()['items']
+    pairs = {(item['previous_label'], item['label'], item['previous_jurisdiction'], item['jurisdiction']) for item in history}
+    assert ('Editor plot', 'Editor plot renamed', 'KA', 'KA') in pairs
+    assert ('Editor plot renamed', 'Editor plot renamed', 'KA', 'Bengaluru Urban') in pairs
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute("SELECT count(*) FROM property_audit_events WHERE property_id=%s AND event_type='property.corrected'", (pid,)).fetchone()[0] == 2
+
+
+def test_correction_does_not_merge_conflicting_records(api, private_record):
+    pid, _, h, _, _ = private_record
+    claim = api.post('/v1/properties/'+pid+'/claims', headers=h, json={'statement': 'Stays on the first record'})
+    assert claim.status_code == 201, claim.text
+    claim_id = claim.json()['id']
+    other = api.post('/v1/properties', headers=h, json={'label': 'Shared label', 'jurisdiction': 'Bengaluru Urban'})
+    assert other.status_code == 201, other.text
+    other_id = other.json()['id']
+    assert api.patch('/v1/properties/'+pid, headers=h, json={'label': 'Shared label', 'jurisdiction': 'Bengaluru Urban', 'merge_with': other_id}).status_code == 422
+    corrected = api.patch('/v1/properties/'+pid, headers=h, json={'label': 'Shared label', 'jurisdiction': 'Bengaluru Urban'})
+    assert corrected.status_code == 200, corrected.text
+    assert corrected.json()['id'] == pid and corrected.json()['changed'] is True
+    surviving = api.get('/v1/properties/'+other_id, headers=h).json()
+    assert surviving['id'] == other_id and surviving['label'] == 'Shared label' and surviving['created_by'] == 'alice'
+    assert api.get('/v1/properties/'+pid+'/claims', headers=h).json()['items'][0]['id'] == claim_id
+    assert api.get('/v1/properties/'+other_id+'/claims', headers=h).json()['items'] == []
+    assert api.get('/v1/properties/'+other_id+'/corrections', headers=h).json()['items'] == []
+    assert len(api.get('/v1/properties/'+pid+'/corrections', headers=h).json()['items']) == 1
+    with psycopg.connect(DSN) as conn:
+        found = {row[0] for row in conn.execute('SELECT id::text FROM properties WHERE id IN (%s,%s)', (pid, other_id)).fetchall()}
+        assert found == {pid, other_id}
+        assert conn.execute('SELECT property_id::text FROM property_claims WHERE id=%s', (claim_id,)).fetchone()[0] == pid
+        assert conn.execute("SELECT property_id::text FROM property_audit_events WHERE event_type='property.corrected' AND property_id IN (%s,%s)", (pid, other_id)).fetchall() == [(pid,)]
+
+
+def _storage(monkeypatch):
+    from base64 import urlsafe_b64encode
+    monkeypatch.setenv('DOCUMENT_STORAGE_KEY', urlsafe_b64encode(b'A' * 32).decode())
+
+
+def _pdf(marker=b'OYDP-SYNTHETIC-CLEAN'):
+    return b'%PDF-1.4\n%' + marker + b'\n%%EOF'
+
+
+def _png():
+    return b'\x89PNG\r\n\x1a\n' + b'OYDP-SYNTHETIC-CLEAN'
+
+
+def _upload(api, headers, property_id, body, media='application/pdf'):
+    sent = dict(headers)
+    sent['Content-Type'] = media
+    return api.post(f'/v1/properties/{property_id}/documents', headers=sent, content=body)
+
+
+def _docs(property_id):
+    with psycopg.connect(DSN) as conn:
+        return conn.execute('SELECT scan_state FROM property_documents WHERE property_id=%s ORDER BY created_at', (property_id,)).fetchall()
+
+
+class _GateScanner:
+    """Test double. It passes only generated bytes that carry the clean marker."""
+
+    def scan(self, payload, media_type):
+        if b'OYDP-SYNTHETIC-REJECT' in payload:
+            return 'fail'
+        if b'OYDP-SYNTHETIC-CLEAN' not in payload:
+            return 'fail'
+        return 'pass'
+
+
+def _use_scanner():
+    from app.documents import get_document_scanner
+    from app.main import app
+    app.dependency_overrides[get_document_scanner] = lambda: _GateScanner()
+
+
+def test_oversize_document_is_not_stored(api, private_record, monkeypatch):
+    from app.documents import MAX_UPLOAD_BYTES
+    _storage(monkeypatch)
+    pid, _, headers, _, _ = private_record
+    body = b'%PDF-' + b'a' * MAX_UPLOAD_BYTES
+    rejected = _upload(api, headers, pid, body)
+    assert rejected.status_code == 413
+    assert rejected.json()['detail'] == 'Document exceeds the size limit'
+    assert body not in rejected.content
+    assert _docs(pid) == []
+
+
+def test_mismatched_document_content_is_not_stored(api, private_record, monkeypatch):
+    _storage(monkeypatch)
+    pid, _, headers, _, _ = private_record
+    cases = [
+        (_png(), 'application/pdf'),
+        (_pdf(), 'image/png'),
+        (_pdf(), 'image/jpeg'),
+        (b'\x7fELF' + _pdf(), 'application/pdf'),
+        (b'MZ' + _pdf(), 'application/pdf'),
+        (b'<html>OYDP-SYNTHETIC-CLEAN</html>', 'application/pdf'),
+        (_pdf(), 'application/pdf; charset=binary'),
+        (b'', 'application/pdf'),
+    ]
+    for body, media in cases:
+        rejected = _upload(api, headers, pid, body, media)
+        assert rejected.status_code in (415, 422), rejected.text
+        assert b'OYDP-SYNTHETIC' not in rejected.content
+    assert _docs(pid) == []
+
+
+def test_unauthorized_document_access_is_denied(api, private_record, monkeypatch):
+    from uuid import uuid4
+    from app.main import app
+    from app.auth import require_mfa, verified_subject
+    from fastapi import HTTPException
+    _storage(monkeypatch)
+    pid, peer, headers, data, as_subject = private_record
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    assert uploaded.json()['scan_state'] == 'quarantined'
+    assert 'ciphertext' not in uploaded.json()
+    assert b'%PDF' not in uploaded.content
+    document_id = uploaded.json()['id']
+    content = f'/v1/properties/{pid}/documents/{document_id}/content'
+    meta = f'/v1/properties/{pid}/documents/{document_id}'
+
+    saved = dict(app.dependency_overrides)
+    app.dependency_overrides.clear()
+    assert api.get(content, headers=headers).status_code == 503
+    app.dependency_overrides.update(saved)
+
+    as_subject('nonmember-' + str(uuid4()))
+    assert _upload(api, headers, pid, _pdf()).status_code == 403
+    assert api.get(content, headers=headers).status_code == 403
+
+    outsider = 'cross-' + str(uuid4())
+    with psycopg.connect(DSN) as conn:
+        conn.execute("INSERT INTO tenant_memberships VALUES (%s,%s,'owner')", (B, outsider))
+    as_subject(outsider)
+    assert _upload(api, {'X-Tenant-ID': str(B)}, pid, _pdf()).status_code == 404
+    assert api.get(content, headers={'X-Tenant-ID': str(B)}).status_code == 404
+    assert api.get(meta, headers={'X-Tenant-ID': str(B)}).status_code == 404
+
+    as_subject(peer)
+    assert _upload(api, headers, pid, _pdf()).status_code == 404
+    assert api.get(content, headers=headers).status_code == 404
+    as_subject('alice')
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=data).status_code == 200
+    as_subject(peer)
+    assert api.get(meta, headers=headers).status_code == 200
+    assert _upload(api, headers, pid, _pdf()).status_code == 404
+    denied = api.get(content, headers=headers)
+    assert denied.status_code == 403
+    assert b'OYDP-SYNTHETIC-CLEAN' not in denied.content
+
+    def no_mfa():
+        raise HTTPException(403, 'MFA access token required')
+    as_subject('alice')
+    app.dependency_overrides[require_mfa] = no_mfa
+    try:
+        assert _upload(api, headers, pid, _pdf()).status_code == 403
+        assert api.get(content, headers=headers).status_code == 403
+    finally:
+        app.dependency_overrides[require_mfa] = lambda: True
+        app.dependency_overrides[verified_subject] = lambda: 'alice'
+    assert _docs(pid) == [('quarantined',)]
+
+
+def test_revoked_document_access_is_denied(api, private_record, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    _storage(monkeypatch)
+    _use_scanner()
+    pid, _, headers, _, as_subject = private_record
+    editor = _editor('doc-editor-' + str(uuid4()))
+    expiry = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    grant = {'recipient_subject': editor, 'expires_at': expiry}
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=grant).json() == {'changed': True}
+    assert api.put(f'/v1/properties/{pid}/writers', headers=headers, json=grant).json() == {'changed': True}
+    as_subject(editor)
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uploaded.json()['id']
+    content = f'/v1/properties/{pid}/documents/{document_id}/content'
+    meta = f'/v1/properties/{pid}/documents/{document_id}'
+    blocked = api.get(content, headers=headers)
+    assert blocked.status_code == 403
+    assert b'OYDP-SYNTHETIC-CLEAN' not in blocked.content
+    scanned = api.post(f'/v1/properties/{pid}/documents/{document_id}/scan', headers=headers)
+    assert scanned.status_code == 200, scanned.text
+    assert scanned.json()['scan_state'] == 'pass'
+    released = api.get(content, headers=headers)
+    assert released.status_code == 200
+    assert released.content == _pdf()
+    assert released.headers['content-disposition'] == 'attachment; filename="document"'
+    as_subject('alice')
+    assert api.request('DELETE', f'/v1/properties/{pid}/writers', headers=headers, json={'recipient_subject': editor}).json() == {'changed': True}
+    as_subject(editor)
+    assert _upload(api, headers, pid, _pdf()).status_code == 404
+    assert api.get(content, headers=headers).status_code == 200
+    as_subject('alice')
+    assert api.request('DELETE', f'/v1/properties/{pid}/access', headers=headers, json={'recipient_subject': editor}).json() == {'changed': True}
+    as_subject(editor)
+    revoked = api.get(content, headers=headers)
+    assert revoked.status_code == 404
+    assert api.get(meta, headers=headers).status_code == 404
+    assert b'OYDP-SYNTHETIC-CLEAN' not in revoked.content
+    assert _docs(pid) == [('pass',)]
+
+
+def test_scanner_absence_and_failed_scan_deny_download(api, private_record, monkeypatch):
+    from app.documents import get_document_scanner
+    from app.main import app
+    _storage(monkeypatch)
+    pid, _, headers, _, _ = private_record
+    clean = _upload(api, headers, pid, _pdf())
+    assert clean.status_code == 201, clean.text
+    document_id = clean.json()['id']
+    content = f'/v1/properties/{pid}/documents/{document_id}/content'
+    forced = api.post(f'/v1/properties/{pid}/documents/{document_id}/scan', headers=headers, json={'scan_state': 'pass'})
+    assert forced.status_code == 503
+    assert forced.json()['detail'] == 'Document scanner unavailable'
+    assert 'exploded' not in forced.text
+    still = api.get(content, headers=headers)
+    assert still.status_code == 403
+    assert b'%PDF' not in still.content
+    with psycopg.connect(DSN) as conn:
+        digest = bytes(conn.execute('SELECT sha256 FROM property_documents WHERE id=%s', (document_id,)).fetchone()[0])
+    with pytest.raises(psycopg.errors.ObjectNotInPrerequisiteState), runtime(A) as conn:
+        conn.execute('SELECT public.record_document_scan(%s,%s,%s,%s,%s)', (A, pid, document_id, 'pass', digest))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute('SELECT ciphertext,nonce FROM property_documents')
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("UPDATE property_documents SET scan_state='pass', scanned_at=clock_timestamp() WHERE id=%s", (document_id,))
+    assert _docs(pid) == [('quarantined',)]
+
+    rejected = _upload(api, headers, pid, _pdf(b'OYDP-SYNTHETIC-REJECT'))
+    assert rejected.status_code == 201, rejected.text
+    rejected_id = rejected.json()['id']
+    app.dependency_overrides[get_document_scanner] = lambda: _GateScanner()
+    decision = api.post(f'/v1/properties/{pid}/documents/{rejected_id}/scan', headers=headers)
+    assert decision.status_code == 200, decision.text
+    assert decision.json()['scan_state'] == 'fail'
+    failed = api.get(f'/v1/properties/{pid}/documents/{rejected_id}/content', headers=headers)
+    assert failed.status_code == 403
+    assert b'OYDP-SYNTHETIC-REJECT' not in failed.content
+    assert api.post(f'/v1/properties/{pid}/documents/{rejected_id}/scan', headers=headers).status_code == 409
+    assert _docs(pid) == [('quarantined',), ('fail',)]
+
+
+def test_unexpected_scanner_answer_does_not_release_bytes(api, private_record, monkeypatch):
+    from app.documents import get_document_scanner
+    from app.main import app
+    _storage(monkeypatch)
+    pid, _, headers, _, _ = private_record
+    uploaded = _upload(api, headers, pid, _pdf())
+    document_id = uploaded.json()['id']
+
+    class _Odd:
+        def scan(self, payload, media_type):
+            return 'PASS'
+
+    app.dependency_overrides[get_document_scanner] = lambda: _Odd()
+    response = api.post(f'/v1/properties/{pid}/documents/{document_id}/scan', headers=headers)
+    assert response.status_code == 503
+    denied = api.get(f'/v1/properties/{pid}/documents/{document_id}/content', headers=headers)
+    assert denied.status_code == 403
+    assert denied.content != _pdf()
+    assert _docs(pid) == [('quarantined',)]
+
+
+def test_missing_storage_key_does_not_store_plaintext(api, private_record, monkeypatch):
+    monkeypatch.delenv('DOCUMENT_STORAGE_KEY', raising=False)
+    pid, _, headers, _, _ = private_record
+    rejected = _upload(api, headers, pid, _pdf())
+    assert rejected.status_code == 503
+    assert b'OYDP-SYNTHETIC-CLEAN' not in rejected.content
+    assert _docs(pid) == []

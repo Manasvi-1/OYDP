@@ -71,6 +71,12 @@ main { padding: 2rem 0 4rem; }
   margin: 0 0 0.4rem;
 }
 .muted { color: var(--muted); }
+.disclosure {
+  border: 1px solid var(--line);
+  background: var(--warn-bg);
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 1.25rem;
+}
 .banner, .notice {
   border: 1px solid var(--line);
   border-left: 4px solid var(--copper);

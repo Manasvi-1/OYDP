@@ -1,6 +1,6 @@
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SESSION_COOKIE = 'oydp_session'
-const MAX_TOKEN_LENGTH = 3500
+const MAX_TOKEN_LENGTH = 8000
 
 function fail(error) {
   return { ok: false, error }
@@ -45,7 +45,7 @@ export function encodeSession(session) {
 }
 
 export function decodeSession(value) {
-  if (!value || value.length > 6000) return null
+  if (!value || value.length > 14000) return null
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
     const check = parseSessionInput(parsed)
@@ -70,6 +70,12 @@ export function propertiesQuery(cursor) {
   const params = new URLSearchParams({ limit: '25' })
   if (cursor) params.set('cursor', cursor)
   return `/v1/properties?${params.toString()}`
+}
+
+export function correctionsQuery(propertyId, cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/properties/${propertyId}/corrections?${params.toString()}`
 }
 
 export function claimsQuery(propertyId, cursor) {

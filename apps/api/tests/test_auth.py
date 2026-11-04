@@ -1,4 +1,6 @@
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -79,6 +81,16 @@ def test_https_required(signing, monkeypatch):
     assert exc.value.status_code == 503
 
 
+def test_localhost_http_issuer_is_allowed(signing, monkeypatch):
+    monkeypatch.setenv('OIDC_ISSUER', 'http://127.0.0.1:8080/realms/oydp')
+    monkeypatch.setenv('OIDC_JWKS_URL', 'http://127.0.0.1:8080/realms/oydp/protocol/openid-connect/certs')
+    token, key, _ = signing
+    claims = jwt.decode(token(), options={'verify_signature': False})
+    claims['iss'] = 'http://127.0.0.1:8080/realms/oydp'
+    local = jwt.encode(claims, key, algorithm='RS256', headers={'kid': 'test', 'typ': 'at+jwt'})
+    assert verified_subject('Bearer '+local) == 'alice'
+
+
 def test_jwks_rotation(monkeypatch):
     import json
     from jwt.algorithms import RSAAlgorithm
@@ -104,6 +116,7 @@ def test_jwks_rotation(monkeypatch):
 def test_mfa_access_token(signing):
     from app.auth import require_mfa
     assert require_mfa('Bearer '+signing[0](amr=['pwd','mfa'])) is True
+    assert require_mfa('Bearer '+signing[0](amr=['pwd','otp'])) is True
 
 
 @pytest.mark.parametrize('amr', [[], ['pwd']])
@@ -119,3 +132,84 @@ def test_malformed_mfa_claim_denied(signing, amr):
     with pytest.raises(HTTPException) as exc:
         verified_subject('Bearer '+signing[0](amr=amr))
     assert exc.value.status_code == 401
+
+
+def test_expired_token_denied(signing):
+    from app.auth import require_mfa
+    token = 'Bearer '+signing[0](exp=1, amr=['pwd', 'otp'])
+    with pytest.raises(HTTPException) as exc:
+        verified_subject(token)
+    assert exc.value.status_code == 401
+    with pytest.raises(HTTPException) as exc:
+        require_mfa(token)
+    assert exc.value.status_code == 401
+
+
+@pytest.mark.parametrize('audience', ['oydp-web', ['oydp-web', 'account']])
+def test_wrong_audience_denied(signing, audience):
+    from app.auth import require_mfa
+    token = 'Bearer '+signing[0](aud=audience, amr=['pwd', 'otp'])
+    with pytest.raises(HTTPException) as exc:
+        verified_subject(token)
+    assert exc.value.status_code == 401
+    with pytest.raises(HTTPException) as exc:
+        require_mfa(token)
+    assert exc.value.status_code == 401
+
+
+def test_non_mfa_token_denied_for_writes(signing):
+    from app.auth import require_mfa
+    token = 'Bearer '+signing[0](amr=['pwd'])
+    assert verified_subject(token) == 'alice'
+    with pytest.raises(HTTPException) as exc:
+        require_mfa(token)
+    assert exc.value.status_code == 403
+
+
+def test_missing_oidc_configuration_fails_closed(monkeypatch):
+    for name in ('OIDC_ISSUER', 'OIDC_AUDIENCE', 'OIDC_JWKS_URL'):
+        monkeypatch.delenv(name, raising=False)
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer present')
+    assert exc.value.status_code == 503
+
+
+def test_local_realm_has_no_bypass_and_no_stored_users():
+    realm_path = Path(__file__).resolve().parents[3] / 'infra' / 'keycloak' / 'oydp-realm.json'
+    realm = json.loads(realm_path.read_text(encoding='utf-8'))
+    assert realm['realm'] == 'oydp'
+    assert realm['enabled'] is True
+    assert realm['sslRequired'] == 'none'
+    assert realm['registrationAllowed'] is False
+    assert realm['browserFlow'] == 'oydp browser'
+    assert 'users' not in realm
+    assert 'credentials' not in json.dumps(realm)
+    web = next(client for client in realm['clients'] if client['clientId'] == 'oydp-web')
+    api = next(client for client in realm['clients'] if client['clientId'] == 'oydp-api')
+    assert web['publicClient'] is True
+    assert web['standardFlowEnabled'] is True
+    assert web['implicitFlowEnabled'] is False
+    assert web['directAccessGrantsEnabled'] is False
+    assert web['serviceAccountsEnabled'] is False
+    assert api['bearerOnly'] is True
+    assert api['directAccessGrantsEnabled'] is False
+    assert api['standardFlowEnabled'] is False
+    assert web['attributes']['pkce.code.challenge.method'] == 'S256'
+    assert web['attributes']['access.token.header.type.rfc9068'] == 'true'
+    mappers = {item['protocolMapper']: item for item in web['protocolMappers']}
+    audience = mappers['oidc-audience-mapper']['config']
+    assert audience['included.client.audience'] == 'oydp-api'
+    assert audience['access.token.claim'] == 'true'
+    assert audience['id.token.claim'] == 'false'
+    amr = mappers['oidc-amr-mapper']['config']
+    assert amr['access.token.claim'] == 'true'
+    assert amr['id.token.claim'] == 'false'
+    flow = next(item for item in realm['authenticationFlows'] if item['alias'] == 'oydp browser')
+    executions = {item['authenticator']: item for item in flow['authenticationExecutions']}
+    assert set(executions) == {'auth-username-password-form', 'auth-otp-form'}
+    assert all(item['requirement'] == 'REQUIRED' for item in executions.values())
+    configs = {item['alias']: item['config'] for item in realm['authenticatorConfig']}
+    assert configs[executions['auth-username-password-form']['authenticatorConfig']]['default.reference.value'] == 'pwd'
+    otp = configs[executions['auth-otp-form']['authenticatorConfig']]
+    assert otp['default.reference.value'] == 'otp'
+    assert 1 <= int(otp['default.reference.maxAge']) <= 900

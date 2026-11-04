@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { recordClaim, revokeReadAccess } from '../../actions'
+import { correctProperty, recordClaim, revokeReadAccess, revokeWriteAccess } from '../../actions'
 import { ApiError, callPropertyApi } from '../../../lib/api'
-import { claimsQuery, UUID } from '../../../lib/contract.mjs'
+import { claimsQuery, correctionsQuery, UUID } from '../../../lib/contract.mjs'
 import { readSession } from '../../../lib/session'
 import { AccessForm } from './access-form'
+import { WriterForm } from './writer-form'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,21 @@ interface ClaimPage {
   next_cursor: string | null
 }
 
+interface CorrectionRecord {
+  id: string
+  previous_label: string
+  label: string
+  previous_jurisdiction: string
+  jurisdiction: string
+  actor_subject: string
+  recorded_at: string
+}
+
+interface CorrectionPage {
+  items: CorrectionRecord[]
+  next_cursor: string | null
+}
+
 export default async function PropertyPage({ params, searchParams }: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ error?: string; notice?: string; cursor?: string }>
@@ -49,17 +65,25 @@ export default async function PropertyPage({ params, searchParams }: {
   }
   let claims: ClaimPage | null = null
   let claimsError = ''
+  let corrections: CorrectionPage | null = null
   try {
     claims = await callPropertyApi(session, claimsQuery(id, query.cursor)) as ClaimPage
   } catch (error) {
     claimsError = error instanceof Error ? error.message.slice(0, 300) : 'Claims are unavailable'
   }
+  try {
+    corrections = await callPropertyApi(session, correctionsQuery(id, undefined)) as CorrectionPage
+  } catch {
+    corrections = null
+  }
   const error = query.error?.slice(0, 300)
-  const notice = query.notice === 'read-access-updated'
-    ? 'Read access was updated.'
-    : query.notice === 'read-access-revoked'
-      ? 'Read access revocation was submitted.'
-      : ''
+  const notice = {
+    'read-access-updated': 'Read access was updated.',
+    'read-access-revoked': 'Read access revocation was submitted.',
+    'property-corrected': 'The correction was submitted. The previous label stays in the correction history.',
+    'write-access-updated': 'Write delegation was updated.',
+    'write-access-revoked': 'Write delegation revocation was submitted.',
+  }[query.notice ?? ''] ?? ''
   return (
     <section>
       <p><Link href="/properties">All visible properties</Link></p>
@@ -95,8 +119,39 @@ export default async function PropertyPage({ params, searchParams }: {
               <p><Link href={`/properties/${id}?cursor=${encodeURIComponent(claims.next_cursor)}`}>Older claims</Link></p>
             ) : null}
           </article>
+          {corrections?.items.length ? (
+            <article className="panel">
+              <h2>Correction history</h2>
+              <div className="grid">
+                {corrections.items.map((correction) => (
+                  <article key={correction.id} className="card">
+                    <p>{correction.previous_label} to {correction.label}</p>
+                    <div className="meta">
+                      <span>{correction.previous_jurisdiction} to {correction.jurisdiction}</span>
+                      <span>{correction.actor_subject}</span>
+                      <span>{formatWhen(correction.recorded_at)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </article>
+          ) : null}
+          <form className="panel stack" action={correctProperty.bind(null, id)}>
+            <h2>Correct this record</h2>
+            <p className="muted">Only the owner, or an editor the owner delegated, can change the label and jurisdiction. The old values remain in the correction history.</p>
+            <label>
+              Label
+              <input name="label" required maxLength={200} defaultValue={property.label} autoComplete="off" />
+            </label>
+            <label>
+              Jurisdiction
+              <input name="jurisdiction" required maxLength={100} defaultValue={property.jurisdiction} autoComplete="off" />
+            </label>
+            <button className="primary" type="submit">Save correction</button>
+          </form>
           <form className="panel stack" action={recordClaim.bind(null, id)}>
             <h2>Record a claim</h2>
+            <p className="muted">Statements stay user claims with unverified status. They are not official observations.</p>
             <label>
               Statement
               <textarea name="statement" required maxLength={10000} />
@@ -110,6 +165,19 @@ export default async function PropertyPage({ params, searchParams }: {
             <p className="muted">Grants are read-only, expire, and can be revoked. The API allows at most 30 days.</p>
             <AccessForm propertyId={id} />
           </section>
+          <section className="panel">
+            <h2>Delegated writer</h2>
+            <p className="muted">The recipient must already be an editor in this tenant. A writer can correct and add claims. A writer cannot share or delegate further.</p>
+            <WriterForm propertyId={id} />
+          </section>
+          <form className="panel stack" action={revokeWriteAccess.bind(null, id)}>
+            <h2>Revoke write access</h2>
+            <label>
+              Editor subject
+              <input name="recipient" required maxLength={255} autoComplete="off" spellCheck={false} />
+            </label>
+            <button className="secondary" type="submit">Revoke writer</button>
+          </form>
           <form className="panel stack" action={revokeReadAccess.bind(null, id)}>
             <h2>Revoke read access</h2>
             <label>

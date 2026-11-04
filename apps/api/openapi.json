@@ -170,14 +170,26 @@
             "title": "Previous Label",
             "type": "string"
           },
+          "property_id": {
+            "format": "uuid",
+            "title": "Property Id",
+            "type": "string"
+          },
           "recorded_at": {
             "format": "date-time",
             "title": "Recorded At",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
             "type": "string"
           }
         },
         "required": [
           "id",
+          "tenant_id",
+          "property_id",
           "previous_label",
           "previous_jurisdiction",
           "label",
@@ -332,6 +344,29 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "PropertyCorrection": {
+        "additionalProperties": false,
+        "properties": {
+          "jurisdiction": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Jurisdiction",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "jurisdiction"
+        ],
+        "title": "PropertyCorrection",
         "type": "object"
       },
       "PropertyCreate": {
@@ -517,10 +552,22 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "required": [
-          "items"
+          "items",
+          "next_cursor"
         ],
         "title": "WriteGrantPage",
         "type": "object"
@@ -832,7 +879,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PropertyCreate"
+                "$ref": "#/components/schemas/PropertyCorrection"
               }
             }
           },
@@ -1658,6 +1705,35 @@
               "format": "uuid",
               "title": "Property Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
             }
           },
           {

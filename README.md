@@ -108,7 +108,7 @@ PYTHONPATH=apps/api uvicorn app.main:app --reload
 
 On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
 
-The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). These instructions are **not** a complete working application setup.
+Compose starts PostGIS and a localhost-only Keycloak realm. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md) and [Launch 1 drop 1](docs/implementation/LAUNCH_1_DROP_1.md). These instructions are **not** a production setup.
 
 The workspace UI is a separate app:
 
@@ -119,7 +119,7 @@ npm test
 npm run dev
 ```
 
-Open `http://localhost:3000` and provide the API base, tenant UUID, and an already issued RS256 access token. The UI stores that token in an httpOnly session cookie and calls the property API from the server. It does not enroll an identity provider. See [web workspace](docs/implementation/WEB_WORKSPACE.md).
+Open `http://127.0.0.1:3000`. With the web OIDC variables set, Sign in uses the local identity provider and a one-time code. The pasted-token form remains available. The UI stores the access token in an httpOnly session cookie and calls the property API from the server. See [web workspace](docs/implementation/WEB_WORKSPACE.md).
 
 ## Engineering workflow
 

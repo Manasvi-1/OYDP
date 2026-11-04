@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   claimsQuery,
+  correctionsQuery,
   decodeSession,
   encodeSession,
   messageFromApi,
@@ -48,4 +49,5 @@ test('builds bounded property and claim queries', () => {
   assert.equal(propertiesQuery(undefined), '/v1/properties?limit=25')
   assert.equal(propertiesQuery('cursor+value'), '/v1/properties?limit=25&cursor=cursor%2Bvalue')
   assert.equal(claimsQuery(tenant, undefined), `/v1/properties/${tenant}/claims?limit=25`)
+  assert.equal(correctionsQuery(tenant, undefined), `/v1/properties/${tenant}/corrections?limit=25`)
 })

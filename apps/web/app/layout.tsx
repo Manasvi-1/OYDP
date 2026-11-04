@@ -26,7 +26,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             ) : null}
           </div>
         </header>
-        <main className="shell">{children}</main>
+        <main className="shell">
+          <p className="disclosure">Private record. This workspace does not verify title, speak for a government office, or promise a price or an approval.</p>
+          {children}
+        </main>
       </body>
     </html>
   )

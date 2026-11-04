@@ -87,6 +87,59 @@ export async function shareReadAccess(propertyId: string, formData: FormData) {
   redirect(`/properties/${propertyId}?notice=read-access-updated`)
 }
 
+export async function correctProperty(propertyId: string, formData: FormData) {
+  if (!UUID.test(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}`, {
+      method: 'PATCH',
+      body: {
+        label: String(formData.get('label') ?? ''),
+        jurisdiction: String(formData.get('jurisdiction') ?? ''),
+      },
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}`, error)
+  }
+  redirect(`/properties/${propertyId}?notice=property-corrected`)
+}
+
+export async function grantWriteAccess(propertyId: string, formData: FormData) {
+  if (!UUID.test(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  const expiry = new Date(String(formData.get('expiresAt') ?? ''))
+  if (Number.isNaN(expiry.getTime())) bounce(`/properties/${propertyId}`, new ApiError(422, 'Expiry must be a real date'))
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/writers`, {
+      method: 'PUT',
+      body: {
+        recipient_subject: String(formData.get('recipient') ?? ''),
+        expires_at: expiry.toISOString(),
+      },
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}`, error)
+  }
+  redirect(`/properties/${propertyId}?notice=write-access-updated`)
+}
+
+export async function revokeWriteAccess(propertyId: string, formData: FormData) {
+  if (!UUID.test(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/writers`, {
+      method: 'DELETE',
+      body: { recipient_subject: String(formData.get('recipient') ?? '') },
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}`, error)
+  }
+  redirect(`/properties/${propertyId}?notice=write-access-revoked`)
+}
+
 export async function revokeReadAccess(propertyId: string, formData: FormData) {
   if (!UUID.test(propertyId)) redirect('/properties')
   const session = await readSession()
