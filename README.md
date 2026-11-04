@@ -1,178 +1,259 @@
-# OYDP — Own Your Dream Property
+<div align="center">
 
-**Property intelligence. Evidence-led decisions. One continuous property lifecycle.**
+<!-- brand accent — deep teal / slate, not purple -->
+<img
+  src="https://img.shields.io/badge/OYDP-Own%20Your%20Dream%20Property-0F766E?style=for-the-badge&labelColor=0F172A"
+  alt="OYDP — Own Your Dream Property"
+/>
 
-OYDP is an India-first property decision and lifecycle platform under active development. It is designed to connect property identity, evidence provenance, collaborative due diligence, ownership workflows, geospatial context, transparent financial models and professional services within a single permissioned workspace.
+# OYDP
 
-> **Engineering status — pre-alpha.** This repository contains the controlled product design and an initial backend/database foundation. It is **not** a launched product, government-integrated verification service, or completed 13-engine application. This is a tested pre-alpha backend slice; the full application remains under development.
+### Own Your Dream Property
 
-## Why OYDP exists
+**India-first continuous property lifecycle** — a permissioned workspace where people, evidence, and spatial context stay together across the life of a property.
 
-Property decisions are fragmented across documents, public portals, advisers, listings, spreadsheets and disconnected conversations. OYDP's proposed differentiator is a persistent, property-specific workspace where claims can be traced to their sources, collaborators receive revocable permissions, and every consequential result carries its evidence and limitations.
+[![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square&labelColor=0F172A)](#where-we-actually-are)
+[![Engines](https://img.shields.io/badge/engines-13%20planned-0F766E?style=flat-square&labelColor=0F172A)](#the-13-engines)
+[![Shape](https://img.shields.io/badge/shape-modular%20monolith-334155?style=flat-square&labelColor=0F172A)](#how-it-fits-together)
+[![API](https://img.shields.io/badge/API-0.3%20privacy%20·%20.4%20discovery-0EA5E9?style=flat-square&labelColor=0F172A)](#api-increments)
+[![Tests](https://img.shields.io/badge/backend%20build-68f2875%20·%20115%20tests-64748B?style=flat-square&labelColor=0F172A)](#latest-verified-backend-build)
 
-**No unverified ownership certification. No invented official data access. No guaranteed valuations.**
+<br/>
 
-## Product scope
+<sub>
+Honest pre-alpha. Not a registry. Not a government portal. Not production-ready.
+</sub>
 
-All 13 engines remain planned release commitments; none is marked production-complete.
-
-| ID | Engine | Intended responsibility |
-| --- | --- | --- |
-| E01 | Property Identity & Evidence Graph | Canonical property candidates, identifiers, provenance and conflicts |
-| E02 | AI Property Advisor | Jurisdiction-scoped, source-grounded procedural guidance |
-| E03 | Transaction & Legal Workspace | Invited diligence, requests, offers and review history |
-| E04 | Living Property Passport | Private records, events, selective sharing and exports |
-| E05 | Ownership Action Engine | Tracked tasks, evidence and consent-based reminders |
-| E06 | OYDP Real Estate Academy | Reviewed learning tracks and assessments |
-| E07 | SpatialLedger GIS Intelligence | Source-attributed mapping and spatial overlays |
-| E08 | Valuation & Market Intelligence | Licensed comparables and explainable price ranges |
-| E09 | AI Layout & Architecture Concept Studio | Concept-only plot and massing alternatives |
-| E10 | Development & Business Feasibility | Reproducible scenario and cash-flow calculations |
-| E11 | Marketplace & Professional Network | Consent-based listings and moderated enquiries |
-| E12 | Time-Versioned Spatial Digital Twin | Versioned spatial representations and history |
-| E13 | Institutional API & Evidence Attestations | Grant-scoped, audited, read-only integrations |
-
-## Architecture
-
-The target is a **modular monolith**, not 13 independently deployed services.
-
-```text
-Browser / role-specific Next.js interfaces  [pre-alpha workspace]
-                    |
-         OIDC identity + policy layer        [API verifier; provider not selected]
-                    |
-         FastAPI modular backend             [property API implemented]
-                    |
-       PostgreSQL / PostGIS + RLS            [migrations + native tests]
-                    |
-     Evidence storage / workers / audit      [planned]
-```
-
-Core engineering principles: verified identity before access, server-side object authorization, tenant isolation at both application and database layers, explicit source lineage, bounded background jobs, privacy by design and deterministic calculations where correctness is essential.
-
-See [architecture](docs/architecture/README.md) and [security model](docs/security/README.md).
-
-## Implementation status
-
-| Area | State | Evidence |
-| --- | --- | --- |
-| Product requirements and architecture | Documented | Controlled source blueprints |
-| API foundation | Authenticated property and read-access API | `apps/api/app/main.py` |
-| Property database schema | Versioned, checksum-verified migrations | `infra/db/`; PostgreSQL CI |
-| Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 67 PostgreSQL/API cases passed at `68f2875` |
-| Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
-| API/authentication/pagination/CI guard tests | 48 passed in GitHub CI | `apps/api/tests/`; 115 total with DB integration |
-| Next.js application | First authenticated property journey | `apps/web`; contract tests. Browser end-to-end and live OIDC enrollment remain open |
-| All 13 end-to-end engine journeys | Not implemented | GA gate |
-| Production deployment | Not performed | Not production-ready |
-
-**Do not interpret committed files, passing smoke tests, or documentation as evidence of production security.**
-
-## Repository layout
-
-```text
-OYDP/
-├── .github/workflows/       # CI definitions
-├── apps/
-│   ├── api/                 # FastAPI backend
-│   └── web/                 # Next.js workspace for the first property journey
-├── infra/db/                # Versioned SQL migrations
-├── docs/
-│   ├── architecture/        # Architecture decisions and boundaries
-│   ├── security/            # Threats, authorization and release gates
-│   ├── implementation/      # Phase progress and engineering tickets
-│   └── reference/           # Controlled specifications when available
-├── AGENTS.md                # AI-assisted engineering guardrails
-├── compose.yaml             # Local PostGIS development service
-└── README.md
-```
-
-Directories described as planned may not yet exist on the default branch.
-
-## Local development — foundation only
-
-Prerequisites: Python 3.12+, Docker with Compose, and Git. Create a private local `.env` from `.env.example` and replace the example password.
-
-```bash
-git clone https://github.com/Manasvi-1/OYDP.git
-cd OYDP
-git switch main
-cp .env.example .env
-docker compose up -d db
-python -m venv .venv
-source .venv/bin/activate
-pip install --require-hashes -r apps/api/requirements.lock
-PYTHONPATH=apps/api python -m pytest -q apps/api/tests
-PYTHONPATH=apps/api uvicorn app.main:app --reload
-```
-
-On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
-
-Compose starts PostGIS and a localhost-only Keycloak realm. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md) and [Launch 1 drop 1](docs/implementation/LAUNCH_1_DROP_1.md). These instructions are **not** a production setup.
-
-The workspace UI is a separate app:
-
-```bash
-cd apps/web
-npm ci
-npm test
-npm run dev
-```
-
-Open `http://127.0.0.1:3000`. With the web OIDC variables set, Sign in uses the local identity provider and a one-time code. The pasted-token form remains available. The UI stores the access token in an httpOnly session cookie and calls the property API from the server. See [web workspace](docs/implementation/WEB_WORKSPACE.md).
-
-## Engineering workflow
-
-1. Read [AGENTS.md](AGENTS.md) and the controlled master specification.
-2. Start a narrowly scoped feature branch and write an implementation plan.
-3. Add schema changes, contracts, negative authorization tests and migration verification.
-4. Run tests against real isolated infrastructure; document commands and outcomes.
-5. Submit a reviewed PR with risk notes and rollback instructions.
-6. Merge only after security and functional acceptance gates pass.
-
-## Release boundaries
-
-The initial geographic program covers Bengaluru Urban, Bengaluru Rural, other Karnataka districts and Hyderabad, subject to **jurisdiction-specific source rights and professional review**. Government portals are independent authorities; availability of a website does not grant API or redistribution rights.
-
-General availability requires 13 genuine engine journeys plus legal/data-rights review, security assessment, privacy and consent validation, grounded AI and calculator evaluation, recovery drills, pilot economics and signed release approval.
-
-## Roadmap
-
-**Now:** API 0.4.0 private discovery and unverified claims passed native CI. The first authenticated UI is in `apps/web`; live identity-provider enrollment and browser end-to-end tests are still open.  
-**Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
-**Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
-
-See [implementation status](docs/implementation/PHASE_04_STATUS.md) and [engineering roadmap](docs/ROADMAP.md).
-
-## Security and responsible disclosure
-
-Do not open public issues containing vulnerabilities, credentials, property documents or personal information. See [SECURITY.md](SECURITY.md). Never commit live customer data, recovery keys or third-party proprietary datasets.
-
-## Ownership and licensing
-
-Copyright and licensing decisions have not yet been finalized. **No open-source license is granted by this repository as currently documented.** Third-party dependencies retain their respective licenses. Contact the repository owner for usage or contribution authorization.
+</div>
 
 ---
 
-**OYDP is being engineered for verifiable property workflows, not unsupported claims of certainty.**
+## Why OYDP exists
 
+Indian property work is fragmented. Title papers live in one drawer, survey sketches in another, WhatsApp threads elsewhere, and every “official” claim needs careful verification. People lose the thread between discovery, claim, diligence, and long-term ownership.
+
+OYDP’s bet is simple: give serious participants a **permissioned workspace** where lifecycle state and **evidence** can travel together — without pretending we are the government, and without inventing data we do not have.
+
+We are building that foundation carefully. Pre-alpha means the skeleton is real; the product is not finished.
+
+---
+
+## What we do **not** claim
+
+Please read this before anything else.
+
+| We do **not** | Meaning |
+| --- | --- |
+| Issue unverified ownership certificates | OYDP is not proof of title |
+| Invent or scrape “official” data | No fabricated registry / survey / mutation records |
+| Guarantee valuations | Any value models are advisory research, never a promise |
+| Speak for government systems | No claimed API access to state or central land portals |
+| Ship production / gov-verified software | This repo is pre-alpha engineering |
+
+If a feature would require us to fake certainty, we leave it unbuilt.
+
+---
+
+## The 13 engines
+
+Thirteen engines are **planned release commitments**. None are production-complete. Working titles below describe intent along a continuous property lifecycle — they are roadmap language, not shipping guarantees.
+
+| ID | Working title | Lifecycle intent |
+| :---: | --- | --- |
+| **E01** | Identity & workspace | Who is in the room, and under what grant |
+| **E02** | Property discovery | Find and frame properties without inventing facts |
+| **E03** | Claims & interests | Record asserted interests with provenance |
+| **E04** | Evidence vault | Attach, hash, and retain supporting artefacts |
+| **E05** | Spatial / cadastre | PostGIS-backed geometry and locality context |
+| **E06** | Title research | Structured research notes — never a title cert |
+| **E07** | Diligence & compliance | Checklists and gaps, not legal conclusions |
+| **E08** | Valuation models | Exploratory estimates — explicitly non-guaranteed |
+| **E09** | Transaction flow | Move a deal through stages with audit trail |
+| **E10** | Grants & permissions | Fine-grained access over workspace objects |
+| **E11** | Portfolio continuity | Keep lifecycle state across years, not just a sale |
+| **E12** | Collaboration | Human-in-the-loop notes, invites, hand-offs |
+| **E13** | Audit & reconciliation | What changed, who saw it, what still conflicts |
+
+<div align="center">
+<img src="https://img.shields.io/badge/E01–E13-planned%20only-0F766E?style=flat-square&labelColor=0F172A" alt="All engines planned only" />
+<img src="https://img.shields.io/badge/production--complete-0%20of%2013-DC2626?style=flat-square&labelColor=0F172A" alt="Zero engines production-complete" />
+</div>
+
+---
+
+## How it fits together
+
+Modular monolith: one deployable backend today, clear module boundaries so engines can grow without a microservice zoo.
+
+```mermaid
+flowchart LR
+  B["Browser / web app"] --> O["OIDC sign-in"]
+  O --> F["FastAPI modular monolith"]
+  F --> P[("Postgres + PostGIS<br/>Row Level Security")]
+  F -. planned .-> E["Evidence store"]
+  F -. planned .-> W["Background workers"]
+
+  style B fill:#0F172A,stroke:#0F766E,color:#E2E8F0
+  style O fill:#134E4A,stroke:#0F766E,color:#E2E8F0
+  style F fill:#0F766E,stroke:#99F6E4,color:#F8FAFC
+  style P fill:#1E293B,stroke:#64748B,color:#E2E8F0
+  style E fill:#334155,stroke:#94A3B8,color:#CBD5E1,stroke-dasharray: 4 3
+  style W fill:#334155,stroke:#94A3B8,color:#CBD5E1,stroke-dasharray: 4 3
+```
+
+ASCII sketch if Mermaid is collapsed:
+
+```
+Browser ──► OIDC ──► FastAPI (modular monolith)
+                         │
+                         ▼
+              Postgres / PostGIS + RLS
+                         │
+            ┌────────────┴────────────┐
+            ▼                         ▼
+     evidence store              workers
+        (planned)               (planned)
+```
+
+---
+
+## Where we actually are
+
+Honest status — green means “exists and is useful in-repo,” amber means “partial / scaffolding,” slate means “planned.”
+
+| Surface | Status | Notes |
+| --- | :---: | --- |
+| FastAPI backend foundation | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Pre-alpha; see build note below |
+| Postgres + PostGIS + RLS | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Spatial + tenancy primitives in progress |
+| Web client | ![amber](https://img.shields.io/badge/-scaffolding-F59E0B?style=flat-square) | Not a finished product UI |
+| OIDC auth path | ![amber](https://img.shields.io/badge/-wired-F59E0B?style=flat-square) | Foundation for permissioned access |
+| Evidence store / workers | ![slate](https://img.shields.io/badge/-planned-64748B?style=flat-square) | On the architecture diagram for a reason |
+| Engines E01–E13 | ![slate](https://img.shields.io/badge/-planned-64748B?style=flat-square) | Release commitments, not shipped modules |
+| Government data feeds | ![red](https://img.shields.io/badge/-not%20claimed-DC2626?style=flat-square) | We do not invent or assert access |
+
+### Dual-backend reconciliation
+
+> **Warning.** The tree currently carries two backend lineages: `oydp/` and `apps/api`. Treat them as **in reconciliation**, not as two production services. Prefer the path called out in current engineering notes / `AGENTS.md` when contributing. Do not assume both are live or equivalent.
+
+### API increments
+
+- **API 0.3 — privacy** — privacy-respecting defaults for workspace data; foundation for grants.
+- **API 0.4 — discovery / claims** — early discovery and claims surfaces on top of that privacy base.
+
+These are incremental pre-alpha slices, not versioned public product APIs with SLAs.
+
+### Merged workspace migrations `008`–`014`
+
+Workspace migrations **008 through 014** are merged into the shared migration line. Apply them in order on a fresh foundation database. Do not cherry-pick mid-stream; if you fork schema locally, rebase onto the merged sequence before opening a PR.
+
+---
+
+## Repo layout
+
+```
+OYDP/
+├── apps/
+│   ├── api/          # FastAPI surface (reconcile vs oydp/ — see warning)
+│   └── web/          # Web client scaffolding
+├── oydp/             # Alternate / legacy backend lineage (reconcile)
+├── migrations/       # Postgres / PostGIS / RLS — includes 008–014 workspace line
+├── docs/             # Design, boundaries, engineering notes
+├── AGENTS.md         # Agent & contributor gates — read before automated edits
+├── SECURITY.md       # Vulnerability disclosure
+└── README.md         # You are here
+```
+
+Exact folder names may evolve as the dual-backend reconciliation lands; when docs and tree disagree, trust `AGENTS.md` and the latest engineering note.
+
+---
+
+## Local foundation setup
+
+### POSIX (Linux / macOS)
+
+1. Clone the repo and enter it.
+2. Install Python 3.11+, Node (for web), Docker (Postgres/PostGIS recommended).
+3. Copy `.env.example` → `.env` and fill OIDC + database URLs for **local** use only.
+4. Bring up PostGIS, run migrations through **014**, start the API from the **canonical** backend path (see reconciliation warning).
+5. Run the test suite before you trust your checkout.
+
+```bash
+# illustrative — follow docs/ and AGENTS.md for the canonical commands
+cp .env.example .env
+docker compose up -d db          # PostGIS
+# run migrations  →  start API  →  optional web
+```
+
+### Windows notes
+
+- Prefer **WSL2** for parity with POSIX scripts and Docker Desktop’s Linux engine.
+- Native PowerShell works for editing; treat shell scripts as WSL-first unless a `*.ps1` helper exists.
+- Path length and CRLF: keep `core.autocrlf` sane and avoid binding PostGIS data dirs to non-WSL paths when possible.
+
+We do not document a production deploy here — because we are not production.
+
+---
+
+## Engineering workflow & release boundaries
+
+- Read **[`AGENTS.md`](AGENTS.md)** before agent-driven or bulk edits — security and contribution gates stay intact.
+- Keep PRs small; say which engine or API increment you are touching.
+- **Release geography (near-term):** Bengaluru → Karnataka → Hyderabad. Do not assume pan-India coverage, data, or compliance.
+- No silent “official data” integrations. If a PR needs an external registry feed, it needs an explicit design note and honest sourcing.
+
+---
+
+## Roadmap
+
+| Horizon | Focus |
+| --- | --- |
+| **Now** | Reconcile `oydp/` vs `apps/api`; harden privacy (0.3) and discovery/claims (0.4); keep migrations linear; protect RLS boundaries |
+| **Next** | Evidence store path; deepen E02–E05; first useful web flows against real local data; expand tests beyond the current backend build |
+| **Later** | Broader engine delivery (E06–E13); workers; carefully scoped regional expansion past Bengaluru / Karnataka / Hyderabad — still without fake gov certainty |
+
+---
+
+## Security
+
+Found a vulnerability? Please use **[`SECURITY.md`](SECURITY.md)** — do not open a public issue with exploit detail.
+
+We are pre-alpha. That is not an excuse for sloppy auth, leaked secrets, or disabled RLS in shared environments. It *is* a reason to avoid marketing language like “SOC 2 certified” until those programs actually exist.
+
+---
+
+## Ownership & licensing
+
+Ownership and licensing are **not finalized**. Do not assume OSI open source, commercial rights, or contribution terms beyond what is written in-repo today. If you need clarity for a partnership or fork, ask the founder before shipping derivatives.
+
+---
 
 ## Latest verified backend build
 
-Implementation `68f2875`: [115 active API/PostgreSQL tests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203433997), zero skips. [87 reference-backend tests plus 13 subtests passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203430633), zero skips. [API, OpenAPI and dependency audit passed](https://github.com/Manasvi-1/OYDP/actions/runs/40203434051). This is pre-alpha backend evidence, not production or independent security approval. See [verification register](docs/implementation/VERIFICATION_REGISTER.md).
+<div align="center">
 
-## Reconciled earlier foundation (PR #1)
+<img src="https://img.shields.io/badge/commit-68f2875-0F766E?style=for-the-badge&labelColor=0F172A&logo=github" alt="commit 68f2875" />
+<img src="https://img.shields.io/badge/tests-115%20passing-334155?style=for-the-badge&labelColor=0F172A" alt="115 tests passing" />
 
-The earlier property-grants prototype is retained in `oydp/`, `migrations/`, and `tests/test_*.py`, with its own native PostGIS CI. It is a separately tested compatibility/reference backend, not mounted by `app.main:app`. Its UUID-subject/pinned-key API and `oydp` schema differ from the canonical `apps/api` string-subject/JWKS API and public schema. Do not run both as interchangeable APIs or assume data is synchronized. See [reconciliation and next implementation](docs/implementation/PR1_RECONCILIATION.md).
+</div>
 
-## Active API privacy update
+This is **pre-alpha evidence only** — a checkpoint that the backend foundation held under its then-current suite. It is not a release, not a compliance attestation, and not a claim that engines or the web app are done.
 
-API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation/sharing/revocation and audited access changes. See [canonical access contracts and upgrade](docs/implementation/CANONICAL_PROPERTY_ACCESS.md). This supersedes earlier tenant-shared behavior. CI on the current feature head is the acceptance evidence.
+---
 
-## Active API 0.4.0 increment
+## Docs & gates worth keeping open
 
-Paginated private property discovery and attributed unverified claim recording/history passed native CI. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
+| Doc | Why |
+| --- | --- |
+| [`SECURITY.md`](SECURITY.md) | Disclosure path |
+| [`AGENTS.md`](AGENTS.md) | Automation / contributor gates |
+| `docs/` | Boundaries, design, regional notes |
 
-## Merged workspace increments
+---
 
-Identifiers, sources, quarantined documents, and consent-gated export stay on migrations `008` through `012`. Migration `013` adds a local audit outbox beside the ledger. Migration `014` adds diligence requests and notes. Those requests are not offers or legal conclusions. See [audit outbox](docs/implementation/AUDIT_OUTBOX.md) and [diligence requests](docs/implementation/DILIGENCE_REQUESTS.md).
+<div align="center">
+
+**OYDP** — Own Your Dream Property
+
+<sub>Built carefully in Bengaluru. India-first. Evidence over theatre.</sub>
+
+</div>
