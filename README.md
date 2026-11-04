@@ -161,3 +161,7 @@ API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation
 ## Active API 0.4.0 increment
 
 Paginated private property discovery and attributed unverified claim recording/history passed native CI. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
+
+## Active API 0.5.0 increment
+
+Property-scoped source notes, one current identifier per scheme with explicit supersede, and evidence assertions labeled `unreviewed` or `recorded`. These labels are not official identifiers, licences, or approvals. See [evidence lineage](docs/implementation/EVIDENCE_LINEAGE.md). Current-head CI is the acceptance evidence.

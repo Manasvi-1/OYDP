@@ -21,6 +21,10 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 
 Property write delegation/correction workflows, production identity-provider selection and MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
 
+## Evidence lineage
+
+API 0.5.0 adds migration 008 and creator/MFA routes for source notes, versioned identifiers, and evidence assertions. Runtime insert of `official_observation` is denied. See EVIDENCE_LINEAGE.md. This does not complete the evidence graph or document storage.
+
 ## Authenticated workspace
 
 `apps/web` is a pre-alpha Next.js workspace for the API 0.4.0 journey: authorization-code sign-in, paginated private discovery, property detail, and unverified claim recording. The access token stays in an encrypted httpOnly cookie and is sent only by the server. Loopback HTTP is accepted by the API only when `OYDP_OIDC_DEV_HTTP=1`, for `tools/dev_oidc.py`. That process is a development issuer, not an authenticator and not a selected production provider. See WEB_UI.md. Current-head CI, including the browser journey, is the acceptance evidence.

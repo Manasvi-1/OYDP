@@ -14,7 +14,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from app.auth import verified_subject, require_mfa
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.4.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.5.0')
 
 
 @app.middleware('http')
@@ -214,3 +214,167 @@ def list_claims(property_id: UUID, access=Depends(authorized_db, scope='function
       AND (%s::timestamptz IS NULL OR (recorded_at,id)<(%s::timestamptz,%s::uuid))
       ORDER BY recorded_at DESC,id DESC LIMIT %s""", (property_id,at,at,record_id,limit+1)).fetchall()
     return page_result(rows,limit,scope,'recorded_at')
+
+
+def writable_property(conn, role, property_id):
+    parent = readable_property(conn, property_id, creator_only=True)
+    if role not in ('owner', 'editor'):
+        raise HTTPException(403, 'Property write permission required')
+    return parent
+
+
+class SourceCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=200)
+    source_class: Literal['user_supplied', 'professional_note', 'published_reference']
+    locator: str | None = Field(default=None, min_length=1, max_length=500)
+
+
+class SourceRecord(SourceCreate):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    created_by: str
+    recorded_at: datetime
+
+
+class SourcePage(BaseModel):
+    items: list[SourceRecord]
+    next_cursor: str | None
+
+
+@app.post('/v1/properties/{property_id}/sources', status_code=201, response_model=SourceRecord)
+def record_source(property_id: UUID, payload: SourceCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = writable_property(conn, role, property_id)
+    row = conn.execute("""INSERT INTO evidence_sources(tenant_id,property_id,name,source_class,locator)
+      VALUES(%s,%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, payload.name, payload.source_class, payload.locator)).fetchone()
+    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+      VALUES(%s,%s,current_setting('app.subject_id'),'source.recorded')""", (parent['tenant_id'], property_id))
+    return row
+
+
+@app.get('/v1/properties/{property_id}/sources', response_model=SourcePage)
+def list_sources(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                 cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'sources', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM evidence_sources WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (recorded_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY recorded_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'recorded_at')
+
+
+class IdentifierCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    scheme: Literal['local_label', 'survey_number', 'khata', 'municipal_reference']
+    identifier_value: str = Field(min_length=1, max_length=200)
+    supersede: bool = False
+
+
+class IdentifierRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    scheme: Literal['local_label', 'survey_number', 'khata', 'municipal_reference']
+    identifier_value: str
+    created_by: str
+    recorded_at: datetime
+    superseded_at: datetime | None
+
+
+class IdentifierPage(BaseModel):
+    items: list[IdentifierRecord]
+    next_cursor: str | None
+
+
+@app.post('/v1/properties/{property_id}/identifiers', status_code=201, response_model=IdentifierRecord,
+          responses={409: {'description': 'A current identifier already exists for this scheme'}})
+def record_identifier(property_id: UUID, payload: IdentifierCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = writable_property(conn, role, property_id)
+    current = conn.execute("""SELECT id FROM property_identifiers
+      WHERE property_id=%s AND scheme=%s AND superseded_at IS NULL FOR UPDATE""", (property_id, payload.scheme)).fetchone()
+    if current and not payload.supersede:
+        raise HTTPException(409, 'Current identifier exists')
+    if current:
+        conn.execute('UPDATE property_identifiers SET superseded_at=clock_timestamp() WHERE id=%s', (current['id'],))
+        conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+          VALUES(%s,%s,current_setting('app.subject_id'),'identifier.superseded')""", (parent['tenant_id'], property_id))
+    try:
+        row = conn.execute("""INSERT INTO property_identifiers(tenant_id,property_id,scheme,identifier_value)
+          VALUES(%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, payload.scheme, payload.identifier_value)).fetchone()
+    except psycopg.errors.UniqueViolation:
+        raise HTTPException(409, 'Current identifier exists') from None
+    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+      VALUES(%s,%s,current_setting('app.subject_id'),'identifier.recorded')""", (parent['tenant_id'], property_id))
+    return row
+
+
+@app.get('/v1/properties/{property_id}/identifiers', response_model=IdentifierPage)
+def list_identifiers(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                     cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'identifiers', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM property_identifiers WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (recorded_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY recorded_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'recorded_at')
+
+
+class EvidenceCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    assertion_type: str = Field(min_length=1, max_length=100)
+    assertion_text: str = Field(min_length=1, max_length=10000)
+    source_kind: Literal['user_claim', 'professional_review']
+    source_id: UUID | None = None
+    source_reference: str | None = Field(default=None, min_length=1, max_length=500)
+    observed_at: AwareDatetime | None = None
+
+
+class EvidenceRecord(EvidenceCreate):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    created_by: str | None
+    review_status: Literal['unreviewed', 'recorded']
+    created_at: datetime
+
+
+class EvidencePage(BaseModel):
+    items: list[EvidenceRecord]
+    next_cursor: str | None
+
+
+@app.post('/v1/properties/{property_id}/evidence', status_code=201, response_model=EvidenceRecord)
+def record_evidence(property_id: UUID, payload: EvidenceCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    if payload.source_kind == 'professional_review' and not payload.source_reference:
+        raise HTTPException(422, 'Invalid request')
+    parent = writable_property(conn, role, property_id)
+    review = 'recorded' if payload.source_kind == 'professional_review' else 'unreviewed'
+    try:
+        row = conn.execute("""INSERT INTO evidence_assertions(
+          tenant_id,property_id,assertion_type,assertion_text,source_kind,source_reference,observed_at,source_id,review_status)
+          VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *""",
+          (parent['tenant_id'], property_id, payload.assertion_type, payload.assertion_text, payload.source_kind,
+           payload.source_reference, payload.observed_at, payload.source_id, review)).fetchone()
+    except psycopg.errors.ForeignKeyViolation:
+        raise HTTPException(422, 'Invalid request') from None
+    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+      VALUES(%s,%s,current_setting('app.subject_id'),'evidence.recorded')""", (parent['tenant_id'], property_id))
+    return row
+
+
+@app.get('/v1/properties/{property_id}/evidence', response_model=EvidencePage)
+def list_evidence(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                  cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'evidence', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM evidence_assertions WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (created_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY created_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')

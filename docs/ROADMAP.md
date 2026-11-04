@@ -18,8 +18,8 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Next.js frontend for the first authenticated property journey (pre-alpha workspace; production identity provider not selected)
 
 ## Milestone 1 — Trusted evidence
-- [ ] Versioned property identifiers, source registry and conflict resolution
-- [ ] Evidence provenance assertions with professional review status
+- [x] Versioned property identifiers, source registry and conflict resolution (workspace labels; not official identifiers)
+- [x] Evidence provenance assertions with professional review status (unreviewed or recorded; not an approval)
 - [ ] Transactional audit outbox, append-only audit delivery
 - [ ] Quarantined, scanned, encrypted document storage
 - [ ] Consent and revocable property-level grants
