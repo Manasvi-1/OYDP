@@ -1,6 +1,6 @@
 # Evidence lineage — API 0.5.0
 
-Additive migration `008_evidence_lineage.sql`. It keeps migrations 001–007 checksums. Apply it and re-run runtime provisioning before using the new routes.
+The parallel branch's `008_evidence_lineage.sql` was not added. Migrations `008` through `012` on main already own those version numbers, and `012_trusted_evidence.sql` is the canonical identifier and source schema. The notes below describe the branch that was merged for history. They are not a second set of tables.
 
 ## What it stores
 

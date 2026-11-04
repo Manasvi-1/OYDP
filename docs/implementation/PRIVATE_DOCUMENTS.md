@@ -1,6 +1,6 @@
 # Private documents — API 0.6.0
 
-Migration `009_private_documents.sql` stores metadata only. Accepted bytes are encrypted with AES-GCM and written under `DOCUMENT_STORAGE_DIR`. The key is `DOCUMENT_ENCRYPTION_KEY`, 32 bytes as hex. Both are required or uploads fail closed.
+The parallel branch's `009_private_documents.sql` was not added. `010_document_quarantine.sql` is the canonical document table. The notes below describe the branch that was merged for history. Accepted bytes are encrypted with AES-GCM and written under `DOCUMENT_STORAGE_DIR`. The key is `DOCUMENT_ENCRYPTION_KEY`, 32 bytes as hex. Both are required or uploads fail closed.
 
 ## Gate
 

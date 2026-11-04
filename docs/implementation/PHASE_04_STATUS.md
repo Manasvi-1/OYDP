@@ -29,13 +29,9 @@ API 0.8.0 lets a creator open and close a request and lets a current reader add 
 
 API 0.7.0 enqueues one outbox row with each audit event and can append those identifiers to a local JSONL file. Delivered rows cannot be edited. See AUDIT_OUTBOX.md. An independent immutable sink is not included.
 
-## Private documents
+## Private documents and evidence lineage
 
-API 0.6.0 stores creator-only document metadata and encrypted PDF, PNG, or JPEG bytes. Active-content and EICAR uploads are recorded as rejected and are not stored. See PRIVATE_DOCUMENTS.md. A certified malware scanner is not included.
-
-## Evidence lineage
-
-API 0.5.0 adds migration 008 and creator/MFA routes for source notes, versioned identifiers, and evidence assertions. Runtime insert of `official_observation` is denied. See EVIDENCE_LINEAGE.md. This does not complete the evidence graph or document storage.
+Canonical document quarantine is migration `010`. Canonical identifiers, sources, reviews, and consent are migration `012`. The parallel `008` and `009` files from the other pull requests were not applied, because those version numbers and table names already exist.
 
 ## Authenticated workspace
 

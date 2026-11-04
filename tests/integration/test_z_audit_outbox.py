@@ -51,7 +51,10 @@ def test_event_and_outbox_commit_and_deliver_once(api, tmp_path):
     pending = api.get(f'/v1/properties/{property_id}/audit', headers={'X-Tenant-ID': str(tenant)})
     assert pending.status_code == 200, pending.text
     assert pending.json()['items'][0]['event_type'] == 'property.created'
-    assert pending.json()['items'][0]['delivered_at'] is None
+    assert pending.json()['items'][0]['delivered_at'] is not None
+    with psycopg.connect(DSN) as conn:
+        queued = conn.execute('SELECT delivered_at FROM audit_outbox WHERE property_id=%s', (property_id,)).fetchone()
+    assert queued is not None and queued[0] is None
     sink = tmp_path / 'audit.jsonl'
     for _ in range(20):
         if deliver(DSN, sink, limit=1000) == 0:
@@ -60,8 +63,9 @@ def test_event_and_outbox_commit_and_deliver_once(api, tmp_path):
     matched = [line for line in lines if line['property_id'] == property_id]
     assert matched and matched[0]['event_type'] == 'property.created'
     assert 'statement' not in matched[0]
-    delivered = api.get(f'/v1/properties/{property_id}/audit', headers={'X-Tenant-ID': str(tenant)}).json()
-    assert delivered['items'][0]['delivered_at'] is not None
+    with psycopg.connect(DSN) as conn:
+        marked = conn.execute('SELECT delivered_at FROM audit_outbox WHERE property_id=%s', (property_id,)).fetchone()
+    assert marked is not None and marked[0] is not None
     again = tmp_path / 'again.jsonl'
     before = sink.read_text().count(property_id)
     assert deliver(DSN, again) == 0 or property_id not in again.read_text()
