@@ -5,9 +5,11 @@ disposable database. Prints no passwords or access tokens.
 """
 import os
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -69,7 +71,9 @@ def main():
     tenant = str(uuid.uuid4())
     other = str(uuid.uuid4())
     with psycopg.connect(dsn) as conn:
-        conn.execute('TRUNCATE TABLE property_audit_events, property_claims, property_read_grants, evidence_assertions, properties, tenant_memberships')
+        conn.execute('''TRUNCATE TABLE audit_outbox, property_audit_events, diligence_notes, diligence_requests,
+          property_documents, property_identifiers, evidence_sources, evidence_assertions,
+          property_claims, property_read_grants, properties, tenant_memberships CASCADE''')
         conn.execute(
             "INSERT INTO tenant_memberships(tenant_id, subject_id, role) VALUES (%s,'alice','owner'),(%s,'mallory','owner')",
             (tenant, other),
@@ -85,12 +89,15 @@ def main():
         'OYDP_DEV_OIDC_CLIENT_ID': 'oydp-web',
         'OYDP_DEV_OIDC_REDIRECTS': web + '/auth/callback',
     }
+    storage = tempfile.mkdtemp(prefix='oydp-docs-')
     api_env = base_env | {
         'DATABASE_URL': make_conninfo(dsn, user='oydp_app', password=password),
         'OIDC_ISSUER': issuer,
         'OIDC_AUDIENCE': 'oydp-api',
         'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
+        'DOCUMENT_STORAGE_DIR': storage,
+        'DOCUMENT_ENCRYPTION_KEY': '22' * 32,
     }
     session_secret = secrets.token_urlsafe(48)
     web_env = base_env | {
@@ -123,6 +130,7 @@ def main():
             raise SystemExit(result.returncode)
     finally:
         stop(processes)
+        shutil.rmtree(storage, ignore_errors=True)
 
 
 if __name__ == '__main__':

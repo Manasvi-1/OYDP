@@ -22,6 +22,11 @@ test('property paths are an allowlist', () => {
   assert.equal(resolvePropertyPath({ kind: 'claim', id: propertyId, statement: '   ' }), null)
   assert.equal(resolvePropertyPath({ kind: 'read', id: 'not-a-uuid' }), null)
   assert.equal(resolvePropertyPath({ kind: 'create', label: 'Site', jurisdiction: 'Bengaluru Urban' }).body.label, 'Site')
+  assert.equal(resolvePropertyPath({ kind: 'identifier', id: propertyId, scheme: 'survey_number', identifierValue: '12/3' }).body.identifier_value, '12/3')
+  assert.equal(resolvePropertyPath({ kind: 'identifier', id: propertyId, scheme: 'deed', identifierValue: '12/3' }), null)
+  assert.equal(resolvePropertyPath({ kind: 'document', id: propertyId, bytes: Buffer.from('x') }).raw.length, 1)
+  assert.equal(resolvePropertyPath({ kind: 'document', id: propertyId, bytes: Buffer.alloc(0) }), null)
+  assert.equal(resolvePropertyPath({ kind: 'request', id: propertyId, title: 'Ask', body: 'Papers' }).body.title, 'Ask')
 })
 
 test('calls send the bearer token only in the header and do not follow redirects', async () => {

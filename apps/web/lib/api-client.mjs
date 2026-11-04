@@ -56,6 +56,33 @@ export function resolvePropertyPath(request) {
     if (!statement) return null
     return { method: 'POST', path: `/v1/properties/${id}/claims`, body: { statement } }
   }
+  if (request.kind === 'identifiers') return { method: 'GET', path: `/v1/properties/${id}/identifiers?limit=${limit}${cursor}` }
+  if (request.kind === 'identifier') {
+    const schemes = ['local_label', 'survey_number', 'khata', 'municipal_reference']
+    const value = parseStatement(request.identifierValue || '')
+    if (!schemes.includes(request.scheme) || !value || value.length > 200) return null
+    return { method: 'POST', path: `/v1/properties/${id}/identifiers`, body: { scheme: request.scheme, identifier_value: value, supersede: false } }
+  }
+  if (request.kind === 'evidence') {
+    const text = parseStatement(request.assertionText || '')
+    if (!text) return null
+    return { method: 'POST', path: `/v1/properties/${id}/evidence`, body: { assertion_type: 'workspace note', assertion_text: text, source_kind: 'user_claim' } }
+  }
+  if (request.kind === 'evidence-list') return { method: 'GET', path: `/v1/properties/${id}/evidence?limit=${limit}${cursor}` }
+  if (request.kind === 'documents') return { method: 'GET', path: `/v1/properties/${id}/documents?limit=${limit}${cursor}` }
+  if (request.kind === 'document') {
+    const bytes = request.bytes
+    if (!bytes || typeof bytes.length !== 'number' || bytes.length < 1 || bytes.length > 10 * 1024 * 1024) return null
+    return { method: 'POST', path: `/v1/properties/${id}/documents`, raw: Buffer.from(bytes) }
+  }
+  if (request.kind === 'audit') return { method: 'GET', path: `/v1/properties/${id}/audit?limit=${limit}${cursor}` }
+  if (request.kind === 'requests') return { method: 'GET', path: `/v1/properties/${id}/requests?limit=${limit}${cursor}` }
+  if (request.kind === 'request') {
+    const title = parseStatement(request.title || '')
+    const body = parseStatement(request.body || '')
+    if (!title || title.length > 200 || !body) return null
+    return { method: 'POST', path: `/v1/properties/${id}/requests`, body: { title, body } }
+  }
   return null
 }
 
@@ -72,13 +99,20 @@ export async function callPropertyApi({ base, token, tenantId, request, fetchImp
     Authorization: `Bearer ${token}`,
     'X-Tenant-ID': tenantId,
   }
-  if (resolved.body) headers['Content-Type'] = 'application/json'
+  let body
+  if (resolved.raw) {
+    headers['Content-Type'] = 'application/octet-stream'
+    body = resolved.raw
+  } else if (resolved.body) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(resolved.body)
+  }
   let response
   try {
     response = await fetchImpl(url, {
       method: resolved.method,
       headers,
-      body: resolved.body ? JSON.stringify(resolved.body) : undefined,
+      body,
       redirect: 'manual',
       cache: 'no-store',
       signal: AbortSignal.timeout(8000),

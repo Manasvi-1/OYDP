@@ -127,8 +127,8 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** API 0.4.0 private discovery and unverified claims are in the active API. The first authenticated workspace can sign in with the API's access-token profile, list and open private properties, and record unverified claims. Production identity-provider selection remains an owner decision.  
-**Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
+**Now:** The pre-alpha workspace can sign in, list and open a private property, record an unverified claim, save a typed identifier and an unreviewed evidence note, upload an encrypted document, see an audit event name, and open a diligence request. Production identity-provider selection remains an owner decision.  
+**Next:** Document sharing, a production scanner and audit sink, write delegation, and the remaining engine journeys.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 
 See [implementation status](docs/implementation/PHASE_04_STATUS.md) and [engineering roadmap](docs/ROADMAP.md).

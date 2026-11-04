@@ -65,3 +65,48 @@ export async function recordClaim(propertyId: string, formData: FormData) {
   revalidatePath(`/properties/${propertyId}`)
   redirect(`/properties/${propertyId}?recorded=1`)
 }
+
+async function writeOnProperty(propertyId: string, request: Parameters<typeof callPropertyApi>[1]) {
+  if (!parseUuid(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session?.tenantId) redirect('/')
+  try {
+    await callPropertyApi(session, { ...request, id: propertyId })
+  } catch (error) {
+    const code = error instanceof ApiError ? error.code : 'unavailable'
+    if (code === 'signin') {
+      await clearSession()
+      redirect('/?error=signin')
+    }
+    fail(`/properties/${propertyId}`, code)
+  }
+  revalidatePath(`/properties/${propertyId}`)
+  redirect(`/properties/${propertyId}?saved=1`)
+}
+
+export async function saveIdentifier(propertyId: string, formData: FormData) {
+  await writeOnProperty(propertyId, {
+    kind: 'identifier',
+    scheme: String(formData.get('scheme') ?? ''),
+    identifierValue: String(formData.get('identifier') ?? ''),
+  })
+}
+
+export async function saveEvidenceNote(propertyId: string, formData: FormData) {
+  await writeOnProperty(propertyId, { kind: 'evidence', assertionText: String(formData.get('assertion') ?? '') })
+}
+
+export async function uploadDocument(propertyId: string, formData: FormData) {
+  const file = formData.get('document')
+  if (!(file instanceof File)) fail(`/properties/${propertyId}`, 'invalid')
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  await writeOnProperty(propertyId, { kind: 'document', bytes })
+}
+
+export async function openRequest(propertyId: string, formData: FormData) {
+  await writeOnProperty(propertyId, {
+    kind: 'request',
+    title: String(formData.get('title') ?? ''),
+    body: String(formData.get('requestBody') ?? ''),
+  })
+}

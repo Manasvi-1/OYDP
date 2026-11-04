@@ -81,7 +81,7 @@ h2 { font-size: 1.25rem; }
 
 label { display: grid; gap: 0.35rem; font-weight: 600; }
 
-input, textarea {
+input, textarea, select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
