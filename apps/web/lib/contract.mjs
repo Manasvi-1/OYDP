@@ -120,4 +120,32 @@ export function claimsQuery(propertyId, cursor) {
   return `/v1/properties/${propertyId}/claims?${params.toString()}`
 }
 
+function propertyQuery(propertyId, suffix, cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/properties/${propertyId}/${suffix}?${params.toString()}`
+}
+
+export function identifiersQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'identifiers', cursor)
+}
+
+export function reviewsQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'reviews', cursor)
+}
+
+export function documentsQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'documents', cursor)
+}
+
+export function auditQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'audit', cursor)
+}
+
+export function sourcesQuery(cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/sources?${params.toString()}`
+}
+
 export { SESSION_COOKIE, UUID }

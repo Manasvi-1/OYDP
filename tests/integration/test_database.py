@@ -337,6 +337,15 @@ def test_no_mfa_sensitive_routes_denied(api, private_record):
     assert api.patch('/v1/properties/'+pid,headers=h,json={'label':'blocked','jurisdiction':'KA'}).status_code == 403
     assert api.put('/v1/properties/'+pid+'/writers',headers=h,json=data).status_code == 403
     assert api.request('DELETE','/v1/properties/'+pid+'/writers',headers=h,json={'recipient_subject':peer}).status_code == 403
+    assert api.post('/v1/properties/'+pid+'/identifiers', headers=h, json={'scheme':'survey','identifier_value':'S-1'}).status_code == 403
+    assert api.post('/v1/sources', headers=h, json={'name':'Blocked source','origin':'user_supplied','jurisdiction':'KA'}).status_code == 403
+    assert api.post('/v1/sources/'+str(uuid4())+'/withdrawal', headers=h, json={'reason':'Blocked'}).status_code == 403
+    assert api.post('/v1/properties/'+pid+'/reviews', headers=h, json={'disposition':'recorded','statement':'Not title'}).status_code == 403
+    assert api.post('/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
+    assert api.request('DELETE', '/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
+    denied_export = api.post('/v1/properties/'+pid+'/exports', headers=h)
+    assert denied_export.status_code == 403
+    assert 'Private record' not in denied_export.text
 
 
 def test_share_audit_failure_is_atomic(api, private_record):
@@ -399,7 +408,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1155,3 +1164,281 @@ def test_missing_storage_key_does_not_store_plaintext(api, private_record, monke
     assert rejected.status_code == 503
     assert b'OYDP-SYNTHETIC-CLEAN' not in rejected.content
     assert _docs(pid) == []
+
+
+def _trusted_privileges():
+    functions = (
+        'public.record_property_identifier(uuid,uuid,text,text,text)',
+        'public.register_evidence_source(uuid,text,text,text)',
+        'public.withdraw_evidence_source(uuid,uuid,text)',
+        'public.record_professional_review(uuid,uuid,text,text,uuid)',
+        'public.record_property_consent(uuid,uuid,text)',
+        'public.revoke_property_consent(uuid,uuid,text)',
+        'public.authorize_property_export(uuid,uuid)',
+    )
+    hidden = (
+        'public.actor_can_edit_property(uuid,uuid)',
+        'public.ledger_row_must_match_outbox()',
+        'public.copy_property_audit()',
+        'public.copy_tenant_audit()',
+        'public.reject_ledger_rewrite()',
+    )
+    tables = (
+        'property_identifiers', 'evidence_sources', 'professional_reviews',
+        'property_consents', 'tenant_audit_events', 'audit_ledger',
+    )
+    with psycopg.connect(DSN) as conn:
+        for name in functions:
+            row = conn.execute("""SELECT prosecdef, proconfig,
+              has_function_privilege('oydp_app', %s::regprocedure, 'EXECUTE'),
+              NOT EXISTS(SELECT 1 FROM aclexplode(proacl) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE')
+              FROM pg_proc WHERE oid=%s::regprocedure""", (name, name)).fetchone()
+            assert row == (True, ['search_path=pg_catalog, pg_temp'], True, True), name
+        for name in hidden:
+            assert conn.execute("SELECT has_function_privilege('oydp_app', %s::regprocedure, 'EXECUTE')", (name,)).fetchone()[0] is False
+        for table in tables:
+            assert conn.execute("SELECT has_table_privilege('oydp_app', %s, 'SELECT')", (table,)).fetchone()[0] is True
+            for privilege in ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'):
+                assert conn.execute("SELECT has_table_privilege('oydp_app', %s, %s)", (table, privilege)).fetchone()[0] is False
+
+
+def test_identifier_history_is_idempotent_and_runtime_cannot_write_it(api, private_record):
+    pid, _, headers, _, _ = private_record
+    _trusted_privileges()
+    url = f'/v1/properties/{pid}/identifiers'
+    first = api.post(url, headers=headers, json={'scheme': 'survey', 'identifier_value': 'SY-1'})
+    assert first.status_code == 200, first.text
+    assert first.json()['version'] == 1 and first.json()['status'] == 'current' and first.json()['changed'] is True
+    same = api.post(url, headers=headers, json={'scheme': 'survey', 'identifier_value': 'SY-1', 'resolution': 'supersede'})
+    assert same.status_code == 200, same.text
+    assert same.json()['changed'] is False and same.json()['id'] == first.json()['id'] and same.json()['version'] == 1
+    replaced = api.post(url, headers=headers, json={'scheme': 'survey', 'identifier_value': 'SY-2', 'resolution': 'supersede'})
+    assert replaced.status_code == 200, replaced.text
+    assert replaced.json()['status'] == 'current' and replaced.json()['version'] == 2 and replaced.json()['changed'] is True
+    page = api.get(url, headers=headers).json()['items']
+    current = [row for row in page if row['scheme'] == 'survey' and row['status'] == 'current']
+    superseded = [row for row in page if row['scheme'] == 'survey' and row['status'] == 'superseded']
+    assert len(current) == 1 and current[0]['identifier_value'] == 'SY-2'
+    assert len(superseded) == 1 and superseded[0]['identifier_value'] == 'SY-1'
+    missing = api.post(url, headers=headers, json={'scheme': 'survey', 'identifier_value': 'SY-3'})
+    assert missing.status_code == 422 and missing.json()['detail'] == 'Identifier resolution required'
+    assert 'SY-3' not in missing.text
+    kept = [row for row in api.get(url, headers=headers).json()['items'] if row['status'] == 'current' and row['scheme'] == 'survey']
+    assert len(kept) == 1 and kept[0]['identifier_value'] == 'SY-2'
+    clash = api.post(url, headers=headers, json={'scheme': 'survey', 'identifier_value': 'SY-3', 'resolution': 'conflict'})
+    assert clash.status_code == 200, clash.text
+    assert clash.json()['status'] == 'conflict' and clash.json()['changed'] is True
+    after = api.get(url, headers=headers).json()['items']
+    current = [row for row in after if row['scheme'] == 'survey' and row['status'] == 'current']
+    assert len(current) == 1 and current[0]['identifier_value'] == 'SY-2'
+    assert api.get(f'/v1/properties/{uuid4()}/identifiers', headers=headers).status_code == 404
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("""INSERT INTO property_identifiers
+          (tenant_id, property_id, scheme, identifier_value, version, status, recorded_by)
+          VALUES (%s, %s, 'survey', 'FORGED', 9, 'current', 'alice')""", (A, pid))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("UPDATE property_identifiers SET identifier_value='FORGED' WHERE property_id=%s", (pid,))
+
+
+def test_identifier_cross_tenant_is_hidden_and_reader_cannot_write(api, private_record):
+    pid, peer, headers, data, as_subject = private_record
+    url = f'/v1/properties/{pid}/identifiers'
+    assert api.post(url, headers=headers, json={'scheme': 'khata', 'identifier_value': 'KH-1'}).status_code == 200
+    as_subject('bob')
+    assert api.get(url, headers={'X-Tenant-ID': str(B)}).status_code == 404
+    assert api.post(url, headers={'X-Tenant-ID': str(B)}, json={'scheme': 'khata', 'identifier_value': 'KH-9'}).status_code == 404
+    as_subject(peer)
+    assert api.get(url, headers=headers).status_code == 404
+    as_subject('alice')
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=data).status_code == 200
+    as_subject(peer)
+    listed = api.get(url, headers=headers)
+    assert listed.status_code == 200, listed.text
+    assert listed.json()['items'][0]['identifier_value'] == 'KH-1'
+    denied = api.post(url, headers=headers, json={'scheme': 'khata', 'identifier_value': 'KH-2', 'resolution': 'supersede'})
+    assert denied.status_code == 404
+    assert 'KH-2' not in denied.text
+    as_subject('alice')
+    assert [row for row in api.get(url, headers=headers).json()['items'] if row['status'] == 'current'][0]['identifier_value'] == 'KH-1'
+
+
+def test_writer_can_record_identifier_and_review_without_verifying_a_claim(api, private_record):
+    from datetime import datetime, timedelta, timezone
+    pid, _, headers, _, as_subject = private_record
+    claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={'statement': 'Unverified boundary claim'})
+    assert claim.status_code == 201 and claim.json()['verification_status'] == 'unverified'
+    editor = _editor('evidence-editor-' + str(uuid4()))
+    expiry = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    assert api.put(f'/v1/properties/{pid}/writers', headers=headers, json={'recipient_subject': editor, 'expires_at': expiry}).json() == {'changed': True}
+    as_subject(editor)
+    recorded = api.post(f'/v1/properties/{pid}/identifiers', headers=headers, json={'scheme': 'municipal', 'identifier_value': 'MUN-1'})
+    assert recorded.status_code == 200, recorded.text
+    assert recorded.json()['recorded_by'] == editor and recorded.json()['status'] == 'current'
+    review = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={'disposition': 'recorded', 'statement': 'Noted from the file, not a title finding'})
+    assert review.status_code == 201, review.text
+    assert review.json()['title_effect'] == 'none' and review.json()['disposition'] == 'recorded'
+    claims = api.get(f'/v1/properties/{pid}/claims', headers=headers).json()['items']
+    assert claims and all(item['verification_status'] == 'unverified' for item in claims)
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute('SELECT DISTINCT verification_status FROM property_claims WHERE property_id=%s', (pid,)).fetchall() == [('unverified',)]
+
+
+@pytest.mark.parametrize('disposition', ['verified', 'title', 'official'])
+def test_review_rejects_title_like_dispositions(api, private_record, disposition):
+    pid, _, headers, _, _ = private_record
+    response = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={'disposition': disposition, 'statement': 'Must not become title'})
+    assert response.status_code == 422
+    assert response.json()['detail'] == 'Invalid request'
+    assert api.get(f'/v1/properties/{pid}/reviews', headers=headers).json()['items'] == []
+
+
+def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
+    pid, _, headers, _, _ = private_record
+    forged = api.post('/v1/sources', headers=headers, json={
+        'name': 'Field note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban', 'rights_status': 'owned',
+    })
+    assert forged.status_code == 422
+    created = api.post('/v1/sources', headers=headers, json={
+        'name': 'Field note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
+    })
+    assert created.status_code == 201, created.text
+    assert created.json()['rights_status'] == 'unknown'
+    source_id = created.json()['id']
+    listed = api.get('/v1/sources', headers=headers).json()['items']
+    assert listed[0]['id'] == source_id and listed[0]['rights_status'] == 'unknown'
+    cited = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'abstained', 'statement': 'The note was read and no conclusion was reached', 'source_id': source_id,
+    })
+    assert cited.status_code == 201, cited.text
+    assert cited.json()['title_effect'] == 'none'
+    withdrawn = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'The note was replaced'})
+    assert withdrawn.status_code == 200 and withdrawn.json()['changed'] is True
+    again = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'The note was replaced'})
+    assert again.json()['changed'] is False
+    blocked = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'This citation must fail', 'source_id': source_id,
+    })
+    assert blocked.status_code == 422 and blocked.json()['detail'] == 'Source is withdrawn'
+    unknown = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'Missing source', 'source_id': str(uuid4()),
+    })
+    assert unknown.status_code == 422 and unknown.json()['detail'] == 'Source is withdrawn'
+    outsider = 'source-cross-' + str(uuid4())
+    with pytest.raises(psycopg.Error), psycopg.connect(DSN) as conn:
+        conn.execute("UPDATE evidence_sources SET rights_status='licensed' WHERE id=%s", (source_id,))
+    with psycopg.connect(DSN) as conn:
+        conn.execute("INSERT INTO tenant_memberships VALUES (%s, %s, 'owner')", (B, outsider))
+    from app.main import app
+    from app.auth import verified_subject
+    app.dependency_overrides[verified_subject] = lambda: outsider
+    hidden = api.post(f'/v1/sources/{source_id}/withdrawal', headers={'X-Tenant-ID': str(B)}, json={'reason': 'Cross tenant'})
+    assert hidden.status_code == 404
+    assert api.get('/v1/sources', headers={'X-Tenant-ID': str(B)}).json()['items'] == []
+
+
+def test_export_requires_live_creator_consent_and_stays_unverified(api, private_record, monkeypatch):
+    _storage(monkeypatch)
+    pid, _, headers, _, _ = private_record
+    secret = 'Claim text that must stay out of a refused export'
+    assert api.post(f'/v1/properties/{pid}/claims', headers=headers, json={'statement': secret}).status_code == 201
+    assert api.post(f'/v1/properties/{pid}/identifiers', headers=headers, json={'scheme': 'internal', 'identifier_value': 'INT-1'}).status_code == 200
+    refused = api.post(f'/v1/properties/{pid}/exports', headers=headers)
+    assert refused.status_code == 403 and refused.json()['detail'] == 'Export consent required'
+    assert secret not in refused.text and 'ciphertext' not in refused.text and 'SELECT' not in refused.text
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute("SELECT 1 FROM property_audit_events WHERE property_id=%s AND event_type='packet.exported'", (pid,)).fetchall() == []
+    consent = api.post(f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'})
+    assert consent.status_code == 200, consent.text
+    assert consent.json()['changed'] is True and consent.json()['purpose'] == 'passport_export'
+    assert api.post(f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'}).json()['changed'] is False
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    packet = api.post(f'/v1/properties/{pid}/exports', headers=headers)
+    assert packet.status_code == 200, packet.text
+    body = packet.json()
+    assert body['title_verified'] is False
+    assert 'not a title certificate' in body['notice']
+    assert body['claims'][0]['statement'] == secret and body['claims'][0]['verification_status'] == 'unverified'
+    assert body['identifiers'][0]['identifier_value'] == 'INT-1'
+    assert body['documents'][0]['scan_state'] == 'quarantined'
+    assert 'ciphertext' not in packet.text and 'nonce' not in packet.text and b'%PDF' not in packet.content
+    listed = api.get(f'/v1/properties/{pid}/documents', headers=headers)
+    assert listed.status_code == 200, listed.text
+    assert listed.json()['items'][0]['scan_state'] == 'quarantined'
+    assert 'ciphertext' not in listed.text and 'nonce' not in listed.text and b'%PDF' not in listed.content
+    audit = api.get(f'/v1/properties/{pid}/audit', headers=headers)
+    assert audit.status_code == 200, audit.text
+    exported = [row for row in audit.json()['items'] if row['event_type'] == 'packet.exported']
+    assert exported and set(exported[0]) == {'event_type', 'actor_subject', 'recorded_at', 'delivered_at'}
+    assert api.request('DELETE', f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'}).json() == {'changed': True}
+    blocked = api.post(f'/v1/properties/{pid}/exports', headers=headers)
+    assert blocked.status_code == 403 and blocked.json()['detail'] == 'Export consent required'
+    assert secret not in blocked.text
+    with psycopg.connect(DSN) as conn:
+        assert len(conn.execute("SELECT 1 FROM property_audit_events WHERE property_id=%s AND event_type='packet.exported'", (pid,)).fetchall()) == 1
+
+
+def test_delegated_writer_cannot_consent_or_export(api, private_record):
+    from datetime import datetime, timedelta, timezone
+    pid, peer, headers, data, as_subject = private_record
+    secret = 'Delegated writer must not receive this claim'
+    assert api.post(f'/v1/properties/{pid}/claims', headers=headers, json={'statement': secret}).status_code == 201
+    editor = _editor('consent-editor-' + str(uuid4()))
+    expiry = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    grant = {'recipient_subject': editor, 'expires_at': expiry}
+    assert api.put(f'/v1/properties/{pid}/writers', headers=headers, json=grant).json() == {'changed': True}
+    as_subject(editor)
+    consent = api.post(f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'})
+    export = api.post(f'/v1/properties/{pid}/exports', headers=headers)
+    assert consent.status_code == 404 and export.status_code == 404
+    assert secret not in consent.text and secret not in export.text
+    as_subject('alice')
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=data).status_code == 200
+    as_subject(peer)
+    assert api.post(f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'}).status_code == 404
+    assert api.post(f'/v1/properties/{pid}/exports', headers=headers).status_code == 404
+    as_subject('alice')
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute("SELECT 1 FROM property_consents WHERE property_id=%s", (pid,)).fetchall() == []
+
+
+def test_ledger_row_follows_property_create_and_rejects_rewrite(api, private_record):
+    pid, _, headers, _, _ = private_record
+    with psycopg.connect(DSN) as conn:
+        delivered = conn.execute("""SELECT event_type, actor_subject FROM audit_ledger
+          WHERE property_id=%s AND event_type='property.created'""", (pid,)).fetchall()
+        before = conn.execute('SELECT count(*) FROM audit_ledger').fetchone()[0]
+    assert delivered == [('property.created', 'alice')]
+    audit = api.get(f'/v1/properties/{pid}/audit', headers=headers)
+    assert audit.status_code == 200, audit.text
+    created = [row for row in audit.json()['items'] if row['event_type'] == 'property.created']
+    assert created and set(created[0]) == {'event_type', 'actor_subject', 'recorded_at', 'delivered_at'}
+    assert created[0]['actor_subject'] == 'alice'
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("UPDATE audit_ledger SET event_type='forged' WHERE property_id=%s", (pid,))
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute('DELETE FROM audit_ledger WHERE property_id=%s', (pid,))
+    with pytest.raises(psycopg.Error), runtime(A) as conn:
+        conn.execute('TRUNCATE audit_ledger')
+    for statement in (
+        "UPDATE audit_ledger SET event_type='forged'",
+        'DELETE FROM audit_ledger',
+        'TRUNCATE audit_ledger',
+    ):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege, match='append-only'), psycopg.connect(DSN) as conn:
+            conn.execute(statement)
+    with pytest.raises(psycopg.errors.InsufficientPrivilege, match='append-only'), psycopg.connect(DSN) as conn:
+        conn.execute("""INSERT INTO audit_ledger
+          (source_event_id, source_table, tenant_id, property_id, actor_subject, event_type, recorded_at)
+          VALUES (%s, 'property_audit_events', %s, %s, 'alice', 'property.created', clock_timestamp())""",
+                     (uuid4(), A, pid))
+    with psycopg.connect(DSN) as conn:
+        assert conn.execute('SELECT count(*) FROM audit_ledger').fetchone()[0] == before
+    as_other = 'audit-cross-' + str(uuid4())
+    with psycopg.connect(DSN) as conn:
+        conn.execute("INSERT INTO tenant_memberships VALUES (%s, %s, 'owner')", (B, as_other))
+    from app.main import app
+    from app.auth import verified_subject
+    app.dependency_overrides[verified_subject] = lambda: as_other
+    assert api.get(f'/v1/properties/{pid}/audit', headers={'X-Tenant-ID': str(B)}).status_code == 404
+    assert api.get(f'/v1/properties/{pid}/documents', headers={'X-Tenant-ID': str(B)}).status_code == 404

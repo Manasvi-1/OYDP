@@ -14,15 +14,15 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Cross-tenant integration tests with distinct tenant fixtures
 - [x] Private property create/read and read-sharing API with tested contract
 - [x] Paginated property discovery and attributed unverified claims (API 0.4.0; native CI 115 tests)
-- [ ] Property update/write delegation and correction workflows
-- [ ] Next.js frontend for the first authenticated property journey (`apps/web` calls the API 0.4.0 contract; browser end-to-end coverage and live provider enrollment are still open)
+- [x] Property update/write delegation and correction workflows
+- [ ] Next.js authenticated property workspace is in `apps/web` and calls the active API. Browser end-to-end coverage and live provider enrollment are still open
 
 ## Milestone 1 — Trusted evidence
-- [ ] Versioned property identifiers, source registry and conflict resolution
-- [ ] Evidence provenance assertions with professional review status
-- [ ] Transactional audit outbox, append-only audit delivery
-- [ ] Quarantined, scanned, encrypted document storage
-- [ ] Consent and revocable property-level grants
+- [x] Versioned property identifiers, source registry, and conflict resolution. `rights_status` stays unknown. API 0.7.0.
+- [x] Professional reviews are recorded or abstained. A review does not change claim verification and has no title effect.
+- [x] Property and tenant audit rows are copied into `audit_ledger` in the same transaction. The ledger rejects update, delete, truncate, and an insert that does not match an outbox row. This is not an external write-once store. A database superuser can disable triggers.
+- [ ] Quarantined, encrypted document storage is in the API. No malware scanner is bundled. A file stays closed until a configured scanner marks it clean.
+- [x] Creator consent for `passport_export` can be granted and revoked. Export requires that live consent. Read and write grants remain separate.
 
 ## Milestone 2 — Collaborative property lifecycle
 - [ ] E03 Transaction & Legal Workspace

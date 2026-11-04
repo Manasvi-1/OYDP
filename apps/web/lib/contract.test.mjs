@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { claimsQuery, correctionsQuery, messageFromApi, parseSessionInput, propertiesQuery } from './contract.mjs'
+import { auditQuery, claimsQuery, correctionsQuery, documentsQuery, identifiersQuery, messageFromApi, parseSessionInput, propertiesQuery, reviewsQuery, sourcesQuery } from './contract.mjs'
 
 const tenant = '11111111-1111-4111-8111-111111111111'
 
@@ -34,4 +34,12 @@ test('builds bounded property and claim queries', () => {
   assert.equal(propertiesQuery('cursor+value'), '/v1/properties?limit=25&cursor=cursor%2Bvalue')
   assert.equal(claimsQuery(tenant, undefined), `/v1/properties/${tenant}/claims?limit=25`)
   assert.equal(correctionsQuery(tenant, undefined), `/v1/properties/${tenant}/corrections?limit=25`)
+  assert.equal(identifiersQuery(tenant, undefined), `/v1/properties/${tenant}/identifiers?limit=25`)
+  assert.equal(reviewsQuery(tenant, 'next'), `/v1/properties/${tenant}/reviews?limit=25&cursor=next`)
+  assert.equal(documentsQuery(tenant, undefined), `/v1/properties/${tenant}/documents?limit=25`)
+  assert.equal(auditQuery(tenant, undefined), `/v1/properties/${tenant}/audit?limit=25`)
+  assert.equal(sourcesQuery(undefined), '/v1/sources?limit=25')
+  assert.equal(messageFromApi(403, { detail: 'Export consent required' }), 'Export consent required')
+  assert.equal(messageFromApi(422, { detail: 'Source is withdrawn' }), 'Source is withdrawn')
+  assert.equal(messageFromApi(422, { detail: 'Identifier resolution required' }), 'Identifier resolution required')
 })

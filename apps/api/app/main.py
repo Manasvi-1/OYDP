@@ -20,7 +20,7 @@ from app.documents import (
 )
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.6.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.7.0')
 
 
 @app.middleware('http')
@@ -507,3 +507,390 @@ def download_document(property_id: UUID, document_id: UUID, access=Depends(autho
         raise HTTPException(503, 'Document is not available') from None
     return Response(content=plain, media_type=sealed['media_type'],
                     headers={'Content-Disposition': 'attachment; filename="document"'})
+
+
+# Trusted evidence. SQL functions decide who may write. A review never changes a claim's verification.
+PACKET_NOTICE = 'This packet is not a title certificate. Claims remain unverified, and a professional review is not title.'
+_PACKET_CAP = 100
+_TRUSTED_SQL = {
+    'Export consent required': (403, 'Export consent required'),
+    'Source is withdrawn': (422, 'Source is withdrawn'),
+    'Identifier resolution required': (422, 'Identifier resolution required'),
+    'Invalid identifier': (422, 'Invalid identifier'),
+    'Invalid source': (422, 'Invalid source'),
+    'Invalid review': (422, 'Invalid review'),
+    'Invalid request': (422, 'Invalid request'),
+}
+_TENANT = "nullif(current_setting('app.tenant_id', true), '')::uuid"
+
+
+def trusted_http_error(exc):
+    """Map an allowlisted database refusal. Every other failure stays generic."""
+    if getattr(exc, 'sqlstate', None) == 'P0002':
+        return HTTPException(404, 'Not found')
+    primary = ''
+    diag = getattr(exc, 'diag', None)
+    if diag is not None and diag.message_primary:
+        primary = str(diag.message_primary).strip()
+    mapped = _TRUSTED_SQL.get(primary)
+    if mapped is not None:
+        return HTTPException(mapped[0], mapped[1])
+    return HTTPException(503, 'Database operation unavailable')
+
+
+def call_trusted(conn, statement, params):
+    try:
+        row = conn.execute(statement, params).fetchone()
+    except psycopg.Error as exc:
+        raise trusted_http_error(exc) from None
+    if row is None:
+        raise HTTPException(503, 'Database operation unavailable')
+    return row
+
+
+def creator_gate(conn, property_id, role):
+    """Consent and export belong to the creator, and only while that creator can still write."""
+    row = readable_property(conn, property_id)
+    if row['created_by'] != current_subject(conn):
+        raise HTTPException(404, 'Property not found')
+    require_writer_role(role)
+    return row
+
+
+class IdentifierCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    scheme: Literal['internal', 'survey', 'municipal', 'khata']
+    identifier_value: str = Field(min_length=1, max_length=120)
+    resolution: Literal['supersede', 'conflict'] | None = None
+
+
+class IdentifierRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    scheme: Literal['internal', 'survey', 'municipal', 'khata']
+    identifier_value: str
+    version: int
+    status: Literal['current', 'superseded', 'conflict']
+    recorded_by: str
+    recorded_at: datetime
+
+
+class IdentifierResult(IdentifierRecord):
+    changed: bool
+
+
+class IdentifierPage(BaseModel):
+    items: list[IdentifierRecord]
+    next_cursor: str | None
+
+
+class SourceCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=200)
+    origin: Literal['user_supplied', 'professional', 'published_notice']
+    jurisdiction: str = Field(min_length=1, max_length=100)
+
+
+class SourceRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    name: str
+    origin: Literal['user_supplied', 'professional', 'published_notice']
+    jurisdiction: str
+    rights_status: Literal['unknown']
+    created_by: str
+    created_at: datetime
+    withdrawn_at: datetime | None
+    withdrawal_reason: str | None
+
+
+class SourcePage(BaseModel):
+    items: list[SourceRecord]
+    next_cursor: str | None
+
+
+class SourceWithdrawal(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ReviewCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    disposition: Literal['recorded', 'abstained']
+    statement: str = Field(min_length=1, max_length=2000)
+    source_id: UUID | None = None
+
+
+class ReviewRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    reviewer_subject: str
+    disposition: Literal['recorded', 'abstained']
+    statement: str
+    source_id: UUID | None
+    recorded_at: datetime
+    title_effect: Literal['none']
+
+
+class ReviewPage(BaseModel):
+    items: list[ReviewRecord]
+    next_cursor: str | None
+
+
+class ConsentCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    purpose: Literal['passport_export']
+
+
+class ConsentRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    subject_id: str
+    purpose: Literal['passport_export']
+    granted_at: datetime
+    revoked_at: datetime | None
+    changed: bool
+
+
+class ExportRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+
+class PacketClaim(BaseModel):
+    id: UUID
+    statement: str
+    created_by: str
+    kind: Literal['user_claim']
+    verification_status: Literal['unverified']
+    recorded_at: datetime
+
+
+class EvidencePacket(BaseModel):
+    property_id: UUID
+    title_verified: Literal[False]
+    notice: Literal[PACKET_NOTICE]
+    claims: list[PacketClaim]
+    identifiers: list[IdentifierRecord]
+    reviews: list[ReviewRecord]
+    documents: list[DocumentRecord]
+
+
+class AuditRecord(BaseModel):
+    event_type: Literal[
+        'property.created', 'access.granted', 'access.revoked', 'claim.recorded', 'property.corrected',
+        'write.granted', 'write.revoked', 'document.quarantined', 'document.scan_passed', 'document.scan_failed',
+        'identifier.recorded', 'identifier.conflict', 'review.recorded', 'consent.recorded', 'consent.revoked',
+        'packet.exported',
+    ]
+    actor_subject: str
+    recorded_at: datetime
+    delivered_at: datetime
+
+
+class AuditPage(BaseModel):
+    items: list[AuditRecord]
+    next_cursor: str | None
+
+
+class DocumentPage(BaseModel):
+    items: list[DocumentRecord]
+    next_cursor: str | None
+
+
+def present_review(row):
+    return {**row, 'title_effect': 'none'}
+
+
+def packet_rows(conn, statement, params):
+    rows = conn.execute(statement, (*params, _PACKET_CAP + 1)).fetchall()
+    if len(rows) > _PACKET_CAP:
+        raise HTTPException(422, 'Export packet is too large')
+    return rows
+
+
+@app.post('/v1/properties/{property_id}/identifiers', response_model=IdentifierResult)
+def record_identifier(property_id: UUID, payload: IdentifierCreate, access=Depends(authorized_db, scope='function'),
+                      mfa=Depends(require_mfa)):
+    """Record one identifier. The same value is unchanged. A different value needs supersede or conflict."""
+    conn, role = access
+    writable_property(conn, property_id)
+    require_writer_role(role)
+    return call_trusted(conn, f"""SELECT * FROM public.record_property_identifier({_TENANT}, %s, %s, %s, %s)""",
+                        (property_id, payload.scheme, payload.identifier_value, payload.resolution))
+
+
+@app.get('/v1/properties/{property_id}/identifiers', response_model=IdentifierPage)
+def list_identifiers(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                     cursor: str | None = Query(None, max_length=512)):
+    conn, _role = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'identifiers', cursor, property_id)
+    rows = conn.execute(f"""SELECT id, tenant_id, property_id, scheme, identifier_value, version, status, recorded_by, recorded_at
+      FROM property_identifiers
+      WHERE property_id=%s AND tenant_id={_TENANT}
+        AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+                        (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'recorded_at')
+
+
+@app.post('/v1/sources', status_code=201, response_model=SourceRecord)
+def register_source(payload: SourceCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    """Register a source. The caller cannot choose rights_status; the database keeps it unknown."""
+    conn, role = access
+    require_writer_role(role)
+    return call_trusted(conn, f"""SELECT * FROM public.register_evidence_source({_TENANT}, %s, %s, %s)""",
+                        (payload.name, payload.origin, payload.jurisdiction))
+
+
+@app.get('/v1/sources', response_model=SourcePage)
+def list_sources(access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                 cursor: str | None = Query(None, max_length=512)):
+    conn, _role = access
+    scope, at, record_id = cursor_context(conn, 'sources', cursor)
+    rows = conn.execute(f"""SELECT id, tenant_id, name, origin, jurisdiction, rights_status, created_by, created_at,
+        withdrawn_at, withdrawal_reason
+      FROM evidence_sources
+      WHERE tenant_id={_TENANT}
+        AND (%s::timestamptz IS NULL OR (created_at, id)<(%s::timestamptz, %s::uuid))
+      ORDER BY created_at DESC, id DESC LIMIT %s""",
+                        (at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')
+
+
+@app.post('/v1/sources/{source_id}/withdrawal', response_model=AccessResult)
+def withdraw_source(source_id: UUID, payload: SourceWithdrawal, access=Depends(authorized_db, scope='function'),
+                    mfa=Depends(require_mfa)):
+    conn, role = access
+    require_writer_role(role)
+    return call_trusted(conn, f"""SELECT public.withdraw_evidence_source({_TENANT}, %s, %s) AS changed""",
+                        (source_id, payload.reason))
+
+
+@app.post('/v1/properties/{property_id}/reviews', status_code=201, response_model=ReviewRecord)
+def record_review(property_id: UUID, payload: ReviewCreate, access=Depends(authorized_db, scope='function'),
+                  mfa=Depends(require_mfa)):
+    """Store a review. Disposition is recorded or abstained, and title_effect stays none."""
+    conn, role = access
+    writable_property(conn, property_id)
+    require_writer_role(role)
+    row = call_trusted(conn, f"""SELECT * FROM public.record_professional_review({_TENANT}, %s, %s, %s, %s)""",
+                       (property_id, payload.disposition, payload.statement, payload.source_id))
+    return present_review(row)
+
+
+@app.get('/v1/properties/{property_id}/reviews', response_model=ReviewPage)
+def list_reviews(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                 cursor: str | None = Query(None, max_length=512)):
+    conn, _role = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'reviews', cursor, property_id)
+    rows = conn.execute(f"""SELECT id, tenant_id, property_id, reviewer_subject, disposition, statement, source_id, recorded_at
+      FROM professional_reviews
+      WHERE property_id=%s AND tenant_id={_TENANT}
+        AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+                        (property_id, at, at, record_id, limit + 1)).fetchall()
+    page = page_result(rows, limit, scope, 'recorded_at')
+    page['items'] = [present_review(row) for row in page['items']]
+    return page
+
+
+@app.post('/v1/properties/{property_id}/consents', response_model=ConsentRecord)
+def grant_consent(property_id: UUID, payload: ConsentCreate, access=Depends(authorized_db, scope='function'),
+                  mfa=Depends(require_mfa)):
+    conn, role = access
+    creator_gate(conn, property_id, role)
+    return call_trusted(conn, f"""SELECT * FROM public.record_property_consent({_TENANT}, %s, %s)""",
+                        (property_id, payload.purpose))
+
+
+@app.delete('/v1/properties/{property_id}/consents', response_model=AccessResult)
+def revoke_consent(property_id: UUID, payload: ConsentCreate, access=Depends(authorized_db, scope='function'),
+                   mfa=Depends(require_mfa)):
+    conn, role = access
+    creator_gate(conn, property_id, role)
+    return call_trusted(conn, f"""SELECT public.revoke_property_consent({_TENANT}, %s, %s) AS changed""",
+                        (property_id, payload.purpose))
+
+
+@app.post('/v1/properties/{property_id}/exports', response_model=EvidencePacket)
+def export_property(property_id: UUID, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa),
+                    payload: ExportRequest | None = None):
+    """Build the caller's packet only after the database records a live creator consent."""
+    del payload
+    conn, role = access
+    creator_gate(conn, property_id, role)
+    try:
+        conn.execute(f"SELECT public.authorize_property_export({_TENANT}, %s)", (property_id,)).fetchone()
+    except psycopg.Error as exc:
+        raise trusted_http_error(exc) from None
+    claims = packet_rows(conn, f"""SELECT id, statement, created_by, kind, verification_status, recorded_at
+      FROM property_claims
+      WHERE property_id=%s AND tenant_id={_TENANT}
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))
+    for claim in claims:
+        if claim['kind'] != 'user_claim' or claim['verification_status'] != 'unverified':
+            raise HTTPException(503, 'Database operation unavailable')
+    identifiers = packet_rows(conn, f"""SELECT id, tenant_id, property_id, scheme, identifier_value, version, status,
+        recorded_by, recorded_at
+      FROM property_identifiers
+      WHERE property_id=%s AND tenant_id={_TENANT}
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))
+    reviews = [present_review(row) for row in packet_rows(conn, f"""SELECT id, tenant_id, property_id, reviewer_subject,
+        disposition, statement, source_id, recorded_at
+      FROM professional_reviews
+      WHERE property_id=%s AND tenant_id={_TENANT}
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))]
+    documents = [document_view(row) for row in packet_rows(conn, f"""SELECT {_DOCUMENT_META}
+      FROM property_documents
+      WHERE property_id=%s AND tenant_id={_TENANT}
+      ORDER BY created_at DESC, id DESC LIMIT %s""", (property_id,))]
+    for document in documents:
+        document.pop('ciphertext', None)
+        document.pop('nonce', None)
+    return {
+        'property_id': property_id,
+        'title_verified': False,
+        'notice': PACKET_NOTICE,
+        'claims': claims,
+        'identifiers': identifiers,
+        'reviews': reviews,
+        'documents': documents,
+    }
+
+
+@app.get('/v1/properties/{property_id}/documents', response_model=DocumentPage)
+def list_documents(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                   cursor: str | None = Query(None, max_length=512)):
+    """Metadata only. Ciphertext stays in the database and is not selected."""
+    conn, _role = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'documents', cursor, property_id)
+    rows = conn.execute(f"""SELECT {_DOCUMENT_META} FROM property_documents
+      WHERE property_id=%s AND tenant_id={_TENANT}
+        AND (%s::timestamptz IS NULL OR (created_at, id)<(%s::timestamptz, %s::uuid))
+      ORDER BY created_at DESC, id DESC LIMIT %s""",
+                        (property_id, at, at, record_id, limit + 1)).fetchall()
+    page = page_result(rows, limit, scope, 'created_at')
+    page['items'] = [document_view(row) for row in page['items']]
+    return page
+
+
+@app.get('/v1/properties/{property_id}/audit', response_model=AuditPage)
+def list_property_audit(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                        cursor: str | None = Query(None, max_length=512)):
+    """Delivered ledger rows for one visible property. The response has no claim text or document bytes."""
+    conn, _role = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'audit', cursor, property_id)
+    rows = conn.execute(f"""SELECT id, event_type, actor_subject, recorded_at, delivered_at
+      FROM audit_ledger
+      WHERE property_id=%s AND tenant_id={_TENANT}
+        AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
+      ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+                        (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'recorded_at')

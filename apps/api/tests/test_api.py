@@ -39,3 +39,43 @@ def test_correction_contract_isolates_records_and_pages():
     assert body['additionalProperties'] is False
     assert set(body['required']) == {'label', 'jurisdiction'}
     assert set(body['properties']) == {'label', 'jurisdiction'}
+
+
+def _schema_values(schema):
+    if 'enum' in schema:
+        return set(schema['enum'])
+    if 'const' in schema:
+        return {schema['const']}
+    if 'anyOf' in schema:
+        return {item.get('const') for item in schema['anyOf']}
+    return set()
+
+
+def test_trusted_evidence_contract_does_not_grant_title():
+    spec = client.get('/openapi.json').json()
+    assert spec['info']['version'] == '0.7.0'
+    paths = spec['paths']
+    for path in (
+        '/v1/properties/{property_id}/identifiers',
+        '/v1/properties/{property_id}/reviews',
+        '/v1/properties/{property_id}/consents',
+        '/v1/properties/{property_id}/exports',
+        '/v1/properties/{property_id}/documents',
+        '/v1/properties/{property_id}/audit',
+        '/v1/sources',
+        '/v1/sources/{source_id}/withdrawal',
+    ):
+        assert path in paths
+    schemas = spec['components']['schemas']
+    packet = schemas['EvidencePacket']
+    assert packet['properties']['title_verified']['const'] is False
+    assert 'not a title certificate' in packet['properties']['notice']['const']
+    assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
+    assert schemas['SourceRecord']['properties']['rights_status']['const'] == 'unknown'
+    assert 'rights_status' not in schemas['SourceCreate']['properties']
+    assert schemas['SourceCreate']['additionalProperties'] is False
+    assert _schema_values(schemas['IdentifierCreate']['properties']['scheme']) == {'internal', 'survey', 'municipal', 'khata'}
+    assert _schema_values(schemas['ReviewCreate']['properties']['disposition']) == {'recorded', 'abstained'}
+    assert schemas['ConsentCreate']['properties']['purpose']['const'] == 'passport_export'
+    audit = schemas['AuditRecord']['properties']
+    assert set(audit) == {'event_type', 'actor_subject', 'recorded_at', 'delivered_at'}

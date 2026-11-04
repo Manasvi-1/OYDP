@@ -107,7 +107,7 @@ main { padding: 2rem 0 4rem; }
   text-transform: uppercase;
 }
 label { display: grid; gap: 0.3rem; font-size: 0.92rem; }
-input, textarea {
+input, textarea, select {
   width: 100%;
   border: 1px solid var(--line);
   background: white;

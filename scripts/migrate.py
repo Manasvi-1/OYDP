@@ -79,6 +79,22 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_document_scan(uuid,uuid,uuid,text,bytea) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.load_quarantined_document(uuid,uuid,uuid) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.load_document_ciphertext(uuid,uuid,uuid) TO oydp_app')
+        # Trusted evidence is readable by the runtime role and writable only through the functions below.
+        # The role cannot insert its own ledger rows or call the trigger and edit-check functions.
+        conn.execute('REVOKE ALL ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger FROM oydp_app')
+        conn.execute('GRANT SELECT ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_identifier(uuid,uuid,text,text,text) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.register_evidence_source(uuid,text,text,text) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.withdraw_evidence_source(uuid,uuid,text) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_professional_review(uuid,uuid,text,text,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_consent(uuid,uuid,text) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.revoke_property_consent(uuid,uuid,text) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.authorize_property_export(uuid,uuid) TO oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.actor_can_edit_property(uuid,uuid) FROM oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.ledger_row_must_match_outbox() FROM oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.copy_property_audit() FROM oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.copy_tenant_audit() FROM oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.reject_ledger_rewrite() FROM oydp_app')
         conn.execute("ALTER ROLE oydp_app SET search_path = public")
 
 
