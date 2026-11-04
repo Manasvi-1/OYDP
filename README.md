@@ -37,9 +37,9 @@ All 13 engines remain planned release commitments; none is marked production-com
 The target is a **modular monolith**, not 13 independently deployed services.
 
 ```text
-Browser / role-specific Next.js interfaces  [planned]
+Browser / role-specific Next.js interfaces  [pre-alpha workspace]
                     |
-         OIDC identity + policy layer        [planned]
+         OIDC identity + policy layer        [API verifier; provider not selected]
                     |
          FastAPI modular backend             [property API implemented]
                     |
@@ -172,3 +172,7 @@ API 0.3.0 adds creator-private records, expiring read grants, MFA-gated creation
 ## Active API 0.4.0 increment
 
 Paginated private property discovery and attributed unverified claim recording/history passed native CI. Claims require creator/write-role/MFA authority; read grants permit history reads only. The [active OpenAPI contract](apps/api/openapi.json) and [discovery/claims guide](docs/implementation/DISCOVERY_CLAIMS.md) describe limits, upgrade steps, cursor semantics and remaining release gates. Current-head CI, rather than earlier test counts, determines acceptance.
+
+## Merged workspace increments
+
+Identifiers, sources, quarantined documents, and consent-gated export stay on migrations `008` through `012`. Migration `013` adds a local audit outbox beside the ledger. Migration `014` adds diligence requests and notes. Those requests are not offers or legal conclusions. See [audit outbox](docs/implementation/AUDIT_OUTBOX.md) and [diligence requests](docs/implementation/DILIGENCE_REQUESTS.md).

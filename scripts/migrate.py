@@ -95,6 +95,13 @@ def provision_runtime(dsn, password):
         conn.execute('REVOKE ALL ON FUNCTION public.copy_property_audit() FROM oydp_app')
         conn.execute('REVOKE ALL ON FUNCTION public.copy_tenant_audit() FROM oydp_app')
         conn.execute('REVOKE ALL ON FUNCTION public.reject_ledger_rewrite() FROM oydp_app')
+        conn.execute('REVOKE ALL ON audit_outbox FROM oydp_app')
+        conn.execute('GRANT SELECT ON audit_outbox TO oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.enqueue_audit_outbox() FROM oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.protect_delivered_audit() FROM oydp_app')
+        conn.execute('REVOKE ALL ON diligence_requests, diligence_notes FROM oydp_app')
+        conn.execute('GRANT SELECT, INSERT ON diligence_requests, diligence_notes TO oydp_app')
+        conn.execute('GRANT UPDATE (status, closed_at) ON diligence_requests TO oydp_app')
         conn.execute("ALTER ROLE oydp_app SET search_path = public")
 
 

@@ -12,6 +12,19 @@ def jwks_client(url):
     return jwt.PyJWKClient(url, timeout=5, lifespan=300, cache_keys=False)
 
 
+def endpoint_allowed(value: str) -> bool:
+    """HTTPS endpoints are the production rule. Plain HTTP is accepted only for an
+    explicit loopback development issuer, so a local sign-in can mint the same
+    access-token profile this module already verifies."""
+    parts = urlsplit(value)
+    if parts.username or parts.password or parts.fragment or parts.query or not parts.hostname:
+        return False
+    if parts.scheme == 'https':
+        return True
+    host = parts.hostname.lower().rstrip('.')
+    return parts.scheme == 'http' and os.getenv('OYDP_OIDC_DEV_HTTP') == '1' and host in {'localhost', '127.0.0.1'}
+
+
 def verified_claims(authorization: str | None) -> dict:
     issuer = os.getenv('OIDC_ISSUER', '')
     audience = os.getenv('OIDC_AUDIENCE', '')

@@ -18,4 +18,4 @@ A modular monolith avoids premature distributed transactions, inconsistent autho
 - Audit events must be committed atomically with business state and exported to an independent sink.
 
 ## Current limitations
-Initial SQL and FastAPI skeleton exist on the feature branch. No real authentication, document scanning, independent audit sink or verified property CRUD is operational. See [security gates](../implementation/SECURITY_GATES.md).
+The active API verifies RS256 access tokens and serves private property, grant, and unverified-claim routes. The web workspace can complete authorization-code sign-in against a configured issuer and calls that API from the server. A production identity provider has not been selected. Quarantine scanning exists; a certified malware product and an independent audit sink do not. The remaining engine journeys are still open. See [security gates](../implementation/SECURITY_GATES.md) and [web workspace](../implementation/WEB_UI.md).

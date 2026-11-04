@@ -6,7 +6,7 @@ All 13 remain GA commitments. Only the domain foundations listed below exist in 
 |---|---|---|
 | E01 | Property Identity & Evidence Graph | Partial. Private create/read/share, unverified claims, audited correction, delegated write, quarantined documents, versioned identifiers, rights-unknown sources, reviews that are not title, and creator-consent export. No title verification and no complete evidence graph. |
 | E02 | AI Property Advisor | Planned |
-| E03 | Transaction & Legal Workspace | Planned |
+| E03 | Transaction & Legal Workspace | Bounded diligence requests and notes on a property the caller can already read. Not offers, payments, or legal conclusions. The rest of the workspace is planned |
 | E04 | Living Property Passport | Planned |
 | E05 | Ownership Action Engine | Planned |
 | E06 | Real Estate Academy | Planned |
