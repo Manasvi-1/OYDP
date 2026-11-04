@@ -69,7 +69,19 @@ def main():
     tenant = str(uuid.uuid4())
     other = str(uuid.uuid4())
     with psycopg.connect(dsn) as conn:
-        conn.execute('TRUNCATE TABLE property_audit_events, property_claims, property_read_grants, evidence_assertions, properties, tenant_memberships')
+        conn.execute("""
+          DO $$
+          DECLARE stmt text;
+          BEGIN
+            SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
+              INTO stmt
+            FROM pg_tables
+            WHERE schemaname = 'public' AND tablename <> 'schema_migrations';
+            IF stmt IS NOT NULL THEN
+              EXECUTE stmt;
+            END IF;
+          END $$;
+        """)
         conn.execute(
             "INSERT INTO tenant_memberships(tenant_id, subject_id, role) VALUES (%s,'alice','owner'),(%s,'mallory','owner')",
             (tenant, other),
