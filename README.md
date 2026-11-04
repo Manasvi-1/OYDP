@@ -37,9 +37,9 @@ All 13 engines remain planned release commitments; none is marked production-com
 The target is a **modular monolith**, not 13 independently deployed services.
 
 ```text
-Browser / role-specific Next.js interfaces  [planned]
+Browser / role-specific Next.js interfaces  [pre-alpha workspace]
                     |
-         OIDC identity + policy layer        [planned]
+         OIDC identity + policy layer        [API verifier; provider not selected]
                     |
          FastAPI modular backend             [property API implemented]
                     |
@@ -62,7 +62,7 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 67 PostgreSQL/API cases passed at `68f2875` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
 | API/authentication/pagination/CI guard tests | 48 passed in GitHub CI | `apps/api/tests/`; 115 total with DB integration |
-| Next.js application | Not implemented | Pending |
+| Next.js application | Pre-alpha authenticated workspace for discovery, detail, and unverified claims | `apps/web`; see [web workspace](docs/implementation/WEB_UI.md) |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
 
@@ -75,7 +75,7 @@ OYDP/
 ├── .github/workflows/       # CI definitions
 ├── apps/
 │   ├── api/                 # FastAPI backend
-│   └── web/                 # Reserved for Next.js UI
+│   └── web/                 # Pre-alpha Next.js workspace
 ├── infra/db/                # Versioned SQL migrations
 ├── docs/
 │   ├── architecture/        # Architecture decisions and boundaries
@@ -108,7 +108,7 @@ PYTHONPATH=apps/api uvicorn app.main:app --reload
 
 On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
 
-The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). These instructions are **not** a complete working application setup.
+The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). The [web workspace](docs/implementation/WEB_UI.md) adds the local sign-in, list, detail, and claim screens. These instructions are **not** a production application setup.
 
 ## Engineering workflow
 
@@ -127,7 +127,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** API 0.4.0 private discovery and unverified claims passed native CI; complete the first authenticated UI and real provider setup.  
+**Now:** API 0.4.0 private discovery and unverified claims are in the active API. The first authenticated workspace can sign in with the API's access-token profile, list and open private properties, and record unverified claims. Production identity-provider selection remains an owner decision.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 

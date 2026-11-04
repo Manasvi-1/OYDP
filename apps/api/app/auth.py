@@ -12,16 +12,27 @@ def jwks_client(url):
     return jwt.PyJWKClient(url, timeout=5, lifespan=300, cache_keys=False)
 
 
+def endpoint_allowed(value: str) -> bool:
+    """HTTPS endpoints are the production rule. Plain HTTP is accepted only for an
+    explicit loopback development issuer, so a local sign-in can mint the same
+    access-token profile this module already verifies."""
+    parts = urlsplit(value)
+    if parts.username or parts.password or parts.fragment or parts.query or not parts.hostname:
+        return False
+    if parts.scheme == 'https':
+        return True
+    host = parts.hostname.lower().rstrip('.')
+    return parts.scheme == 'http' and os.getenv('OYDP_OIDC_DEV_HTTP') == '1' and host in {'localhost', '127.0.0.1'}
+
+
 def verified_claims(authorization: str | None) -> dict:
     issuer = os.getenv('OIDC_ISSUER', '')
     audience = os.getenv('OIDC_AUDIENCE', '')
     url = os.getenv('OIDC_JWKS_URL', '')
     if not all((issuer, audience, url)):
         raise HTTPException(503, 'OIDC authentication not configured')
-    for value in (issuer, url):
-        parts = urlsplit(value)
-        if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password or parts.fragment:
-            raise HTTPException(503, 'Invalid OIDC configuration')
+    if not endpoint_allowed(issuer) or not endpoint_allowed(url):
+        raise HTTPException(503, 'Invalid OIDC configuration')
     if not authorization or len(authorization) > 16384:
         raise HTTPException(401, 'Bearer access token required', headers={'WWW-Authenticate': 'Bearer'})
     scheme, _, token = authorization.partition(' ')

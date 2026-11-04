@@ -16,6 +16,6 @@ jobs:
       - run: python -m pip install --require-hashes -r apps/api/requirements.lock
       - run: PYTHONPATH=apps/api:. python -m pytest -q apps/api/tests
       - run: PYTHONPATH=apps/api:. python scripts/export_active_openapi.py --check
-      - run: python -m compileall -q apps/api/app scripts
+      - run: python -m compileall -q apps/api/app scripts tools/dev_oidc.py
       - run: python -m pip install pip-audit==2.10.1
       - run: pip-audit -r apps/api/requirements.lock

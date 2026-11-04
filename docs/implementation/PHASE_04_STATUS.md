@@ -19,7 +19,11 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 
 ## Next work
 
-Property write delegation/correction workflows, the Next.js authenticated workspace, provider onboarding/MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
+Property write delegation/correction workflows, production identity-provider selection and MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
+
+## Authenticated workspace
+
+`apps/web` is a pre-alpha Next.js workspace for the API 0.4.0 journey: authorization-code sign-in, paginated private discovery, property detail, and unverified claim recording. The access token stays in an encrypted httpOnly cookie and is sent only by the server. Loopback HTTP is accepted by the API only when `OYDP_OIDC_DEV_HTTP=1`, for `tools/dev_oidc.py`. That process is a development issuer, not an authenticator and not a selected production provider. See WEB_UI.md. Current-head CI, including the browser journey, is the acceptance evidence.
 
 ## API 0.4.0 discovery/claim increment
 

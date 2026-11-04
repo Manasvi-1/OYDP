@@ -119,3 +119,45 @@ def test_malformed_mfa_claim_denied(signing, amr):
     with pytest.raises(HTTPException) as exc:
         verified_subject('Bearer '+signing[0](amr=amr))
     assert exc.value.status_code == 401
+
+
+@pytest.mark.parametrize('value', [
+    'http://identity.example.test/keys',
+    'http://127.0.0.1.example.test/keys',
+    'http://127.0.0.1@evil.test/keys',
+    'http://2130706433/keys',
+    'http://[::1]/keys',
+    'https://user:pass@identity.example.test/keys',
+    'https://identity.example.test/keys?x=1',
+    'http://localhost.example.test/keys',
+])
+def test_dev_http_flag_rejects_non_loopback(signing, monkeypatch, value):
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
+    monkeypatch.setenv('OIDC_ISSUER', value)
+    monkeypatch.setenv('OIDC_JWKS_URL', value)
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0]())
+    assert exc.value.status_code == 503
+    assert exc.value.detail == 'Invalid OIDC configuration'
+
+
+@pytest.mark.parametrize('flag', ['', 'true', 'yes', '0'])
+def test_loopback_http_stays_closed_without_exact_flag(signing, monkeypatch, flag):
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', flag)
+    monkeypatch.setenv('OIDC_ISSUER', 'http://127.0.0.1:9')
+    monkeypatch.setenv('OIDC_JWKS_URL', 'http://127.0.0.1:9/jwks')
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0]())
+    assert exc.value.detail == 'Invalid OIDC configuration'
+
+
+def test_loopback_http_is_attempted_only_when_flag_is_set(signing, monkeypatch):
+    token, _, client = signing
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
+    monkeypatch.setenv('OIDC_ISSUER', 'http://127.0.0.1:9')
+    monkeypatch.setenv('OIDC_AUDIENCE', 'oydp-api')
+    monkeypatch.setenv('OIDC_JWKS_URL', 'http://127.0.0.1:9/jwks')
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+token())
+    assert client.get_signing_key_from_jwt.called
+    assert exc.value.status_code == 401
