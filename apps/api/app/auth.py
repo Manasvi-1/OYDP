@@ -20,7 +20,8 @@ def verified_claims(authorization: str | None) -> dict:
         raise HTTPException(503, 'OIDC authentication not configured')
     for value in (issuer, url):
         parts = urlsplit(value)
-        if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password or parts.fragment:
+        local = parts.scheme == 'http' and parts.hostname in {'localhost', '127.0.0.1'}
+        if not (parts.scheme == 'https' or local) or not parts.hostname or parts.username or parts.password or parts.fragment:
             raise HTTPException(503, 'Invalid OIDC configuration')
     if not authorization or len(authorization) > 16384:
         raise HTTPException(401, 'Bearer access token required', headers={'WWW-Authenticate': 'Bearer'})
@@ -53,6 +54,7 @@ def verified_subject(authorization: str | None = Header(default=None)) -> str:
 
 
 def require_mfa(authorization: str | None = Header(default=None)) -> bool:
-    if 'mfa' not in verified_claims(authorization).get('amr', []):
+    # Keycloak records TOTP as otp. The synthetic test tokens use mfa.
+    if not {'mfa', 'otp'}.intersection(verified_claims(authorization).get('amr', [])):
         raise HTTPException(403, 'MFA access token required')
     return True

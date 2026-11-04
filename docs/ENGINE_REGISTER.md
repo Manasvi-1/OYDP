@@ -4,7 +4,7 @@ All 13 remain GA commitments. Only the domain foundations listed below exist in 
 
 | ID | Engine | State |
 |---|---|---|
-| E01 | Property Identity & Evidence Graph | Candidate and unverified-claim persistence/API; provenance value object; evidence graph and UI pending |
+| E01 | Property Identity & Evidence Graph | Partial. Private create/read/share, unverified claims, audited correction, delegated write, quarantined documents, versioned identifiers, rights-unknown sources, reviews that are not title, and creator-consent export. No title verification and no complete evidence graph. |
 | E02 | AI Property Advisor | Planned |
 | E03 | Transaction & Legal Workspace | Planned |
 | E04 | Living Property Passport | Planned |

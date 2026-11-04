@@ -62,7 +62,7 @@ See [architecture](docs/architecture/README.md) and [security model](docs/securi
 | Tenant isolation | Forced RLS, membership checks, evidence tenant integrity | 67 PostgreSQL/API cases passed at `68f2875` |
 | Authentication | RS256 access-token verifier and DB membership checks implemented | RSA negative tests; provider configuration still required |
 | API/authentication/pagination/CI guard tests | 48 passed in GitHub CI | `apps/api/tests/`; 115 total with DB integration |
-| Next.js application | Not implemented | Pending |
+| Next.js application | First authenticated property journey | `apps/web`; contract tests. Browser end-to-end and live OIDC enrollment remain open |
 | All 13 end-to-end engine journeys | Not implemented | GA gate |
 | Production deployment | Not performed | Not production-ready |
 
@@ -75,7 +75,7 @@ OYDP/
 ├── .github/workflows/       # CI definitions
 ├── apps/
 │   ├── api/                 # FastAPI backend
-│   └── web/                 # Reserved for Next.js UI
+│   └── web/                 # Next.js workspace for the first property journey
 ├── infra/db/                # Versioned SQL migrations
 ├── docs/
 │   ├── architecture/        # Architecture decisions and boundaries
@@ -108,7 +108,18 @@ PYTHONPATH=apps/api uvicorn app.main:app --reload
 
 On Windows PowerShell, use `Copy-Item .env.example .env`, `.venv\Scripts\Activate.ps1`, and `$env:PYTHONPATH="apps/api"` instead of the corresponding POSIX commands.
 
-The current Compose service starts the database only. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md). These instructions are **not** a complete working application setup.
+Compose starts PostGIS and a localhost-only Keycloak realm. Run the [migration and runtime-role provisioning commands](docs/implementation/DATABASE_FOUNDATION.md) separately. Property routes require configured OIDC, an access token, and a pre-provisioned tenant membership. See [API setup](docs/implementation/PROPERTY_API.md) and [Launch 1 drop 1](docs/implementation/LAUNCH_1_DROP_1.md). These instructions are **not** a production setup.
+
+The workspace UI is a separate app:
+
+```bash
+cd apps/web
+npm ci
+npm test
+npm run dev
+```
+
+Open `http://127.0.0.1:3000`. With the web OIDC variables set, Sign in uses the local identity provider and a one-time code. The pasted-token form remains available. The UI stores the access token in an httpOnly session cookie and calls the property API from the server. See [web workspace](docs/implementation/WEB_WORKSPACE.md).
 
 ## Engineering workflow
 
@@ -127,7 +138,7 @@ General availability requires 13 genuine engine journeys plus legal/data-rights 
 
 ## Roadmap
 
-**Now:** API 0.4.0 private discovery and unverified claims passed native CI; complete the first authenticated UI and real provider setup.  
+**Now:** API 0.4.0 private discovery and unverified claims passed native CI. The first authenticated UI is in `apps/web`; live identity-provider enrollment and browser end-to-end tests are still open.  
 **Next:** Evidence lineage, private documents, audit outbox, transaction collaboration and first complete UI journey.  
 **Later:** GIS, valuation, concept modeling, feasibility, marketplace, temporal twin and institutional API, with validated data rights and cross-engine testing.
 
