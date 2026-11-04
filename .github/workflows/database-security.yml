@@ -1,4 +1,5 @@
-name: Database security
+# Active canonical API + infra/db (public schema, oydp_app). Not the reference oydp schema.
+name: Active database security
 on:
   pull_request:
   push:
@@ -7,6 +8,7 @@ permissions:
   contents: read
 jobs:
   postgres-isolation:
+    name: apps/api + infra/db acceptance
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:

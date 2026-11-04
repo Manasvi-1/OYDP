@@ -20,7 +20,7 @@ from app.documents import (
 )
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.7.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.8.0')
 
 
 @app.middleware('http')

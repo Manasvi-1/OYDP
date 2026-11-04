@@ -1,6 +1,22 @@
 # OYDP verification register
 
-Updated 25 October 2026. GitHub commit/tree and CI records are the implementation evidence; passing tests are not production certification.
+Updated 4 November 2026. GitHub commit/tree and CI records are the implementation evidence; passing tests are not production certification.
+
+## Backend consolidation sprint (this branch)
+
+Branch `cursor/backend-consolidation-security-95dc` off main `86cdd4f`. Local disposable PostgreSQL 16 + PostGIS executed on 4 November 2026:
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| Active API + integration | `PYTHONPATH=apps/api:. python3 -m pytest -q apps/api/tests tests/integration` | **204 passed**, 0 skipped, 0 failed |
+| Report guard | `python3 scripts/check_test_report.py test-results/database.xml` | verified 204 cases; zero skips/failures |
+| Reference PostGIS | `PYTHONPATH=. python3 -m pytest -q tests/test_api.py tests/test_database.py tests/test_foundation.py` | **87 passed + 13 subtests**, 0 skipped, 0 failed |
+| Report guard | `python3 scripts/check_test_report.py test-results/pr1-foundation.xml` | verified 87 cases; zero skips/failures |
+| OpenAPI | `PYTHONPATH=apps/api:. python3 scripts/export_active_openapi.py --check` | matches |
+| Compile | `python3 -m compileall -q apps/api/app scripts tools/dev_oidc.py oydp tests` | passed |
+| Dependency audit | `pip-audit -r apps/api/requirements.lock` | no known vulnerabilities found |
+
+Write-grant SELECT path confirmed via `test_delegated_editor_can_correct_and_append_only_while_granted` and related writer cases (no additive migration required; `011` already extends `property_private_read`). One Starlette TestClient deprecation warning remains; it is not a failed test. Fresh GitHub Actions on this PR head remain mandatory before merge. Not production approval.
 
 | Scope | Evidence | Result |
 | --- | --- | --- |

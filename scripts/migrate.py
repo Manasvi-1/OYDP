@@ -6,10 +6,18 @@ import os
 
 import psycopg
 
-ROOT = Path(__file__).resolve().parents[1] / 'infra' / 'db'
+REPO = Path(__file__).resolve().parents[1]
+ROOT = REPO / 'infra' / 'db'
+# PR #1 reference tree. Never apply it through this script against the active public schema.
+REFERENCE_MIGRATIONS = REPO / 'migrations'
 
 
 def migrate(dsn, directory=ROOT):
+    directory = Path(directory).resolve()
+    if directory == REFERENCE_MIGRATIONS.resolve():
+        raise ValueError(
+            'Root migrations/ is the PR #1 reference tree; use infra/db for the active API'
+        )
     files = sorted(directory.glob('[0-9][0-9][0-9]_*.sql'))
     if not files:
         raise ValueError('No migrations found')

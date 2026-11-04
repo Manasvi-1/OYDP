@@ -18,10 +18,24 @@ Retain the current main README, AGENTS, Compose, gitignore and Codex connection 
 
 This is a transitional source consolidation, not a claim that both implementations form one finished service. Root migrations have destructive down scripts intended only for disposable test fixtures. Neither package's audit storage is independently immutable.
 
+## Canonical authority (frozen reference)
+
+Updated 4 November 2026. The active product path is sole authority for new work:
+
+| Layer | Active (evolve here) | Reference (frozen, CI-only) |
+| --- | --- | --- |
+| Runtime | `apps/api/app/main.py` | `oydp/` package; not mounted |
+| Schema / role | `public`, role `oydp_app` | schema `oydp`, role `oydp_runtime` |
+| Migrations | `infra/db/001`–`014` via `scripts/migrate.py` | root `migrations/` (not accepted by `migrate.py`) |
+| Subjects / keys | string OIDC `sub`, configured JWKS | UUID `sub`, pinned public key |
+| CI acceptance | Active API smoke, Active database security | Reference foundation checks only |
+
+Forbidden: mounting `oydp` into the active app, applying root `migrations/` to `public`, or treating a green reference job as active-API acceptance. Machine checks live in `apps/api/tests/test_canonical_authority.py`. Private-access, write grants, claims, documents, trusted evidence, audit outbox, and diligence requests are already on the active path; further work continues there only.
+
 ## Next bounded build
 
-Port property-specific creator/grant authorization and MFA-gated access changes into the canonical JWKS API, with additive checksum migrations, nonmember/same-tenant denial, grant expiry/revocation, atomic audit and real PostgreSQL acceptance tests. Existing public records without attributable creators must fail closed until explicitly repaired by a trusted administrator. Do not silently grant every tenant member access. Build the UI against the consolidated canonical contract afterward.
+Hardening and Property Workspace completion continue on `apps/api` + `infra/db`: OIDC loopback gate enforcement, document scanner productization, production identity enrollment, MFA freshness, and independent audit delivery. Do not reopen interchangeable dual-backend development.
 
 ## Acceptance
 
-Run PR #1's full native PostGIS suite (including concurrency tests), PR #2's 48-test suite, dependency audit and compilation on this reconciled head. Record results in the PR before merging. No independent human/security audit, live provider setup or production approval is implied.
+Run the reference PostGIS suite and the active API/PostgreSQL suite separately (see `AGENTS.md`), plus dependency audit and compilation. Record results in the PR before merging. No independent human/security audit, live provider setup or production approval is implied.

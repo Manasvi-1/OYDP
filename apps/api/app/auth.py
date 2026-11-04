@@ -31,11 +31,9 @@ def verified_claims(authorization: str | None) -> dict:
     url = os.getenv('OIDC_JWKS_URL', '')
     if not all((issuer, audience, url)):
         raise HTTPException(503, 'OIDC authentication not configured')
-    for value in (issuer, url):
-        parts = urlsplit(value)
-        local = parts.scheme == 'http' and parts.hostname in {'localhost', '127.0.0.1'}
-        if not (parts.scheme == 'https' or local) or not parts.hostname or parts.username or parts.password or parts.fragment:
-            raise HTTPException(503, 'Invalid OIDC configuration')
+    # HTTPS is required in production. Loopback HTTP needs OYDP_OIDC_DEV_HTTP=1.
+    if not endpoint_allowed(issuer) or not endpoint_allowed(url):
+        raise HTTPException(503, 'Invalid OIDC configuration')
     if not authorization or len(authorization) > 16384:
         raise HTTPException(401, 'Bearer access token required', headers={'WWW-Authenticate': 'Bearer'})
     scheme, _, token = authorization.partition(' ')

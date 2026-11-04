@@ -30,6 +30,6 @@ Read the provided PDF requirements, propose implementation tickets, and create a
 
 ## Current repository boundaries
 - Inventory the current main tree and every open PR before starting a new increment; reconcile existing work before duplicating it.
-- Active service: apps/api, public schema, string OIDC subjects and configured JWKS. Root oydp/migrations is a separately tested reference backend from PR #1; no automatic data synchronization or interchangeable startup.
-- Active tests: PYTHONPATH=apps/api:. python -m pytest apps/api/tests tests/integration. Reference tests: PYTHONPATH=. python -m pytest tests/test_api.py tests/test_database.py tests/test_foundation.py. Keep discovery separate to avoid duplicate module names.
-- Preserve applied SQL migration checksums; add new migrations. Treat independent human/security review as pending unless actual reviewer evidence exists.
+- Active service: apps/api + infra/db, public schema, role oydp_app, string OIDC subjects and configured JWKS. Root oydp/ + migrations/ is a frozen, separately tested reference backend from PR #1 (schema oydp, role oydp_runtime); no automatic data synchronization or interchangeable startup. scripts/migrate.py rejects the root migrations/ path.
+- Active tests: PYTHONPATH=apps/api:. python -m pytest apps/api/tests tests/integration. Reference tests: PYTHONPATH=. python -m pytest tests/test_api.py tests/test_database.py tests/test_foundation.py. Keep discovery separate to avoid duplicate module names. Green reference CI is not active-API acceptance.
+- Preserve applied SQL migration checksums; add new migrations under infra/db only. Treat independent human/security review as pending unless actual reviewer evidence exists.

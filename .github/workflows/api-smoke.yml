@@ -1,4 +1,5 @@
-name: API smoke
+# Active canonical API only (apps/api). Does not exercise the PR #1 reference package.
+name: Active API smoke
 on:
   pull_request:
   push:
@@ -7,6 +8,7 @@ permissions:
   contents: read
 jobs:
   test:
+    name: apps/api unit and OpenAPI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
