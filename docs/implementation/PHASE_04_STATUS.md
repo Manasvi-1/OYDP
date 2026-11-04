@@ -21,6 +21,10 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 
 Property write delegation/correction workflows, production identity-provider selection and MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
 
+## Audit outbox
+
+API 0.7.0 enqueues one outbox row with each audit event and can append those identifiers to a local JSONL file. Delivered rows cannot be edited. See AUDIT_OUTBOX.md. An independent immutable sink is not included.
+
 ## Private documents
 
 API 0.6.0 stores creator-only document metadata and encrypted PDF, PNG, or JPEG bytes. Active-content and EICAR uploads are recorded as rejected and are not stored. See PRIVATE_DOCUMENTS.md. A certified malware scanner is not included.
