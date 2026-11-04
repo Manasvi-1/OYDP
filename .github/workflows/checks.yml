@@ -1,9 +1,12 @@
-name: foundation checks
+# PR #1 reference backend only (oydp/ + root migrations/, schema oydp, role oydp_runtime).
+# A green run here is not acceptance evidence for apps/api or infra/db.
+name: Reference foundation checks
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
   foundation:
+    name: oydp reference package
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:

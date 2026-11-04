@@ -56,23 +56,23 @@ If a feature would require us to fake certainty, we leave it unbuilt.
 
 ## The 13 engines
 
-Thirteen engines are **planned release commitments**. None are production-complete. Working titles below describe intent along a continuous property lifecycle — they are roadmap language, not shipping guarantees.
+Thirteen engines are **planned release commitments**. None are production-complete. Names below match the controlling blueprint and [`docs/ENGINE_REGISTER.md`](docs/ENGINE_REGISTER.md). Status language there is authoritative; this table is orientation only.
 
-| ID | Working title | Lifecycle intent |
+| ID | Engine | Notes |
 | :---: | --- | --- |
-| **E01** | Identity & workspace | Who is in the room, and under what grant |
-| **E02** | Property discovery | Find and frame properties without inventing facts |
-| **E03** | Claims & interests | Record asserted interests with provenance |
-| **E04** | Evidence vault | Attach, hash, and retain supporting artefacts |
-| **E05** | Spatial / cadastre | PostGIS-backed geometry and locality context |
-| **E06** | Title research | Structured research notes — never a title cert |
-| **E07** | Diligence & compliance | Checklists and gaps, not legal conclusions |
-| **E08** | Valuation models | Exploratory estimates — explicitly non-guaranteed |
-| **E09** | Transaction flow | Move a deal through stages with audit trail |
-| **E10** | Grants & permissions | Fine-grained access over workspace objects |
-| **E11** | Portfolio continuity | Keep lifecycle state across years, not just a sale |
-| **E12** | Collaboration | Human-in-the-loop notes, invites, hand-offs |
-| **E13** | Audit & reconciliation | What changed, who saw it, what still conflicts |
+| **E01** | Property Identity & Evidence Graph | Partial pre-alpha slice on `apps/api` |
+| **E02** | AI Property Advisor | Planned |
+| **E03** | Transaction & Legal Workspace | Bounded diligence requests only; rest planned |
+| **E04** | Living Property Passport | Planned |
+| **E05** | Ownership Action Engine | Planned |
+| **E06** | OYDP Real Estate Academy | Planned |
+| **E07** | SpatialLedger GIS Intelligence | Planned |
+| **E08** | Property Valuation & Market Intelligence | Planned |
+| **E09** | AI Layout & Architecture Concept Studio | Planned |
+| **E10** | Development & Business Feasibility | Planned |
+| **E11** | Marketplace & Professional Network | Planned |
+| **E12** | Time-Versioned Spatial Digital Twin | Planned |
+| **E13** | Institutional API & Evidence Attestations | Planned |
 
 <div align="center">
 <img src="https://img.shields.io/badge/E01–E13-planned%20only-0F766E?style=flat-square&labelColor=0F172A" alt="All engines planned only" />
@@ -133,7 +133,7 @@ Honest status — green means “exists and is useful in-repo,” amber means �
 
 ### Dual-backend reconciliation
 
-> **Warning.** The tree currently carries two backend lineages: `oydp/` and `apps/api`. Treat them as **in reconciliation**, not as two production services. Prefer the path called out in current engineering notes / `AGENTS.md` when contributing. Do not assume both are live or equivalent.
+> **Authority.** Evolve only `apps/api` + `infra/db` (public schema, role `oydp_app`). Root `oydp/` + `migrations/` is a **frozen PR #1 reference** (schema `oydp`, role `oydp_runtime`): separately CI-tested, not mounted, not interchangeable. See [`docs/implementation/PR1_RECONCILIATION.md`](docs/implementation/PR1_RECONCILIATION.md) and `AGENTS.md`.
 
 ### API increments
 
@@ -153,10 +153,11 @@ Workspace migrations **008 through 014** are merged into the shared migration li
 ```
 OYDP/
 ├── apps/
-│   ├── api/          # FastAPI surface (reconcile vs oydp/ — see warning)
-│   └── web/          # Web client scaffolding
-├── oydp/             # Alternate / legacy backend lineage (reconcile)
-├── migrations/       # Postgres / PostGIS / RLS — includes 008–014 workspace line
+│   ├── api/          # Canonical FastAPI surface (active)
+│   └── web/          # Authenticated Next.js workspace (pre-alpha)
+├── infra/db/         # Canonical checksum migrations (public schema)
+├── oydp/             # Frozen PR #1 reference package (not mounted)
+├── migrations/       # Reference oydp-schema migrations only
 ├── docs/             # Design, boundaries, engineering notes
 ├── AGENTS.md         # Agent & contributor gates — read before automated edits
 ├── SECURITY.md       # Vulnerability disclosure
@@ -207,9 +208,9 @@ We do not document a production deploy here — because we are not production.
 
 | Horizon | Focus |
 | --- | --- |
-| **Now** | Reconcile `oydp/` vs `apps/api`; harden privacy (0.3) and discovery/claims (0.4); keep migrations linear; protect RLS boundaries |
-| **Next** | Evidence store path; deepen E02–E05; first useful web flows against real local data; expand tests beyond the current backend build |
-| **Later** | Broader engine delivery (E06–E13); workers; carefully scoped regional expansion past Bengaluru / Karnataka / Hyderabad — still without fake gov certainty |
+| **Now** | Keep `apps/api` + `infra/db` as sole evolving authority; harden OIDC/dev gates, RLS, and Property Workspace evidence/document paths |
+| **Next** | Real malware scanner adapter; production identity enrollment; MFA freshness; independent audit sink; deepen remaining engines without claiming completion |
+| **Later** | Broader engine delivery (E02–E13 beyond current slices); workers; carefully scoped regional expansion past Bengaluru / Karnataka / Hyderabad — still without fake gov certainty |
 
 ---
 

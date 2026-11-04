@@ -81,7 +81,17 @@ def test_https_required(signing, monkeypatch):
     assert exc.value.status_code == 503
 
 
-def test_localhost_http_issuer_is_allowed(signing, monkeypatch):
+def test_localhost_http_issuer_requires_dev_flag(signing, monkeypatch):
+    monkeypatch.delenv('OYDP_OIDC_DEV_HTTP', raising=False)
+    monkeypatch.setenv('OIDC_ISSUER', 'http://127.0.0.1:8080/realms/oydp')
+    monkeypatch.setenv('OIDC_JWKS_URL', 'http://127.0.0.1:8080/realms/oydp/protocol/openid-connect/certs')
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0]())
+    assert exc.value.status_code == 503
+
+
+def test_localhost_http_issuer_is_allowed_with_dev_flag(signing, monkeypatch):
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
     monkeypatch.setenv('OIDC_ISSUER', 'http://127.0.0.1:8080/realms/oydp')
     monkeypatch.setenv('OIDC_JWKS_URL', 'http://127.0.0.1:8080/realms/oydp/protocol/openid-connect/certs')
     token, key, _ = signing
@@ -89,6 +99,15 @@ def test_localhost_http_issuer_is_allowed(signing, monkeypatch):
     claims['iss'] = 'http://127.0.0.1:8080/realms/oydp'
     local = jwt.encode(claims, key, algorithm='RS256', headers={'kid': 'test', 'typ': 'at+jwt'})
     assert verified_subject('Bearer '+local) == 'alice'
+
+
+def test_non_loopback_http_denied_even_with_dev_flag(signing, monkeypatch):
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
+    monkeypatch.setenv('OIDC_ISSUER', 'http://identity.example.test')
+    monkeypatch.setenv('OIDC_JWKS_URL', 'http://identity.example.test/keys')
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0]())
+    assert exc.value.status_code == 503
 
 
 def test_jwks_rotation(monkeypatch):
