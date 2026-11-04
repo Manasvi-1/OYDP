@@ -1,20 +1,23 @@
+import hashlib
 import os
 from contextlib import contextmanager
 from datetime import datetime
 from uuid import UUID
 from typing import Literal
 
+from app import documents as document_files
+
 import psycopg
 from psycopg.rows import dict_row
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.auth import verified_subject, require_mfa
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.5.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.6.0')
 
 
 @app.middleware('http')
@@ -378,3 +381,103 @@ def list_evidence(property_id: UUID, access=Depends(authorized_db, scope='functi
       AND (%s::timestamptz IS NULL OR (created_at,id)<(%s::timestamptz,%s::uuid))
       ORDER BY created_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
     return page_result(rows, limit, scope, 'created_at')
+
+
+def document_view(row):
+    return {
+        'id': row['id'], 'tenant_id': row['tenant_id'], 'property_id': row['property_id'],
+        'created_by': row['created_by'], 'sha256': bytes(row['sha256']).hex(), 'byte_size': row['byte_size'],
+        'media_type': row['media_type'], 'status': row['status'], 'rejection_code': row['rejection_code'],
+        'created_at': row['created_at'],
+    }
+
+
+class DocumentRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    created_by: str
+    sha256: str
+    byte_size: int
+    media_type: Literal['application/pdf', 'image/png', 'image/jpeg'] | None
+    status: Literal['rejected', 'clean']
+    rejection_code: Literal['empty', 'size', 'type', 'active'] | None
+    created_at: datetime
+
+
+class DocumentPage(BaseModel):
+    items: list[DocumentRecord]
+    next_cursor: str | None
+
+
+@app.post('/v1/properties/{property_id}/documents', status_code=201, response_model=DocumentRecord)
+async def upload_document(property_id: UUID, request: Request, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = writable_property(conn, role, property_id)
+    key = document_files.encryption_key()
+    root = document_files.storage_root()
+    if not key or root is None:
+        raise HTTPException(503, 'Document storage not configured')
+    declared = request.headers.get('content-length', '')
+    if not declared.isdigit() or int(declared) > document_files.MAX_BYTES:
+        raise HTTPException(422, 'Invalid request')
+    data = await request.body()
+    media, rejection = document_files.inspect_bytes(data)
+    if rejection in ('empty', 'size') or (rejection and not data):
+        raise HTTPException(422, 'Invalid request')
+    if rejection:
+        row = conn.execute("""INSERT INTO property_documents(tenant_id,property_id,sha256,byte_size,status,rejection_code)
+          VALUES(%s,%s,%s,%s,'rejected',%s) RETURNING *""", (parent['tenant_id'], property_id, hashlib.sha256(data).digest(), len(data), rejection)).fetchone()
+        conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+          VALUES(%s,%s,current_setting('app.subject_id'),'document.rejected')""", (parent['tenant_id'], property_id))
+        return document_view(row)
+    nonce, ciphertext, digest = document_files.seal_bytes(data, key)
+    row = conn.execute("""INSERT INTO property_documents(tenant_id,property_id,sha256,byte_size,media_type,status,encryption_nonce)
+      VALUES(%s,%s,%s,%s,%s,'clean',%s) RETURNING *""", (parent['tenant_id'], property_id, digest, len(data), media, nonce)).fetchone()
+    path = document_files.object_path(root, parent['tenant_id'], row['id'])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(ciphertext)
+    try:
+        conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+          VALUES(%s,%s,current_setting('app.subject_id'),'document.stored')""", (parent['tenant_id'], property_id))
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    return document_view(row)
+
+
+@app.get('/v1/properties/{property_id}/documents', response_model=DocumentPage)
+def list_documents(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                   cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id, creator_only=True)
+    scope, at, record_id = cursor_context(conn, 'documents', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM property_documents WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (created_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY created_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result([document_view(row) for row in rows], limit, scope, 'created_at')
+
+
+@app.get('/v1/properties/{property_id}/documents/{document_id}')
+def download_document(property_id: UUID, document_id: UUID, access=Depends(authorized_db, scope='function')):
+    conn, _ = access
+    parent = readable_property(conn, property_id, creator_only=True)
+    row = conn.execute("""SELECT * FROM property_documents WHERE id=%s AND property_id=%s AND status='clean'""", (document_id, property_id)).fetchone()
+    if not row:
+        raise HTTPException(404, 'Property not found')
+    key = document_files.encryption_key()
+    root = document_files.storage_root()
+    if not key or root is None:
+        raise HTTPException(503, 'Document storage not configured')
+    path = document_files.object_path(root, parent['tenant_id'], row['id'])
+    if not path.is_file():
+        raise HTTPException(404, 'Property not found')
+    data = document_files.open_bytes(bytes(row['encryption_nonce']), path.read_bytes(), key, bytes(row['sha256']))
+    if data is None:
+        raise HTTPException(404, 'Property not found')
+    filename = {'application/pdf': 'document.pdf', 'image/png': 'document.png', 'image/jpeg': 'document.jpg'}[row['media_type']]
+    return Response(content=data, media_type=row['media_type'], headers={
+        'Content-Disposition': f'attachment; filename="{filename}"',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+    })

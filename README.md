@@ -165,3 +165,7 @@ Paginated private property discovery and attributed unverified claim recording/h
 ## Active API 0.5.0 increment
 
 Property-scoped source notes, one current identifier per scheme with explicit supersede, and evidence assertions labeled `unreviewed` or `recorded`. These labels are not official identifiers, licences, or approvals. See [evidence lineage](docs/implementation/EVIDENCE_LINEAGE.md). Current-head CI is the acceptance evidence.
+
+## Active API 0.6.0 increment
+
+Creator-only private documents. Accepted PDF, PNG, and JPEG bytes are encrypted at rest. Rejected active content is recorded without the bytes. This gate is not an antivirus product. See [private documents](docs/implementation/PRIVATE_DOCUMENTS.md).

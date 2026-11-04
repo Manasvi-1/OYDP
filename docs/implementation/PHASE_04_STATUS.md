@@ -21,6 +21,10 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 
 Property write delegation/correction workflows, production identity-provider selection and MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
 
+## Private documents
+
+API 0.6.0 stores creator-only document metadata and encrypted PDF, PNG, or JPEG bytes. Active-content and EICAR uploads are recorded as rejected and are not stored. See PRIVATE_DOCUMENTS.md. A certified malware scanner is not included.
+
 ## Evidence lineage
 
 API 0.5.0 adds migration 008 and creator/MFA routes for source notes, versioned identifiers, and evidence assertions. Runtime insert of `official_observation` is denied. See EVIDENCE_LINEAGE.md. This does not complete the evidence graph or document storage.
