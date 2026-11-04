@@ -1,4 +1,5 @@
 import { connectSession } from './actions'
+import { configuredApiBase } from '../lib/origin.mjs'
 import { oidcConfig } from '../lib/oidc.mjs'
 import { readSession } from '../lib/session'
 import { redirect } from 'next/navigation'
@@ -10,6 +11,7 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
   const params = await searchParams
   const error = boundedMessage(params.error)
   const signIn = oidcConfig(process.env)
+  const api = configuredApiBase(process.env)
   return (
     <section className="lede">
       <h1>Open a private workspace</h1>
@@ -20,21 +22,20 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
       {error ? <p className="banner">{error}</p> : null}
       {signIn?.ok ? <p><a className="primary" href="/login">Sign in</a></p> : null}
       {signIn && !signIn.ok ? <p className="banner">{signIn.error}</p> : null}
-      <form className="panel stack" action={connectSession}>
-        <label>
-          API base
-          <input name="apiBase" type="url" required defaultValue="http://localhost:8000" autoComplete="off" />
-        </label>
-        <label>
-          Tenant ID
-          <input name="tenantId" required spellCheck={false} autoComplete="off" placeholder="UUID from membership provisioning" />
-        </label>
-        <label>
-          Access token
-          <input name="accessToken" type="password" required autoComplete="off" spellCheck={false} />
-        </label>
-        <button className="primary" type="submit">Continue</button>
-      </form>
+      {api.ok ? (
+        <form className="panel stack" action={connectSession}>
+          <p className="muted">The property service address is set on the server. This form cannot choose another one.</p>
+          <label>
+            Tenant ID
+            <input name="tenantId" required spellCheck={false} autoComplete="off" placeholder="UUID from membership provisioning" />
+          </label>
+          <label>
+            Access token
+            <input name="accessToken" type="password" required autoComplete="off" spellCheck={false} />
+          </label>
+          <button className="primary" type="submit">Continue</button>
+        </form>
+      ) : <p className="banner">{api.error}</p>}
     </section>
   )
 }

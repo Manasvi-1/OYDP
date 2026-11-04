@@ -1,42 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  claimsQuery,
-  correctionsQuery,
-  decodeSession,
-  encodeSession,
-  messageFromApi,
-  parseSessionInput,
-  propertiesQuery,
-} from './contract.mjs'
+import { claimsQuery, correctionsQuery, messageFromApi, parseSessionInput, propertiesQuery } from './contract.mjs'
 
 const tenant = '11111111-1111-4111-8111-111111111111'
 
-test('accepts a local API base and normalizes the tenant id', () => {
-  const result = parseSessionInput({
-    apiBase: 'http://localhost:8000/ignored',
-    tenantId: tenant.toUpperCase(),
+test('accepts a tenant and token and rejects a caller-supplied API origin', () => {
+  const result = parseSessionInput({ tenantId: tenant.toUpperCase(), accessToken: 'header.payload.signature' })
+  assert.equal(result.ok, true)
+  assert.equal(result.session.tenantId, tenant)
+  assert.equal(Object.hasOwn(result.session, 'apiBase'), false)
+  const injected = parseSessionInput({
+    apiBase: 'https://evil.example',
+    tenantId: tenant,
     accessToken: 'header.payload.signature',
   })
-  assert.equal(result.ok, true)
-  assert.equal(result.session.apiBase, 'http://localhost:8000')
-  assert.equal(result.session.tenantId, tenant)
+  assert.equal(injected.ok, false)
 })
 
-test('rejects insecure remote bases, credentials, and malformed sessions', () => {
-  assert.equal(parseSessionInput({ apiBase: 'http://example.com', tenantId: tenant, accessToken: 'a.b.c' }).ok, false)
-  assert.equal(parseSessionInput({ apiBase: 'https://user:pass@example.com', tenantId: tenant, accessToken: 'a.b.c' }).ok, false)
-  assert.equal(parseSessionInput({ apiBase: 'https://example.com/?q=1', tenantId: tenant, accessToken: 'a.b.c' }).ok, false)
-  assert.equal(parseSessionInput({ apiBase: 'https://example.com', tenantId: 'not-a-uuid', accessToken: 'a.b.c' }).ok, false)
-  assert.equal(parseSessionInput({ apiBase: 'https://example.com', tenantId: tenant, accessToken: 'two tokens' }).ok, false)
-})
-
-test('round-trips a session and rejects tampered cookies', () => {
-  const parsed = parseSessionInput({ apiBase: 'https://api.example.com', tenantId: tenant, accessToken: 'a.b.c' })
-  const encoded = encodeSession(parsed.session)
-  assert.deepEqual(decodeSession(encoded), parsed.session)
-  assert.equal(decodeSession('not-json'), null)
-  assert.equal(decodeSession(encodeSession({ apiBase: 'http://example.com', tenantId: tenant, accessToken: 'a.b.c' })), null)
+test('rejects a malformed tenant or token', () => {
+  assert.equal(parseSessionInput({ tenantId: 'not-a-uuid', accessToken: 'a.b.c' }).ok, false)
+  assert.equal(parseSessionInput({ tenantId: tenant, accessToken: 'two tokens' }).ok, false)
+  assert.equal(parseSessionInput({ tenantId: tenant, accessToken: '' }).ok, false)
 })
 
 test('uses API detail text and falls back without echoing unexpected bodies', () => {

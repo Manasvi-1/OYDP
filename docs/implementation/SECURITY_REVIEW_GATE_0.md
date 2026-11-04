@@ -83,3 +83,17 @@ No live credential was found in the reviewed diff, the realm import, or `.env.ex
 Conditional pass.
 
 Blocking findings: (1) unsigned session cookie carrying the raw access token to a caller-chosen API base, and (2) the web dev server not bound to loopback while that behavior exists. Either one stops this gate as soon as the web process is reachable beyond the operator.
+
+## Finding 1 resolution — 2026-11-04
+
+The review above is unchanged. This addendum records the working-tree change on `feat/launch-1-drop-1` at `95465978ca13877ec166a53c73bf8030b4a3642b`. It is not committed.
+
+The session cookie is now AES-256-GCM with a random 12-byte IV, the associated data `oydp-session`, and a 32-byte key from `SESSION_KEY` (base64url, not committed). The sealed payload is version, tenant, access token, and expiry. There is no fallback to the unsigned base64 cookie. A modified, expired, wrongly keyed, or origin-carrying payload is rejected. The OIDC pending cookie uses the same key and the associated data `oydp-oidc`. Cookies stay `HttpOnly`, `SameSite=Lax`, path-scoped, and `Secure` when `NODE_ENV=production`.
+
+`callPropertyApi` reads `PROPERTY_API_BASE` on each call. A form field, cookie, query, or sealed payload cannot select another origin. The configured origin must be HTTPS, except `http` on `localhost` or `127.0.0.1`, and it cannot carry credentials, a path, a query, or a fragment. Redirect responses are rejected before a bearer token is followed. The connect form no longer has an API-origin field.
+
+The callback verifies the ID token (RS256, issuer, client audience, expiry, nonce, type `JWT`) and the access token (RS256, issuer, `OIDC_AUDIENCE`, expiry, type `at+jwt`) against `OIDC_JWKS_URL`. It ignores `jku` and `x5u`. `tenant_id` is read only after that check, and the access token is still sent to `GET /v1/properties?limit=1` so the API verifier runs. PKCE, state, and nonce remain. Any failed check redirects home and does not write a session.
+
+`apps/web` `npm test` then passed 13, failed 0, skipped 0. The previous `contract.mjs` at HEAD accepts the unsigned origin-carrying cookie and a caller-supplied origin; the new tests reject both. Typecheck, production build, and `npm audit` (0 vulnerabilities) passed. Active API tests passed 171 with 0 skipped. Reference tests passed 87 plus 13 subtests. OpenAPI `--check` matched. Keycloak and a browser login were not run. Finding 2 was already addressed by the `127.0.0.1` bind and was not reopened.
+
+The sealed cookie still contains the access token until its own expiry. There is no server-side revocation list. Losing `SESSION_KEY` exposes every sealed cookie. This addendum does not make the gate a production approval or an independent audit.

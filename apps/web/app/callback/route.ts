@@ -1,26 +1,28 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { callPropertyApi } from '../../lib/api'
-import { parseSessionInput, UUID } from '../../lib/contract.mjs'
-import { oidcConfig, OIDC_COOKIE, readUnverifiedStringClaim, tokenEndpoint } from '../../lib/oidc.mjs'
+import { openJson, parseSessionInput, sessionKeyBytes, UUID } from '../../lib/contract.mjs'
+import { fetchJwks, oidcConfig, OIDC_AAD, OIDC_COOKIE, tokenEndpoint, verifySignedJwt } from '../../lib/oidc.mjs'
 import { writeSession } from '../../lib/session'
 
 export async function GET(request: Request) {
   const config = oidcConfig(process.env)
   if (!config?.ok) return reject(request, config?.error ?? 'Sign-in is not configured')
+  const now = Math.floor(Date.now() / 1000)
   const incoming = new URL(request.url)
   const code = incoming.searchParams.get('code') ?? ''
   const state = incoming.searchParams.get('state') ?? ''
   const jar = await cookies()
   const raw = jar.get(OIDC_COOKIE)?.value
-  jar.set(OIDC_COOKIE, '', { httpOnly: true, sameSite: 'lax', path: '/callback', maxAge: 0 })
-  let pending: { state?: string; nonce?: string; verifier?: string } = {}
-  try {
-    pending = JSON.parse(raw ?? '')
-  } catch {
-    pending = {}
-  }
-  if (!code || !state || state !== pending.state || !pending.verifier || !pending.nonce) {
+  jar.set(OIDC_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/callback',
+    maxAge: 0,
+  })
+  const pending = openJson(raw, process.env.SESSION_KEY, OIDC_AAD)
+  if (!code || !state || !pending || pending.v !== 1 || state !== pending.state || typeof pending.verifier !== 'string' || typeof pending.nonce !== 'string' || typeof pending.exp !== 'number' || pending.exp <= now) {
     return reject(request, 'Sign-in could not be confirmed. Start again.')
   }
   let tokenResponse: Response
@@ -48,21 +50,43 @@ export async function GET(request: Request) {
   const payload = await tokenResponse.json().catch(() => null) as { access_token?: unknown; id_token?: unknown } | null
   const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : ''
   const idToken = typeof payload?.id_token === 'string' ? payload.id_token : ''
-  if (!tokenResponse.ok || !accessToken || readUnverifiedStringClaim(idToken, 'nonce') !== pending.nonce) {
+  if (!tokenResponse.ok || !accessToken || !idToken || !sessionKeyBytes(process.env.SESSION_KEY)) {
     return reject(request, 'Identity provider did not return a usable access token')
   }
-  const tenantId = readUnverifiedStringClaim(accessToken, 'tenant_id')
-  if (!UUID.test(tenantId)) {
-    return reject(request, 'The access token needs a tenant_id attribute from the identity provider')
+  let jwks
+  try {
+    jwks = await fetchJwks(config.jwksUrl)
+  } catch {
+    return reject(request, 'Identity provider unavailable')
   }
-  const parsed = parseSessionInput({ apiBase: config.apiBase, tenantId, accessToken })
+  const idCheck = verifySignedJwt(idToken, {
+    jwks,
+    issuer: config.issuer,
+    audience: config.clientId,
+    nonce: pending.nonce,
+    now,
+    typ: 'JWT',
+  })
+  const accessCheck = verifySignedJwt(accessToken, {
+    jwks,
+    issuer: config.issuer,
+    audience: config.audience,
+    now,
+    typ: 'at+jwt',
+  })
+  const tenantClaim = accessCheck.ok ? accessCheck.payload.tenant_id : ''
+  const tenantId = typeof tenantClaim === 'string' ? tenantClaim : ''
+  if (!idCheck.ok || !accessCheck.ok || !UUID.test(tenantId)) {
+    return reject(request, 'Identity provider did not return a usable access token')
+  }
+  const parsed = parseSessionInput({ tenantId, accessToken })
   if (!parsed.ok) return reject(request, parsed.error)
   try {
     await callPropertyApi(parsed.session, '/v1/properties?limit=1')
+    await writeSession(parsed.session)
   } catch (error) {
     return reject(request, error instanceof Error ? error.message : 'Property service unavailable')
   }
-  await writeSession(parsed.session)
   return NextResponse.redirect(new URL('/properties', request.url))
 }
 

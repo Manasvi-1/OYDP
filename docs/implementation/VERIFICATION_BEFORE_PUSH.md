@@ -1,146 +1,147 @@
 # Verification before push
 
-Date: 2026-11-04. Branch: `feat/launch-1-drop-1`. HEAD: `95fce64798e7108cc4cf0b346f9f3e4a8df984ba`. Working tree already dirty before this run. No test file was edited. Nothing was committed.
+Date: 2026-11-04. Branch: `feat/launch-1-drop-1`. HEAD at the start of this run: `95fce64798e7108cc4cf0b346f9f3e4a8df984ba`. Nothing was committed.
 
 Gate files read: `docs/implementation/IDENTITY_GATE.md`, `docs/implementation/SECURITY_REVIEW_GATE_0.md`, and `docs/implementation/SECURITY_GATES.md`.
 
 ## Decision
 
-**Stop the release. Do not push this tree as verified.**
+The checks that stopped the earlier pass have now executed.
 
-No executed web test, typecheck, production build, or API unit test failed. The required active API command also includes `tests/integration`. All 76 of those tests were skipped. Pytest exited 0 because the module skips itself when `TEST_DATABASE_URL` is unset. A skip is not a pass. Database acceptance is not inferred from this run.
+Active API tests: **171 passed, 0 failed, 0 skipped**. Reference backend tests: **87 passed, 0 failed, 0 skipped**, plus **13 subtests passed**. The clean web install, contract tests, typecheck, and production build succeeded. `npm audit` reported **0 vulnerabilities**.
+
+This is still not production approval, an independent review, or an enrolled identity provider. Keycloak was not started. The session cookie remains an unsigned copy of the access token, which `SECURITY_REVIEW_GATE_0.md` treats as blocking once the web process is reachable beyond this computer. `dev` and `start` are now bound to `127.0.0.1`.
+
+## What changed so the database suite could pass
+
+`infra/db/011_write_grant_pages.sql` now also defines `actor_has_live_write_grant`. The property read policy allows the creator, a live read grant, or that live write grant. Direct `UPDATE` stays creator-only. The function reads grant rows as its owner so the policies do not recurse, and `INSERT ... RETURNING` can still see the new row. `scripts/migrate.py` grants `oydp_app` execute on that function, and grants the document quarantine functions that the runtime role calls.
+
+`apps/web/package.json` pins `dev` and `start` to `--hostname 127.0.0.1` and overrides `postcss` to `8.5.32`. The lockfile resolves `postcss` `8.5.32`. Next.js stays `15.5.28`.
 
 ## Environment
 
 - Node `v20.18.0`, npm `10.8.2`.
-- Python `3.11.9` at `C:\Users\WorkstationAdmin\AppData\Local\Programs\Python311\python.exe`.
-- `python311._pth` contains `import site` and still ignores `PYTHONPATH`. A probe with `PYTHONPATH` set to `C:\Users\WorkstationAdmin\OYDP\apps\api` left `apps/api` off `sys.path` and did not import `pytest`.
-- `pytest` is not installed in site-packages. The hash-locked tree at `C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps` was already present. Compared with `apps/api/requirements.lock`: 28 packages, 0 missing, 0 version mismatches. This run did not reinstall it.
-- `TEST_DATABASE_URL` was unset. `docker` is not on `PATH`. `psql` was not found under PostgreSQL 16 or 17. Docker Desktop’s `docker.exe` was not present.
+- Python `3.11.9`. `python311._pth` ignores `PYTHONPATH`, and `pytest` is not installed in site-packages. Commands inject `apps/api` or the repository root plus `C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps`. That directory matches all 28 packages in `apps/api/requirements.lock`.
+- PostgreSQL `16.15` portable binaries, loopback only, trust authentication for `127.0.0.1/32`. Cluster data was `C:\Users\WORKST~1\AppData\Local\Temp\oydp-pg\data`. The server was stopped after the tests.
+- The Microsoft Visual C++ 2015–2022 x64 redistributable was installed so `initdb.exe` could start. Installer exit code 0.
+- PostGIS is not in those binaries. The reference SQL does not use it. Those tests passed without `CREATE EXTENSION postgis`.
+- Docker is not installed. Keycloak was not started.
 
-## Web install
+## Web clean build
 
-Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`.
+Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`. `.next` was removed. `npm ci` replaced `node_modules`.
 
 ```text
 npm ci
-```
-
-Exit code 0. `added 28 packages, and audited 29 packages in 58s`. The same install printed `2 vulnerabilities (1 moderate, 1 high)`. Detail is under the audit section below. `npm audit fix` was not run.
-
-## Web contract tests
-
-Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`.
-
-```text
 npm test
-```
-
-That script is `node --test lib/contract.test.mjs lib/oidc.test.mjs`. Exit code 0. Node test report:
-
-```text
-# tests 8
-# suites 0
-# pass 8
-# fail 0
-# cancelled 0
-# skipped 0
-# todo 0
-# duration_ms 169.5516
-```
-
-Counts: **8 passed, 0 failed, 0 skipped.**
-
-The eight names split across the two files as written:
-
-| File | Passed | Failed | Skipped |
-| --- | ---: | ---: | ---: |
-| `apps/web/lib/contract.test.mjs` | 5 | 0 | 0 |
-| `apps/web/lib/oidc.test.mjs` | 3 | 0 | 0 |
-
-Contract names that passed: local API base and tenant normalization; rejection of insecure remote bases, credentials, and malformed sessions; session round-trip and tampered-cookie rejection; API detail text with a fallback that does not echo unexpected bodies; bounded property and claim queries.
-
-## Typecheck
-
-Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`.
-
-```text
 npm run typecheck
-```
-
-Script: `tsc --noEmit`. Exit code 0. No diagnostic output. This command does not emit pass, fail, or skip counts.
-
-## Production web build
-
-Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`.
-
-```text
 $env:NEXT_TELEMETRY_DISABLED = '1'
 npm run build
-```
-
-Script: `next build`. Exit code 0. Next.js `15.5.28` reported `Compiled successfully in 2.5s`, then generated 6 static pages. Routes reported: `/`, `/_not-found`, `/callback`, `/icon.svg`, `/login`, `/properties`, `/properties/[id]`, `/properties/new`. This command does not emit pass, fail, or skip counts.
-
-## Active API tests
-
-The Linux CI form `PYTHONPATH=apps/api:. python -m pytest apps/api/tests tests/integration` cannot start on this interpreter: `PYTHONPATH` is ignored and `python -m pytest` has no `pytest` module. The command that ran injects the repository, `apps/api`, and the locked target onto `sys.path`.
-
-Working directory printed by the command: `C:\Users\WorkstationAdmin\OYDP`.
-
-```text
-python -c "import sys; sys.path[:0] = [r'C:\Users\WorkstationAdmin\OYDP\apps\api', r'C:\Users\WorkstationAdmin\OYDP', r'C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps']; import pytest; raise SystemExit(pytest.main(['-q', 'apps/api/tests', 'tests/integration', '-ra', '--tb=line']))"
-```
-
-Exit code 0. Pytest summary:
-
-```text
-55 passed, 76 skipped, 1 warning in 3.16s
-```
-
-Counts: **55 passed, 0 failed, 76 skipped.** One warning, not a failure:
-
-```text
-StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
-```
-
-Source: `C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps\fastapi\testclient.py:1`.
-
-Every skip line names `tests\integration\test_database.py` and the reason `TEST_DATABASE_URL is required for real PostgreSQL tests`. The 55 passes are the tests collected from `apps/api/tests`. An earlier run of the same arguments, before this cwd was printed, reported the same counts in 4.86s. The PostgreSQL cases did not execute in either run.
-
-## Dependency audit observed during install
-
-Not one of the four named commands. Recorded because `npm ci` reported vulnerabilities. Working directory: `C:\Users\WorkstationAdmin\OYDP\apps\web`.
-
-```text
 npm audit
 ```
 
-Exit code 1. npm metadata: **0 info, 0 low, 1 moderate, 1 high, 0 critical** (total 2). Installed `next` is `15.5.28`. Installed `postcss` is `8.4.31`, which is inside the vulnerable range `<=8.5.22`. `next` is the direct dependency; `postcss` is transitive.
+`npm ci` exit code 0: `added 28 packages, and audited 29 packages in 46s`, then `found 0 vulnerabilities`.
 
-| Package | npm severity | Advisories named in the report |
-| --- | --- | --- |
-| `postcss` | high | GHSA-qx2v-qp2m-jg93 (moderate, XSS in CSS stringify, `<8.5.10`); GHSA-6g55-p6wh-862q (high, `sourceMappingURL` file read, `<=8.5.11`); GHSA-fxqj-rqcc-2cmp (moderate, incomplete fix of that file read, `<=8.5.22`); GHSA-r28c-9q8g-f849 (high, source-map path traversal, `<=8.5.17`) |
-| `next` | moderate | Via `postcss` only. Reported range `9.3.4-canary.0 - 16.3.0-preview.10` |
+`npm test` exit code 0. Node report:
 
-`npm audit` says a fix would install `next@16.4.5`, a semver-major change. That upgrade was not applied.
+```text
+# tests 8
+# pass 8
+# fail 0
+# skipped 0
+# todo 0
+```
 
-`pip-audit` was not run.
+Counts: **8 passed, 0 failed, 0 skipped** (5 in `lib/contract.test.mjs`, 3 in `lib/oidc.test.mjs`).
 
-## Checks that could not run
+`npm run typecheck` (`tsc --noEmit`) exit code 0. No diagnostics.
 
-- Real PostgreSQL execution of `tests/integration/test_database.py`. Blocker: `TEST_DATABASE_URL` unset, and no Docker or local `psql` on this machine. Pytest collected the module and skipped 76 tests.
-- The workflow command `PYTHONPATH=apps/api:. python -m pytest -q apps/api/tests` from `API smoke`, for the reason in the API section.
-- `python scripts/export_active_openapi.py --check` and `python -m compileall -q apps/api/app scripts`.
-- `pip-audit -r apps/api/requirements.lock`.
-- Reference-backend tests: `PYTHONPATH=. python -m pytest tests/test_api.py tests/test_database.py tests/test_foundation.py`.
-- Keycloak start and browser enrollment. Docker is not installed. `IDENTITY_GATE.md` already records that limit.
-- A browser walk of the workspace, login, logout, or the dev-server bind address.
-- GitHub Actions for this HEAD. `API smoke` and `Database security` run on pull requests and on pushes to `main` and `feat/property-identity-foundation`. A local file does not create those runs. `web workspace` runs on every push and pull request; it was not invoked from here.
+`npm run build` exit code 0. Next.js `15.5.28` compiled successfully in 11.7s and generated 6 pages. It warned that the lockfile was missing SWC optional dependencies and patched the lockfile during the build. The build still completed. Routes: `/`, `/_not-found`, `/callback`, `/icon.svg`, `/login`, `/properties`, `/properties/[id]`, `/properties/new`.
 
-## Gate notes this run does not clear
+`npm audit` exit code 0: `found 0 vulnerabilities`.
 
-`SECURITY_REVIEW_GATE_0.md` is a conditional pass with two blocking findings: the session cookie is an unsigned copy of the access token sent to a caller-chosen API base, and `npm run dev` is not bound to loopback. This run did not start the dev server and did not re-test those paths. Those findings stay as written in that file.
+## Active API tests
 
-`SECURITY_GATES.md` still requires real PostgreSQL tenant-isolation tests, an audit outbox before real documents, and evidence upload to stay disabled. The skipped integration file is the local database evidence, and it did not run. `IDENTITY_GATE.md` remains a local verifier configuration plus unit tests, not an enrolled provider.
+Disposable database `oydp_security_test` on `127.0.0.1:5432`. The database was dropped and recreated before the recorded run.
 
-This file is a local command log. It is not production approval, an independent review, or a green database acceptance.
+```text
+$env:TEST_DATABASE_URL = 'postgresql://postgres@127.0.0.1:5432/oydp_security_test'
+python -c "import sys; sys.path[:0] = [r'C:\Users\WorkstationAdmin\OYDP\apps\api', r'C:\Users\WorkstationAdmin\OYDP', r'C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps']; import pytest; raise SystemExit(pytest.main(['-q', 'apps/api/tests', 'tests/integration', '-ra', '--tb=line']))"
+```
+
+Exit code 0.
+
+```text
+171 passed, 1 warning in 27.56s
+```
+
+Counts: **171 passed, 0 failed, 0 skipped**. The warning is `StarletteDeprecationWarning` from `fastapi/testclient.py` about `httpx` and `starlette.testclient`. It is not a failure.
+
+An earlier run on the same server, before the write-grant read policy was in place, was **1 failed, 169 passed**. The failure was `test_delegated_editor_can_correct_and_append_only_while_granted`: the writers response had no `items` because a write grant alone could not read the property. The recorded run above is after that policy change.
+
+## Reference backend tests
+
+Empty database `oydp_ref_test`. Role `oydp_runtime` was created as a non-superuser without `BYPASSRLS`. Password used only in this process: `isolated-local-runtime-only`.
+
+```text
+$env:OYDP_TEST_ADMIN_DSN = 'postgresql://postgres@127.0.0.1:5432/oydp_ref_test'
+$env:OYDP_TEST_RUNTIME_DSN = 'postgresql://oydp_runtime:isolated-local-runtime-only@127.0.0.1:5432/oydp_ref_test'
+$env:OYDP_TEST_ALLOW_RESET = 'yes'
+python -c "import sys; sys.path[:0] = [r'C:\Users\WorkstationAdmin\OYDP', r'C:\Users\WORKST~1\AppData\Local\Temp\oydp-api-deps']; import pytest; raise SystemExit(pytest.main(['-q','tests/test_foundation.py','tests/test_api.py','tests/test_database.py','-ra','--tb=line']))"
+```
+
+Exit code 0.
+
+```text
+87 passed, 1 warning, 13 subtests passed in 9.61s
+```
+
+Counts: **87 passed, 0 failed, 0 skipped**, **13 subtests passed**. Same Starlette deprecation warning.
+
+## Other commands that ran
+
+OpenAPI check, with the active API path injected:
+
+```text
+Active OpenAPI contract matches
+```
+
+Exit code 0.
+
+`compileall` on `oydp`, `tests`, `apps/api/app`, and `scripts`: exit code 0.
+
+OSV batch query of the 28 pinned distributions in `apps/api/requirements.lock`: **0 vulnerable packages**. `pip-audit==2.10.1` was installed under `C:\Users\WORKST~1\AppData\Local\Temp\oydp-pip-audit` but could not start: this Python install has no `venv` standard library (`Lib\venv` is absent), and `pip-audit` imports `venv` before it reads a requirements file.
+
+## Not run
+
+- Keycloak, browser enrollment, login, and logout. Docker is not installed.
+- A browser walk of the workspace.
+- `CREATE EXTENSION postgis`. The reference tests passed without it.
+- GitHub Actions for this working tree.
+- The JUnit acceptance guard `scripts/check_test_report.py`. Pytest itself reported zero skips and zero failures for both suites. A separate XML file was not verified.
+
+## Still open
+
+`SECURITY_REVIEW_GATE_0.md` finding 1 is unchanged: the session cookie is an unsigned copy of the access token, and a caller-chosen `https` API base is still accepted. Finding 2 is addressed in the npm scripts: `next dev` and `next start` listen on `127.0.0.1` only. Evidence upload, an audit outbox outside this database, and an enrolled identity provider are still absent. Do not treat this log as release approval.
+
+## Session seal re-run — 2026-11-04
+
+HEAD remains `95465978ca13877ec166a53c73bf8030b4a3642b`. The session changes are uncommitted. The paragraphs above are the earlier log and are left as written. This section records the commands after the session cookie was sealed and the API origin was taken only from `PROPERTY_API_BASE`.
+
+The same PostgreSQL 16.15 cluster was started again for this run and stopped afterward. Databases `oydp_security_test` and `oydp_ref_test` were dropped and recreated first. `npm ci` was not repeated; `node_modules` was already present. Keycloak was not started, and the browser was not used.
+
+From `apps/web`:
+
+```text
+npm test
+npm run typecheck
+$env:NEXT_TELEMETRY_DISABLED = '1'
+npm run build
+npm audit
+```
+
+`npm test` exit code 0: **13 passed, 0 failed, 0 skipped**. `npm run typecheck` exit code 0. `npm run build` exit code 0 (Next.js 15.5.28, compiled in 3.0s, same 6 pages). `npm audit` exit code 0: `found 0 vulnerabilities`.
+
+Active API command, exit code 0: **171 passed, 0 failed, 0 skipped**, 1 Starlette warning, 25.92s. Reference command, exit code 0: **87 passed, 0 failed, 0 skipped**, **13 subtests passed**, 1 Starlette warning, 8.92s. OpenAPI `--check` exit code 0: `Active OpenAPI contract matches`.
+
+A copy of `contract.mjs` from HEAD accepts an unsigned cookie whose payload sets `apiBase` to `https://evil.example`, and it accepts that origin in `parseSessionInput`. The current tests reject both. That probe is the evidence that the new assertions fail on the previous codec. It is not a browser or Keycloak login.

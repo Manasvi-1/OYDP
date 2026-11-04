@@ -19,10 +19,10 @@ export async function connectSession(formData: FormData) {
   if (!parsed.ok) redirect(`/?error=${encodeURIComponent(parsed.error)}`)
   try {
     await callPropertyApi(parsed.session, '/v1/properties?limit=1')
+    await writeSession(parsed.session)
   } catch (error) {
     bounce('/', error)
   }
-  await writeSession(parsed.session)
   redirect('/properties')
 }
 

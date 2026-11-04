@@ -1,4 +1,5 @@
 import { messageFromApi, type WorkspaceSession } from './contract.mjs'
+import { configuredApiBase, directPropertyResponse, propertyRequestUrl } from './origin.mjs'
 
 export class ApiError extends Error {
   status: number
@@ -10,10 +11,13 @@ export class ApiError extends Error {
 }
 
 export async function callPropertyApi(session: WorkspaceSession, path: string, init?: { method?: string; body?: unknown }) {
-  if (!path.startsWith('/v1/')) throw new ApiError(500, 'Unsupported property API path')
+  const api = configuredApiBase(process.env)
+  if (!api.ok) throw new ApiError(500, api.error)
+  const target = propertyRequestUrl(api.origin, path)
+  if (!target) throw new ApiError(500, 'Unsupported property API path')
   let response: Response
   try {
-    response = await fetch(new URL(path, session.apiBase), {
+    response = await fetch(target, {
       method: init?.method ?? 'GET',
       redirect: 'manual',
       cache: 'no-store',
@@ -29,9 +33,8 @@ export async function callPropertyApi(session: WorkspaceSession, path: string, i
   } catch {
     throw new ApiError(503, 'Property service unavailable')
   }
-  if (response.status >= 300 && response.status < 400) {
-    throw new ApiError(502, 'Property service refused to answer directly')
-  }
+  const decision = directPropertyResponse(response.status)
+  if (!decision.ok) throw new ApiError(502, decision.error)
   const text = await response.text()
   let payload: unknown = null
   if (text) {
