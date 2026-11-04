@@ -21,6 +21,10 @@ PR #1 reconciliation: 87 native PostGIS tests + 13 subtests and 48 active tests 
 
 Property write delegation/correction workflows, production identity-provider selection and MFA freshness, scan/quarantine/encryption for documents, independently delivered audit history and remaining engine journeys. Independent human/security/legal review and production approval remain pending. No public deployment performed.
 
+## Diligence requests
+
+API 0.8.0 lets a creator open and close a request and lets a current reader add a note while it is open. See DILIGENCE_REQUESTS.md. This is not a transaction or legal workflow.
+
 ## Audit outbox
 
 API 0.7.0 enqueues one outbox row with each audit event and can append those identifiers to a local JSONL file. Delivered rows cannot be edited. See AUDIT_OUTBOX.md. An independent immutable sink is not included.

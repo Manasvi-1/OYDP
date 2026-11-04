@@ -173,3 +173,7 @@ Creator-only private documents. Accepted PDF, PNG, and JPEG bytes are encrypted 
 ## Active API 0.7.0 increment
 
 Audit events enqueue an outbox row in the same transaction. A local worker appends redacted JSON lines and then marks the row delivered. See [audit outbox](docs/implementation/AUDIT_OUTBOX.md). This is not an independent immutable archive.
+
+## Active API 0.8.0 increment
+
+Creators can open and close a diligence request. Readers with access can add a note while it is open. The text is not an offer or a legal conclusion. See [diligence requests](docs/implementation/DILIGENCE_REQUESTS.md).

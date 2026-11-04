@@ -17,7 +17,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from app.auth import verified_subject, require_mfa
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.7.0')
+app = FastAPI(title='OYDP Property Identity API', version='0.8.0')
 
 
 @app.middleware('http')
@@ -507,3 +507,109 @@ def list_audit(property_id: UUID, access=Depends(authorized_db, scope='function'
       WHERE e.property_id=%s AND (%s::timestamptz IS NULL OR (e.created_at,e.id)<(%s::timestamptz,%s::uuid))
       ORDER BY e.created_at DESC, e.id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
     return page_result(rows, limit, scope, 'created_at')
+
+
+class RequestCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=10000)
+
+
+class RequestRecord(RequestCreate):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    created_by: str
+    status: Literal['open', 'closed']
+    created_at: datetime
+    closed_at: datetime | None
+
+
+class RequestPage(BaseModel):
+    items: list[RequestRecord]
+    next_cursor: str | None
+
+
+class NoteCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    body: str = Field(min_length=1, max_length=10000)
+
+
+class NoteRecord(NoteCreate):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    request_id: UUID
+    created_by: str
+    created_at: datetime
+
+
+class NotePage(BaseModel):
+    items: list[NoteRecord]
+    next_cursor: str | None
+
+
+def audit_diligence(conn, tenant_id, property_id, event_type):
+    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
+      VALUES(%s,%s,current_setting('app.subject_id'),%s)""", (tenant_id, property_id, event_type))
+
+
+@app.post('/v1/properties/{property_id}/requests', status_code=201, response_model=RequestRecord)
+def open_request(property_id: UUID, payload: RequestCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = writable_property(conn, role, property_id)
+    row = conn.execute("""INSERT INTO diligence_requests(tenant_id,property_id,title,body)
+      VALUES(%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, payload.title, payload.body)).fetchone()
+    audit_diligence(conn, parent['tenant_id'], property_id, 'diligence.opened')
+    return row
+
+
+@app.get('/v1/properties/{property_id}/requests', response_model=RequestPage)
+def list_requests(property_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+                  cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'requests', cursor, property_id)
+    rows = conn.execute("""SELECT * FROM diligence_requests WHERE property_id=%s
+      AND (%s::timestamptz IS NULL OR (created_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY created_at DESC,id DESC LIMIT %s""", (property_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')
+
+
+@app.post('/v1/properties/{property_id}/requests/{request_id}/notes', status_code=201, response_model=NoteRecord)
+def add_note(property_id: UUID, request_id: UUID, payload: NoteCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, _ = access
+    parent = readable_property(conn, property_id)
+    try:
+        row = conn.execute("""INSERT INTO diligence_notes(tenant_id,property_id,request_id,body)
+          VALUES(%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, request_id, payload.body)).fetchone()
+    except psycopg.errors.ForeignKeyViolation:
+        raise HTTPException(404, 'Property not found') from None
+    except psycopg.errors.InsufficientPrivilege:
+        raise HTTPException(404, 'Property not found') from None
+    audit_diligence(conn, parent['tenant_id'], property_id, 'diligence.noted')
+    return row
+
+
+@app.get('/v1/properties/{property_id}/requests/{request_id}/notes', response_model=NotePage)
+def list_notes(property_id: UUID, request_id: UUID, access=Depends(authorized_db, scope='function'), limit: int = Query(25, ge=1, le=100),
+               cursor: str | None = Query(None, max_length=512)):
+    conn, _ = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'notes', cursor, request_id)
+    rows = conn.execute("""SELECT * FROM diligence_notes WHERE property_id=%s AND request_id=%s
+      AND (%s::timestamptz IS NULL OR (created_at,id)<(%s::timestamptz,%s::uuid))
+      ORDER BY created_at DESC,id DESC LIMIT %s""", (property_id, request_id, at, at, record_id, limit + 1)).fetchall()
+    return page_result(rows, limit, scope, 'created_at')
+
+
+@app.post('/v1/properties/{property_id}/requests/{request_id}/close', response_model=RequestRecord)
+def close_request(property_id: UUID, request_id: UUID, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    conn, role = access
+    parent = writable_property(conn, role, property_id)
+    row = conn.execute("""UPDATE diligence_requests SET status='closed', closed_at=clock_timestamp()
+      WHERE id=%s AND property_id=%s AND status='open' RETURNING *""", (request_id, property_id)).fetchone()
+    if row is None:
+        raise HTTPException(404, 'Property not found')
+    audit_diligence(conn, parent['tenant_id'], property_id, 'diligence.closed')
+    return row
