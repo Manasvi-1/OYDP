@@ -55,8 +55,24 @@ export function oidcConfig(env) {
   }
 }
 
+function issuerUsesRealmPaths(issuer) {
+  return /\/realms\//.test(issuer)
+}
+
+export function authorizeEndpoint(config) {
+  return issuerUsesRealmPaths(config.issuer)
+    ? `${config.issuer}/protocol/openid-connect/auth`
+    : `${config.issuer}/authorize`
+}
+
+export function tokenEndpoint(config) {
+  return issuerUsesRealmPaths(config.issuer)
+    ? `${config.issuer}/protocol/openid-connect/token`
+    : `${config.issuer}/token`
+}
+
 export function authorizeRequest(config, pending) {
-  const url = new URL(`${config.issuer}/protocol/openid-connect/auth`)
+  const url = new URL(authorizeEndpoint(config))
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id', config.clientId)
   url.searchParams.set('redirect_uri', config.redirectUri)
@@ -65,11 +81,10 @@ export function authorizeRequest(config, pending) {
   url.searchParams.set('nonce', pending.nonce)
   url.searchParams.set('code_challenge', codeChallenge(pending.verifier))
   url.searchParams.set('code_challenge_method', 'S256')
+  if (!issuerUsesRealmPaths(config.issuer)) {
+    url.searchParams.set('resource', config.audience)
+  }
   return url
-}
-
-export function tokenEndpoint(config) {
-  return `${config.issuer}/protocol/openid-connect/token`
 }
 
 export function verifySignedJwt(token, options) {

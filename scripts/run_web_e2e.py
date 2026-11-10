@@ -97,9 +97,10 @@ def main():
         'OYDP_DEV_OIDC_ISSUER': issuer,
         'OYDP_DEV_OIDC_AUDIENCE': 'oydp-api',
         'OYDP_DEV_OIDC_CLIENT_ID': 'oydp-web',
-        'OYDP_DEV_OIDC_REDIRECTS': web + '/auth/callback',
+        'OYDP_DEV_OIDC_REDIRECTS': web + '/callback',
     }
     storage = tempfile.mkdtemp(prefix='oydp-docs-')
+    document_key = secrets.token_urlsafe(32)
     api_env = base_env | {
         'DATABASE_URL': make_conninfo(dsn, user='oydp_app', password=password),
         'OIDC_ISSUER': issuer,
@@ -107,15 +108,16 @@ def main():
         'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
         'DOCUMENT_STORAGE_DIR': storage,
-        'DOCUMENT_ENCRYPTION_KEY': '22' * 32,
+        'DOCUMENT_STORAGE_KEY': document_key,
     }
-    session_secret = secrets.token_urlsafe(48)
+    session_key = secrets.token_urlsafe(32)
     web_env = base_env | {
-        'SESSION_SECRET': session_secret,
+        'SESSION_KEY': session_key,
         'OIDC_ISSUER': issuer,
         'OIDC_CLIENT_ID': 'oydp-web',
-        'OIDC_REDIRECT_URI': web + '/auth/callback',
+        'OIDC_REDIRECT_URI': web + '/callback',
         'OIDC_AUDIENCE': 'oydp-api',
+        'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
         'PROPERTY_API_BASE': 'http://127.0.0.1:8000',
         'PROPERTY_PAGE_SIZE': '1',

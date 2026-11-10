@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { callPropertyApi } from '../../lib/api'
 import { propertiesQuery } from '../../lib/contract.mjs'
 import { readSession } from '../../lib/session'
+import { bounded, formatWhen } from '../components/format'
+import { StatusPill } from '../components/status-pill'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,25 +34,48 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
   }
   return (
     <section>
-      <div className="lede">
-        <h1>Properties you can read</h1>
-        <p className="muted">Only records you created, or records with a current read grant, are listed. Nothing here is an ownership certificate.</p>
+      <div className="page-header">
+        <div>
+          <h1>Properties</h1>
+          <p className="lede">Only records you created, or records with a current read grant, are listed. Nothing here is an ownership certificate.</p>
+        </div>
+        <div className="page-actions">
+          <Link className="primary" href="/properties/new">New property</Link>
+        </div>
       </div>
-      {error ? <p className="banner">{error}</p> : null}
-      <div className="actions" style={{ marginBottom: '1rem' }}>
-        <Link className="primary" href="/properties/new">New property</Link>
-      </div>
-      <div className="grid">
-        {page?.items.length ? page.items.map((property) => (
-          <Link className="card" key={property.id} href={`/properties/${property.id}`}>
-            <h2>{property.label}</h2>
-            <div className="meta">
-              <span>{property.jurisdiction}</span>
-              <span>{formatWhen(property.created_at)}</span>
-            </div>
-          </Link>
-        )) : <p className="panel">No visible properties on this page.</p>}
-      </div>
+      {error ? <p className="banner" role="alert">{error}</p> : null}
+      {page?.items.length ? (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th scope="col">Label</th>
+                <th scope="col">Jurisdiction</th>
+                <th scope="col">Created</th>
+                <th scope="col">Created by</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.items.map((property) => (
+                <tr key={property.id}>
+                  <td><Link href={`/properties/${property.id}`}>{property.label}</Link></td>
+                  <td>{property.jurisdiction}</td>
+                  <td>{formatWhen(property.created_at)}</td>
+                  <td className="mono">{property.created_by}</td>
+                  <td><StatusPill label="Unverified record" tone="warn" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state">
+          <h2>No visible properties on this page</h2>
+          <p className="muted">Create a private record to begin the evidence and diligence journey.</p>
+          <p><Link className="primary" href="/properties/new">Create property</Link></p>
+        </div>
+      )}
       {page?.next_cursor ? (
         <p style={{ marginTop: '1rem' }}>
           <Link className="secondary" href={`/properties?cursor=${encodeURIComponent(page.next_cursor)}`}>Older properties</Link>
@@ -58,14 +83,4 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
       ) : null}
     </section>
   )
-}
-
-function bounded(value: string | undefined) {
-  return value ? value.slice(0, 300) : ''
-}
-
-function formatWhen(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }

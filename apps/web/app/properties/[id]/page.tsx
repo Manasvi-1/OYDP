@@ -1,10 +1,39 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { correctProperty, grantExportConsent, recordClaim, recordIdentifier, recordReview, registerSource, revokeExportConsent, revokeReadAccess, revokeWriteAccess, uploadDocument, withdrawSource } from '../../actions'
+import {
+  addDiligenceNote,
+  closeDiligenceRequest,
+  correctProperty,
+  grantExportConsent,
+  openDiligenceRequest,
+  recordClaim,
+  recordIdentifier,
+  recordReview,
+  registerSource,
+  revokeExportConsent,
+  revokeReadAccess,
+  revokeWriteAccess,
+  uploadDocument,
+  withdrawSource,
+} from '../../actions'
 import { ApiError, callPropertyApi } from '../../../lib/api'
-import { auditQuery, claimsQuery, correctionsQuery, documentsQuery, identifiersQuery, reviewsQuery, sourcesQuery, UUID } from '../../../lib/contract.mjs'
+import {
+  auditQuery,
+  claimsQuery,
+  correctionsQuery,
+  documentsQuery,
+  identifiersQuery,
+  notesQuery,
+  requestsQuery,
+  reviewsQuery,
+  sourcesQuery,
+  UUID,
+} from '../../../lib/contract.mjs'
 import { readSession } from '../../../lib/session'
+import { bounded, formatWhen } from '../../components/format'
+import { documentStatusLabel, StatusPill } from '../../components/status-pill'
 import { AccessForm } from './access-form'
+import { normalizeTab, PropertyTabs } from './tabs'
 import { WriterForm } from './writer-form'
 
 export const dynamic = 'force-dynamic'
@@ -17,7 +46,14 @@ interface PropertyRecord {
   created_by: string
 }
 
-interface ClaimRecord {
+interface PageResult<T> {
+  items: T[]
+  next_cursor: string | null
+}
+
+type LoadedPage<T> = { value: T | null; error: string }
+
+interface ClaimItem {
   id: string
   statement: string
   created_by: string
@@ -26,12 +62,7 @@ interface ClaimRecord {
   kind: string
 }
 
-interface ClaimPage {
-  items: ClaimRecord[]
-  next_cursor: string | null
-}
-
-interface CorrectionRecord {
+interface CorrectionItem {
   id: string
   previous_label: string
   label: string
@@ -41,12 +72,7 @@ interface CorrectionRecord {
   recorded_at: string
 }
 
-interface CorrectionPage {
-  items: CorrectionRecord[]
-  next_cursor: string | null
-}
-
-interface IdentifierRecord {
+interface IdentifierItem {
   id: string
   scheme: string
   identifier_value: string
@@ -56,26 +82,15 @@ interface IdentifierRecord {
   recorded_at: string
 }
 
-interface IdentifierPage {
-  items: IdentifierRecord[]
-  next_cursor: string | null
-}
-
-interface ReviewRecord {
+interface ReviewItem {
   id: string
-  disposition: string
   statement: string
+  disposition: string
   title_effect: string
   recorded_at: string
-  source_id: string | null
 }
 
-interface ReviewPage {
-  items: ReviewRecord[]
-  next_cursor: string | null
-}
-
-interface SourceRecord {
+interface SourceItem {
   id: string
   name: string
   origin: string
@@ -84,12 +99,7 @@ interface SourceRecord {
   withdrawn_at: string | null
 }
 
-interface SourcePage {
-  items: SourceRecord[]
-  next_cursor: string | null
-}
-
-interface DocumentRecord {
+interface DocumentItem {
   id: string
   media_type: string
   byte_size: number
@@ -97,32 +107,33 @@ interface DocumentRecord {
   created_at: string
 }
 
-interface DocumentPage {
-  items: DocumentRecord[]
-  next_cursor: string | null
-}
-
-interface AuditRecord {
+interface AuditItem {
   event_type: string
   actor_subject: string
   recorded_at: string
   delivered_at: string
 }
 
-interface AuditPage {
-  items: AuditRecord[]
-  next_cursor: string | null
+interface RequestItem {
+  id: string
+  title: string
+  body: string
+  status: string
+  created_by: string
+  created_at: string
+  closed_at: string | null
 }
 
 export default async function PropertyPage({ params, searchParams }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ error?: string; notice?: string; cursor?: string }>
+  searchParams: Promise<{ error?: string; notice?: string; cursor?: string; tab?: string }>
 }) {
   const session = await readSession()
   if (!session) redirect('/')
   const { id } = await params
   if (!UUID.test(id)) notFound()
   const query = await searchParams
+  const tab = normalizeTab(query.tab)
   let property: PropertyRecord
   try {
     property = await callPropertyApi(session, `/v1/properties/${id}`) as PropertyRecord
@@ -131,25 +142,16 @@ export default async function PropertyPage({ params, searchParams }: {
     const message = error instanceof Error ? error.message : 'Property service unavailable'
     redirect(`/properties?error=${encodeURIComponent(message.slice(0, 300))}`)
   }
-  let claims: ClaimPage | null = null
-  let claimsError = ''
-  let corrections: CorrectionPage | null = null
-  try {
-    claims = await callPropertyApi(session, claimsQuery(id, query.cursor)) as ClaimPage
-  } catch (error) {
-    claimsError = error instanceof Error ? error.message.slice(0, 300) : 'Claims are unavailable'
-  }
-  try {
-    corrections = await callPropertyApi(session, correctionsQuery(id, undefined)) as CorrectionPage
-  } catch {
-    corrections = null
-  }
-  const identifiers = await loadPage<IdentifierPage>(session, identifiersQuery(id, undefined))
-  const reviews = await loadPage<ReviewPage>(session, reviewsQuery(id, undefined))
-  const sources = await loadPage<SourcePage>(session, sourcesQuery(undefined))
-  const documents = await loadPage<DocumentPage>(session, documentsQuery(id, undefined))
-  const audit = await loadPage<AuditPage>(session, auditQuery(id, undefined))
-  const error = query.error?.slice(0, 300)
+
+  const claims = await loadPage<PageResult<ClaimItem>>(session, claimsQuery(id, query.cursor))
+  const corrections = await loadPage<PageResult<CorrectionItem>>(session, correctionsQuery(id, undefined))
+  const identifiers = await loadPage<PageResult<IdentifierItem>>(session, identifiersQuery(id, undefined))
+  const reviews = await loadPage<PageResult<ReviewItem>>(session, reviewsQuery(id, undefined))
+  const sources = await loadPage<PageResult<SourceItem>>(session, sourcesQuery(undefined))
+  const documents = await loadPage<PageResult<DocumentItem>>(session, documentsQuery(id, undefined))
+  const audit = await loadPage<PageResult<AuditItem>>(session, auditQuery(id, undefined))
+  const requests = await loadPage<PageResult<RequestItem>>(session, requestsQuery(id, undefined))
+
   const notice = {
     'read-access-updated': 'Read access was updated.',
     'read-access-revoked': 'Read access revocation was submitted.',
@@ -162,306 +164,520 @@ export default async function PropertyPage({ params, searchParams }: {
     'source-withdrawn': 'The source withdrawal was submitted.',
     'consent-recorded': 'Export consent was recorded for this property.',
     'consent-revoked': 'Export consent revocation was submitted.',
-    'document-quarantined': 'The file was quarantined. It cannot be downloaded until a configured scanner marks it clean.',
+    'document-quarantined': 'The file was quarantined. Download stays blocked until a configured scanner marks it clean.',
+    'diligence-opened': 'Diligence request opened. This is not an offer, payment, or legal agreement.',
+    'diligence-noted': 'Diligence note recorded for authorized readers.',
+    'diligence-closed': 'Diligence request closed. Closed means workspace status only.',
   }[query.notice ?? ''] ?? ''
+
   return (
     <section>
-      <p><Link href="/properties">All visible properties</Link></p>
-      <div className="lede">
-        <h1>{property.label}</h1>
-        <div className="meta">
-          <span>{property.jurisdiction}</span>
-          <span>Created {formatWhen(property.created_at)}</span>
-          <span className="pill">Unverified record</span>
+      <p><Link href="/properties">All readable properties</Link></p>
+      <div className="page-header">
+        <div>
+          <h1>{property.label}</h1>
+          <div className="meta">
+            <span>{property.jurisdiction}</span>
+            <span>Created {formatWhen(property.created_at)}</span>
+            <span className="mono">{property.created_by}</span>
+            <StatusPill label="Unverified record" tone="warn" />
+          </div>
+          <p className="lede" style={{ marginTop: '0.75rem' }}>
+            User-entered identifiers and claims are not official government verification.
+          </p>
         </div>
       </div>
-      {error ? <p className="banner">{error}</p> : null}
-      {notice ? <p className="notice">{notice}</p> : null}
-      <div className="workspace">
-        <div className="stack">
+      {bounded(query.error) ? <p className="banner" role="alert">{bounded(query.error)}</p> : null}
+      {notice ? <p className="notice" role="status">{notice}</p> : null}
+      <PropertyTabs propertyId={id} active={tab} />
+      {tab === 'overview' ? (
+        <OverviewTab
+          property={property}
+          claimsCount={claims.value?.items.length ?? 0}
+          documentsCount={documents.value?.items.length ?? 0}
+          openRequests={(requests.value?.items ?? []).filter((item) => item.status === 'open').length}
+        />
+      ) : null}
+      {tab === 'identity' ? <IdentityTab propertyId={id} property={property} corrections={corrections} /> : null}
+      {tab === 'identifiers' ? <IdentifiersTab propertyId={id} identifiers={identifiers} /> : null}
+      {tab === 'claims' ? <ClaimsTab propertyId={id} claims={claims} reviews={reviews} sources={sources} /> : null}
+      {tab === 'documents' ? <DocumentsTab propertyId={id} documents={documents} /> : null}
+      {tab === 'access' ? <AccessTab propertyId={id} /> : null}
+      {tab === 'diligence' ? <DiligenceTab propertyId={id} session={session} requests={requests} /> : null}
+      {tab === 'audit' ? <AuditTab audit={audit} /> : null}
+    </section>
+  )
+}
+
+function OverviewTab({ property, claimsCount, documentsCount, openRequests }: {
+  property: PropertyRecord
+  claimsCount: number
+  documentsCount: number
+  openRequests: number
+}) {
+  return (
+    <div className="metric-grid">
+      <article className="metric-card">
+        <div className="metric-label">Jurisdiction</div>
+        <div className="metric-value" style={{ fontSize: '1.15rem' }}>{property.jurisdiction}</div>
+        <div className="metric-note">User-entered. Not a cadastral confirmation.</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-label">Claims on this page</div>
+        <div className="metric-value">{claimsCount}</div>
+        <div className="metric-note">Unverified user statements only.</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-label">Documents on this page</div>
+        <div className="metric-value">{documentsCount}</div>
+        <div className="metric-note">Encrypted quarantine until a real scanner passes.</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-label">Open diligence</div>
+        <div className="metric-value">{openRequests}</div>
+        <div className="metric-note">Workspace requests, not legal transactions.</div>
+      </article>
+    </div>
+  )
+}
+
+function IdentityTab({ propertyId, property, corrections }: {
+  propertyId: string
+  property: PropertyRecord
+  corrections: LoadedPage<PageResult<CorrectionItem>>
+}) {
+  return (
+    <div className="workspace">
+      <div className="stack">
+        <article className="panel">
+          <h2>Identity summary</h2>
+          <p className="muted">Private candidate metadata. Corrections keep prior values in history.</p>
+          <div className="meta">
+            <span>Label: {property.label}</span>
+            <span>Jurisdiction: {property.jurisdiction}</span>
+            <span>Created {formatWhen(property.created_at)}</span>
+          </div>
+        </article>
+        {corrections.value?.items?.length ? (
           <article className="panel">
-            <h2>Claims</h2>
-            <p className="muted">Statements stay user claims with unverified status. They are not official observations.</p>
-            {claimsError ? <p className="banner">{claimsError}</p> : null}
+            <h2>Correction history</h2>
             <div className="grid">
-              {claims?.items.length ? claims.items.map((claim) => (
-                <article key={claim.id} className="card">
-                  <p className="claim">{claim.statement}</p>
+              {corrections.value.items.map((correction) => (
+                <article key={correction.id} className="card">
+                  <p>{correction.previous_label} to {correction.label}</p>
                   <div className="meta">
-                    <span className="pill">{claim.verification_status}</span>
-                    <span>{claim.kind}</span>
-                    <span>{formatWhen(claim.recorded_at)}</span>
+                    <span>{correction.previous_jurisdiction} to {correction.jurisdiction}</span>
+                    <span>{correction.actor_subject}</span>
+                    <span>{formatWhen(correction.recorded_at)}</span>
                   </div>
                 </article>
-              )) : <p className="muted">No claims on this page.</p>}
+              ))}
             </div>
-            {claims?.next_cursor ? (
-              <p><Link href={`/properties/${id}?cursor=${encodeURIComponent(claims.next_cursor)}`}>Older claims</Link></p>
-            ) : null}
           </article>
-          {corrections?.items.length ? (
-            <article className="panel">
-              <h2>Correction history</h2>
-              <div className="grid">
-                {corrections.items.map((correction) => (
-                  <article key={correction.id} className="card">
-                    <p>{correction.previous_label} to {correction.label}</p>
-                    <div className="meta">
-                      <span>{correction.previous_jurisdiction} to {correction.jurisdiction}</span>
-                      <span>{correction.actor_subject}</span>
-                      <span>{formatWhen(correction.recorded_at)}</span>
-                    </div>
-                  </article>
-                ))}
+        ) : null}
+      </div>
+      <form className="panel stack" action={correctProperty.bind(null, propertyId)}>
+        <h2>Correct this record</h2>
+        <p className="muted">Only the owner, or an editor the owner delegated, can change the label and jurisdiction.</p>
+        <label>
+          Label
+          <input name="label" required maxLength={200} defaultValue={property.label} autoComplete="off" />
+        </label>
+        <label>
+          Jurisdiction
+          <input name="jurisdiction" required maxLength={100} defaultValue={property.jurisdiction} autoComplete="off" />
+        </label>
+        <button className="primary" type="submit">Save correction</button>
+      </form>
+    </div>
+  )
+}
+
+function IdentifiersTab({ propertyId, identifiers }: { propertyId: string; identifiers: LoadedPage<PageResult<IdentifierItem>> }) {
+  return (
+    <div className="workspace">
+      <section className="panel stack">
+        <h2>Recorded identifiers</h2>
+        <p className="muted">Identifiers are user-entered. They are not official government verification.</p>
+        {identifiers.error ? <p className="banner">{identifiers.error}</p> : null}
+        <div className="grid">
+          {identifiers.value?.items?.length ? identifiers.value.items.map((item) => (
+            <article key={item.id} className="card">
+              <p>{item.scheme}: {item.identifier_value}</p>
+              <div className="meta">
+                <StatusPill label={item.status} />
+                <span>v{item.version}</span>
+                <span>{item.recorded_by}</span>
+                <span>{formatWhen(item.recorded_at)}</span>
               </div>
             </article>
+          )) : <p className="muted">No identifiers on this page.</p>}
+        </div>
+      </section>
+      <form className="panel stack" action={recordIdentifier.bind(null, propertyId)}>
+        <h2>Property identifier</h2>
+        <label>
+          Scheme
+          <select name="scheme" required defaultValue="survey">
+            <option value="internal">Internal</option>
+            <option value="survey">Survey</option>
+            <option value="municipal">Municipal</option>
+            <option value="khata">Khata</option>
+          </select>
+        </label>
+        <label>
+          Identifier
+          <input name="identifierValue" required maxLength={120} autoComplete="off" />
+        </label>
+        <label>
+          When the current value changes
+          <select name="resolution" defaultValue="">
+            <option value="">No change yet</option>
+            <option value="supersede">Supersede the current value</option>
+            <option value="conflict">Record a conflict and keep the current value</option>
+          </select>
+        </label>
+        <button className="primary" type="submit">Save identifier</button>
+      </form>
+    </div>
+  )
+}
+
+function ClaimsTab({ propertyId, claims, reviews, sources }: {
+  propertyId: string
+  claims: LoadedPage<PageResult<ClaimItem>>
+  reviews: LoadedPage<PageResult<ReviewItem>>
+  sources: LoadedPage<PageResult<SourceItem>>
+}) {
+  return (
+    <div className="workspace">
+      <div className="stack">
+        <article className="panel stack" aria-labelledby="claims-heading">
+          <h2 id="claims-heading">User-submitted claims</h2>
+          <p className="muted">Statements stay user claims with unverified status. They are not official observations or ownership evidence.</p>
+          {claims.error ? <p className="banner">{claims.error}</p> : null}
+          <div className="grid">
+            {claims.value?.items?.length ? claims.value.items.map((claim) => (
+              <article key={claim.id} className="card">
+                <p className="claim">{claim.statement}</p>
+                <div className="meta">
+                  <StatusPill label={claim.verification_status} />
+                  <span>{claim.kind}</span>
+                  <span>{formatWhen(claim.recorded_at)}</span>
+                </div>
+              </article>
+            )) : <p className="muted">No claims on this page.</p>}
+          </div>
+          {claims.value?.next_cursor ? (
+            <p><Link href={`/properties/${propertyId}?tab=claims&cursor=${encodeURIComponent(claims.value.next_cursor)}`}>Older claims</Link></p>
           ) : null}
-          <form className="panel stack" action={correctProperty.bind(null, id)}>
-            <h2>Correct this record</h2>
-            <p className="muted">Only the owner, or an editor the owner delegated, can change the label and jurisdiction. The old values remain in the correction history.</p>
+        </article>
+        <article className="panel stack">
+          <h2>Professional reviews</h2>
+          <p className="muted">A review is recorded or abstained. It is not title, and it does not verify a claim.</p>
+          {reviews.error ? <p className="banner">{reviews.error}</p> : null}
+          <div className="grid">
+            {reviews.value?.items?.length ? reviews.value.items.map((item) => (
+              <article key={item.id} className="card">
+                <p className="claim">{item.statement}</p>
+                <div className="meta">
+                  <StatusPill label={item.disposition} />
+                  <span>Title effect: {item.title_effect}</span>
+                  <span>{formatWhen(item.recorded_at)}</span>
+                </div>
+              </article>
+            )) : <p className="muted">No reviews on this page.</p>}
+          </div>
+        </article>
+      </div>
+      <aside className="stack">
+        <form className="panel stack" action={recordClaim.bind(null, propertyId)}>
+          <h2>Record a claim</h2>
+          <label>
+            Claim statement
+            <textarea name="statement" required maxLength={10000} aria-label="Claim statement" />
+          </label>
+          <button className="primary" type="submit">Record unverified claim</button>
+        </form>
+        <form className="panel stack" action={recordReview.bind(null, propertyId)}>
+          <h2>Professional review</h2>
+          <label>
+            Disposition
+            <select name="disposition" required defaultValue="recorded">
+              <option value="recorded">Recorded</option>
+              <option value="abstained">Abstained</option>
+            </select>
+          </label>
+          <label>
+            Statement
+            <textarea name="statement" required maxLength={2000} />
+          </label>
+          <label>
+            Source ID, if you are citing one
+            <input name="sourceId" maxLength={36} autoComplete="off" spellCheck={false} />
+          </label>
+          <button className="primary" type="submit">Save review</button>
+        </form>
+        <section className="panel stack">
+          <h2>Evidence sources</h2>
+          <p className="muted">A source stays rights-unknown. Withdrawing it stops later reviews from citing it.</p>
+          <form className="stack" action={registerSource.bind(null, propertyId)}>
             <label>
-              Label
-              <input name="label" required maxLength={200} defaultValue={property.label} autoComplete="off" />
+              Name
+              <input name="name" required maxLength={200} autoComplete="off" />
+            </label>
+            <label>
+              Origin
+              <select name="origin" required defaultValue="user_supplied">
+                <option value="user_supplied">User supplied</option>
+                <option value="professional">Professional</option>
+                <option value="published_notice">Published notice</option>
+              </select>
             </label>
             <label>
               Jurisdiction
-              <input name="jurisdiction" required maxLength={100} defaultValue={property.jurisdiction} autoComplete="off" />
+              <input name="jurisdiction" required maxLength={100} autoComplete="off" />
             </label>
-            <button className="primary" type="submit">Save correction</button>
+            <button className="primary" type="submit">Register source</button>
           </form>
-          <form className="panel stack" action={recordClaim.bind(null, id)}>
-            <h2>Record a claim</h2>
-            <p className="muted">Statements stay user claims with unverified status. They are not official observations.</p>
-            <label>
-              Statement
-              <textarea name="statement" required maxLength={10000} />
-            </label>
-            <button className="primary" type="submit">Save unverified claim</button>
+          {sources.error ? <p className="banner">{sources.error}</p> : null}
+          <div className="grid">
+            {sources.value?.items?.length ? sources.value.items.map((source) => (
+              <article key={source.id} className="card">
+                <p>{source.name}</p>
+                <div className="meta">
+                  <span>{source.origin}</span>
+                  <span>{source.jurisdiction}</span>
+                  <StatusPill label={source.rights_status} />
+                </div>
+                <p className="muted mono">{source.id}</p>
+                {source.withdrawn_at ? <p className="muted">Withdrawn {formatWhen(source.withdrawn_at)}</p> : (
+                  <form className="stack" action={withdrawSource.bind(null, propertyId)}>
+                    <input type="hidden" name="sourceId" value={source.id} />
+                    <label>
+                      Withdrawal reason
+                      <input name="reason" required maxLength={500} autoComplete="off" />
+                    </label>
+                    <button className="secondary" type="submit">Withdraw source</button>
+                  </form>
+                )}
+              </article>
+            )) : <p className="muted">No sources on this page.</p>}
+          </div>
+        </section>
+      </aside>
+    </div>
+  )
+}
+
+function DocumentsTab({ propertyId, documents }: { propertyId: string; documents: LoadedPage<PageResult<DocumentItem>> }) {
+  return (
+    <section className="panel stack" aria-label="Private documents">
+      <h2>Private documents</h2>
+      <p className="muted">
+        Uploaded files are encrypted and quarantined. This workspace has no malware scanner configured.
+        Statuses stay truthful: quarantined, rejected, or available for authorized download only when the backend scan state is pass.
+      </p>
+      {documents.error ? <p className="banner">{documents.error}</p> : null}
+      <div className="grid">
+        {documents.value?.items?.length ? documents.value.items.map((item) => {
+          const status = documentStatusLabel(item.scan_state)
+          return (
+            <article key={item.id} className="card">
+              <p>{item.media_type}</p>
+              <div className="meta">
+                <StatusPill label={status.label} tone={status.tone} />
+                <span>{item.byte_size} bytes</span>
+                <span>{formatWhen(item.created_at)}</span>
+              </div>
+              {item.scan_state === 'pass' ? (
+                <p><a href={`/properties/${propertyId}/documents/${item.id}`}>Download authorized file</a></p>
+              ) : (
+                <p className="muted">No download. The API blocks content until scan_state is pass.</p>
+              )}
+            </article>
+          )
+        }) : <p className="muted">No documents on this page.</p>}
+      </div>
+      <form className="stack" action={uploadDocument.bind(null, propertyId)} encType="multipart/form-data">
+        <label>
+          File
+          <input name="document" type="file" required accept="application/pdf,image/png,image/jpeg" />
+        </label>
+        <button className="primary" type="submit">Upload document</button>
+      </form>
+    </section>
+  )
+}
+
+function AccessTab({ propertyId }: { propertyId: string }) {
+  return (
+    <div className="workspace">
+      <section className="panel stack">
+        <h2>Read access</h2>
+        <p className="muted">Grants are read-only, expire, and can be revoked. The API allows at most 30 days.</p>
+        <AccessForm propertyId={propertyId} />
+      </section>
+      <aside className="stack">
+        <section className="panel">
+          <h2>Delegated writer</h2>
+          <p className="muted">The recipient must already be an editor in this tenant. A writer cannot share, delegate, consent, or export.</p>
+          <WriterForm propertyId={propertyId} />
+        </section>
+        <form className="panel stack" action={revokeWriteAccess.bind(null, propertyId)}>
+          <h2>Revoke write access</h2>
+          <label>
+            Editor subject
+            <input name="recipient" required maxLength={255} autoComplete="off" spellCheck={false} />
+          </label>
+          <button className="secondary" type="submit">Revoke writer</button>
+        </form>
+        <form className="panel stack" action={revokeReadAccess.bind(null, propertyId)}>
+          <h2>Revoke read access</h2>
+          <label>
+            Recipient subject
+            <input name="recipient" required maxLength={255} autoComplete="off" spellCheck={false} />
+          </label>
+          <button className="secondary" type="submit">Revoke</button>
+        </form>
+        <section className="panel stack">
+          <h2>Export consent</h2>
+          <p className="muted">Only the property creator can allow a packet export. The packet is not a title certificate.</p>
+          <form action={grantExportConsent.bind(null, propertyId)}>
+            <button className="primary" type="submit">Allow packet export</button>
           </form>
-          <form className="panel stack" action={recordIdentifier.bind(null, id)}>
-            <h2>Property identifier</h2>
-            <p className="muted">The first value is current. The same value can be submitted again. A different value needs supersede or conflict, and the previous current value stays in the history.</p>
-            <label>
-              Scheme
-              <select name="scheme" required defaultValue="survey">
-                <option value="internal">Internal</option>
-                <option value="survey">Survey</option>
-                <option value="municipal">Municipal</option>
-                <option value="khata">Khata</option>
-              </select>
-            </label>
-            <label>
-              Identifier
-              <input name="identifierValue" required maxLength={120} autoComplete="off" />
-            </label>
-            <label>
-              When the current value changes
-              <select name="resolution" defaultValue="">
-                <option value="">No change yet</option>
-                <option value="supersede">Supersede the current value</option>
-                <option value="conflict">Record a conflict and keep the current value</option>
-              </select>
-            </label>
-            <button className="primary" type="submit">Save identifier</button>
-            {identifiers.error ? <p className="banner">{identifiers.error}</p> : null}
-            <div className="grid">
-              {identifiers.value?.items.length ? identifiers.value.items.map((item) => (
-                <article key={item.id} className="card">
-                  <p>{item.scheme}: {item.identifier_value}</p>
-                  <div className="meta">
-                    <span className="pill">{item.status}</span>
-                    <span>v{item.version}</span>
-                    <span>{item.recorded_by}</span>
-                    <span>{formatWhen(item.recorded_at)}</span>
-                  </div>
-                </article>
-              )) : <p className="muted">No identifiers on this page.</p>}
-            </div>
+          <form action={revokeExportConsent.bind(null, propertyId)}>
+            <button className="secondary" type="submit">Revoke export consent</button>
           </form>
-          <form className="panel stack" action={recordReview.bind(null, id)}>
-            <h2>Professional review</h2>
-            <p className="muted">A review is recorded or abstained. It is not title, and it does not verify a claim.</p>
-            <label>
-              Disposition
-              <select name="disposition" required defaultValue="recorded">
-                <option value="recorded">Recorded</option>
-                <option value="abstained">Abstained</option>
-              </select>
-            </label>
-            <label>
-              Statement
-              <textarea name="statement" required maxLength={2000} />
-            </label>
-            <label>
-              Source ID, if you are citing one
-              <input name="sourceId" maxLength={36} autoComplete="off" spellCheck={false} />
-            </label>
-            <button className="primary" type="submit">Save review</button>
-            {reviews.error ? <p className="banner">{reviews.error}</p> : null}
-            <div className="grid">
-              {reviews.value?.items.length ? reviews.value.items.map((item) => (
-                <article key={item.id} className="card">
-                  <p className="claim">{item.statement}</p>
-                  <div className="meta">
-                    <span className="pill">{item.disposition}</span>
-                    <span>Title effect: {item.title_effect}</span>
-                    <span>{formatWhen(item.recorded_at)}</span>
-                  </div>
-                </article>
-              )) : <p className="muted">No reviews on this page.</p>}
-            </div>
+          <form method="post" action={`/properties/${propertyId}/export`}>
+            <button className="secondary" type="submit">Download evidence packet</button>
           </form>
-          <section className="panel stack">
-            <h2>Quarantined documents</h2>
-            <p className="muted">Files stay quarantined until a configured scanner marks them clean. This workspace does not include a malware scanner. PDF, PNG, and JPEG files up to 1 MB are accepted, and the API checks the file bytes again.</p>
-            {documents.error ? <p className="banner">{documents.error}</p> : null}
-            <div className="grid">
-              {documents.value?.items.length ? documents.value.items.map((item) => (
-                <article key={item.id} className="card">
-                  <p>{item.media_type}</p>
-                  <div className="meta">
-                    <span className="pill">{item.scan_state}</span>
-                    <span>{item.byte_size} bytes</span>
-                    <span>{formatWhen(item.created_at)}</span>
-                  </div>
-                  {item.scan_state === 'pass' ? (
-                    <p><a href={`/properties/${id}/documents/${item.id}`}>Download clean file</a></p>
-                  ) : (
-                    <p className="muted">No download. The file stays quarantined until a configured scanner marks it clean.</p>
-                  )}
-                </article>
-              )) : <p className="muted">No documents on this page.</p>}
-            </div>
-            <form className="stack" action={uploadDocument.bind(null, id)} encType="multipart/form-data">
-              <label>
-                File
-                <input name="document" type="file" required accept="application/pdf,image/png,image/jpeg" />
-              </label>
-              <button className="primary" type="submit">Quarantine file</button>
-            </form>
-          </section>
-          {audit.value?.items.length ? (
-            <article className="panel">
-              <h2>Delivered audit</h2>
-              <div className="grid">
-                {audit.value.items.map((item) => (
-                  <article key={`${item.event_type}-${item.recorded_at}-${item.actor_subject}`} className="card">
-                    <p>{item.event_type}</p>
+        </section>
+      </aside>
+    </div>
+  )
+}
+
+async function DiligenceTab({ propertyId, session, requests }: {
+  propertyId: string
+  session: NonNullable<Awaited<ReturnType<typeof readSession>>>
+  requests: LoadedPage<PageResult<RequestItem>>
+}) {
+  const notesByRequest = new Map<string, Array<{ id: string; body: string; created_by: string; created_at: string }>>()
+  for (const request of requests.value?.items ?? []) {
+    try {
+      const notes = await callPropertyApi(session, notesQuery(propertyId, request.id)) as PageResult<{
+        id: string
+        body: string
+        created_by: string
+        created_at: string
+      }>
+      notesByRequest.set(request.id, notes.items)
+    } catch {
+      notesByRequest.set(request.id, [])
+    }
+  }
+  return (
+    <div className="workspace">
+      <section className="panel stack" aria-label="Diligence">
+        <h2>Diligence requests</h2>
+        <p className="muted">
+          Diligence notes are workspace commentary for people who can already read the property.
+          They are not offers, payments, legal agreements, or notifications.
+        </p>
+        {requests.error ? <p className="banner">{requests.error}</p> : null}
+        <div className="stack">
+          {requests.value?.items?.length ? requests.value.items.map((request) => (
+            <article key={request.id} className="card stack">
+              <h2>{request.title}</h2>
+              <p className="claim">{request.body}</p>
+              <div className="meta">
+                <StatusPill label={request.status} />
+                <span>{request.created_by}</span>
+                <span>{formatWhen(request.created_at)}</span>
+                {request.closed_at ? <span>Closed {formatWhen(request.closed_at)}</span> : null}
+              </div>
+              <div className="stack">
+                <h3 className="section-title">Notes</h3>
+                {(notesByRequest.get(request.id) ?? []).length ? (notesByRequest.get(request.id) ?? []).map((note) => (
+                  <article key={note.id} className="panel">
+                    <p className="claim">{note.body}</p>
                     <div className="meta">
-                      <span>{item.actor_subject}</span>
-                      <span>Recorded {formatWhen(item.recorded_at)}</span>
-                      <span>Delivered {formatWhen(item.delivered_at)}</span>
+                      <span>{note.created_by}</span>
+                      <span>{formatWhen(note.created_at)}</span>
                     </div>
                   </article>
-                ))}
+                )) : <p className="muted">No notes yet.</p>}
               </div>
+              {request.status === 'open' ? (
+                <>
+                  <form className="stack" action={addDiligenceNote.bind(null, propertyId, request.id)}>
+                    <label>
+                      Request note
+                      <textarea name="body" required maxLength={10000} aria-label="Request note" />
+                    </label>
+                    <button className="secondary" type="submit">Add note</button>
+                  </form>
+                  <form action={closeDiligenceRequest.bind(null, propertyId, request.id)}>
+                    <button className="secondary" type="submit">Close request</button>
+                  </form>
+                </>
+              ) : null}
             </article>
-          ) : null}
-          {audit.error ? <p className="banner">{audit.error}</p> : null}
+          )) : <p className="muted">No diligence requests on this property.</p>}
         </div>
-        <aside className="stack">
-          <section className="panel">
-            <h2>Read access</h2>
-            <p className="muted">Grants are read-only, expire, and can be revoked. The API allows at most 30 days.</p>
-            <AccessForm propertyId={id} />
-          </section>
-          <section className="panel">
-            <h2>Delegated writer</h2>
-            <p className="muted">The recipient must already be an editor in this tenant. A writer can correct, add claims, record identifiers, and add reviews. A writer cannot share, delegate, consent, or export.</p>
-            <WriterForm propertyId={id} />
-          </section>
-          <form className="panel stack" action={revokeWriteAccess.bind(null, id)}>
-            <h2>Revoke write access</h2>
-            <label>
-              Editor subject
-              <input name="recipient" required maxLength={255} autoComplete="off" spellCheck={false} />
-            </label>
-            <button className="secondary" type="submit">Revoke writer</button>
-          </form>
-          <section className="panel stack">
-            <h2>Evidence sources</h2>
-            <p className="muted">A source stays rights-unknown. Withdrawing it stops later reviews from citing it.</p>
-            <form className="stack" action={registerSource.bind(null, id)}>
-              <label>
-                Name
-                <input name="name" required maxLength={200} autoComplete="off" />
-              </label>
-              <label>
-                Origin
-                <select name="origin" required defaultValue="user_supplied">
-                  <option value="user_supplied">User supplied</option>
-                  <option value="professional">Professional</option>
-                  <option value="published_notice">Published notice</option>
-                </select>
-              </label>
-              <label>
-                Jurisdiction
-                <input name="jurisdiction" required maxLength={100} autoComplete="off" />
-              </label>
-              <button className="primary" type="submit">Register source</button>
-            </form>
-            {sources.error ? <p className="banner">{sources.error}</p> : null}
-            <div className="grid">
-              {sources.value?.items.length ? sources.value.items.map((source) => (
-                <article key={source.id} className="card">
-                  <p>{source.name}</p>
-                  <div className="meta">
-                    <span>{source.origin}</span>
-                    <span>{source.jurisdiction}</span>
-                    <span className="pill">{source.rights_status}</span>
-                  </div>
-                  <p className="muted">{source.id}</p>
-                  {source.withdrawn_at ? <p className="muted">Withdrawn {formatWhen(source.withdrawn_at)}</p> : (
-                    <form className="stack" action={withdrawSource.bind(null, id)}>
-                      <input type="hidden" name="sourceId" value={source.id} />
-                      <label>
-                        Withdrawal reason
-                        <input name="reason" required maxLength={500} autoComplete="off" />
-                      </label>
-                      <button className="secondary" type="submit">Withdraw source</button>
-                    </form>
-                  )}
-                </article>
-              )) : <p className="muted">No sources on this page.</p>}
+      </section>
+      <form className="panel stack" action={openDiligenceRequest.bind(null, propertyId)}>
+        <h2>Open request</h2>
+        <p className="muted">Creator/editor with MFA can open a request. Readers can add notes while it stays open.</p>
+        <label>
+          Request title
+          <input name="title" required maxLength={200} autoComplete="off" aria-label="Request title" />
+        </label>
+        <label>
+          Request note
+          <textarea name="body" required maxLength={10000} aria-label="Request note" />
+        </label>
+        <button className="primary" type="submit">Open request</button>
+      </form>
+    </div>
+  )
+}
+
+function AuditTab({ audit }: { audit: LoadedPage<PageResult<AuditItem>> }) {
+  return (
+    <section className="panel stack" aria-label="Audit">
+      <h2>Delivered audit timeline</h2>
+      <p className="muted">
+        Events come from the property audit ledger after local outbox delivery.
+        This is not an immutable archival service.
+      </p>
+      {audit.error ? <p className="banner">{audit.error}</p> : null}
+      <div className="timeline">
+        {audit.value?.items?.length ? audit.value.items.map((item, index) => (
+          <article key={`${item.event_type}-${item.recorded_at}-${item.actor_subject}-${index}`} className="timeline-item">
+            <div>
+              <div className="mono">{formatWhen(item.recorded_at)}</div>
+              <div className="muted">Delivered {formatWhen(item.delivered_at)}</div>
             </div>
-          </section>
-          <section className="panel stack">
-            <h2>Export consent</h2>
-            <p className="muted">Only the property creator can allow a packet export, and only for that purpose. The packet is not a title certificate.</p>
-            <form action={grantExportConsent.bind(null, id)}>
-              <button className="primary" type="submit">Allow packet export</button>
-            </form>
-            <form action={revokeExportConsent.bind(null, id)}>
-              <button className="secondary" type="submit">Revoke export consent</button>
-            </form>
-            <form method="post" action={`/properties/${id}/export`}>
-              <button className="secondary" type="submit">Download evidence packet</button>
-            </form>
-          </section>
-          <form className="panel stack" action={revokeReadAccess.bind(null, id)}>
-            <h2>Revoke read access</h2>
-            <label>
-              Recipient subject
-              <input name="recipient" required maxLength={255} autoComplete="off" spellCheck={false} />
-            </label>
-            <button className="secondary" type="submit">Revoke</button>
-          </form>
-        </aside>
+            <div>
+              <strong>{item.event_type}</strong>
+              <div className="meta">
+                <span>Actor {item.actor_subject}</span>
+                <StatusPill label="Delivered locally" tone="info" />
+              </div>
+            </div>
+          </article>
+        )) : <p className="muted">No delivered audit events on this page.</p>}
       </div>
     </section>
   )
 }
 
-async function loadPage<T>(session: NonNullable<Awaited<ReturnType<typeof readSession>>>, path: string) {
+async function loadPage<T>(session: NonNullable<Awaited<ReturnType<typeof readSession>>>, path: string): Promise<LoadedPage<T>> {
   try {
     return { value: await callPropertyApi(session, path) as T, error: '' }
   } catch (error) {
     return { value: null, error: error instanceof Error ? error.message.slice(0, 300) : 'This section is unavailable' }
   }
-}
-
-function formatWhen(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }

@@ -148,4 +148,14 @@ export function sourcesQuery(cursor) {
   return `/v1/sources?${params.toString()}`
 }
 
+export function requestsQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'requests', cursor)
+}
+
+export function notesQuery(propertyId, requestId, cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/properties/${propertyId}/requests/${requestId}/notes?${params.toString()}`
+}
+
 export { SESSION_COOKIE, UUID }
