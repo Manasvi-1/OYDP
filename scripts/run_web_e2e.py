@@ -3,6 +3,7 @@
 Refuses to run unless OYDP_WEB_E2E_ALLOW=yes and TEST_DATABASE_URL names a
 disposable database. Prints no passwords or access tokens.
 """
+import base64
 import os
 import secrets
 import shutil
@@ -57,6 +58,31 @@ def wait_for(url, timeout=40):
         except Exception:
             time.sleep(0.3)
     raise RuntimeError('Timed out waiting for ' + url)
+
+
+def ensure_port_free(port: int):
+    """Fail closed if a stale process still owns a loopback e2e port."""
+    if os.name == 'nt':
+        listed = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             f"(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue |"
+             f" Select-Object -ExpandProperty OwningProcess) -join ','"],
+            capture_output=True, text=True, check=False,
+        )
+        pids = [part.strip() for part in (listed.stdout or '').split(',') if part.strip().isdigit()]
+        for pid in pids:
+            subprocess.run(['taskkill', '/PID', pid, '/T', '/F'], check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        listed = subprocess.run(
+            ['powershell', '-NoProfile', '-Command',
+             f"@(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue).Count"],
+            capture_output=True, text=True, check=False,
+        )
+        if (listed.stdout or '').strip() not in {'', '0'}:
+            raise SystemExit(f'Port {port} is still in use after cleanup; refusing to start e2e')
+        return
+    # Best-effort on POSIX; bind check below still guards startup.
+    subprocess.run(['bash', '-lc', f'fuser -k {port}/tcp >/dev/null 2>&1 || true'], check=False)
 
 
 def spawn(command, env, cwd):
@@ -140,7 +166,8 @@ def main():
         'OYDP_DEV_OIDC_REDIRECTS': web + '/callback',
     }
     storage = tempfile.mkdtemp(prefix='oydp-docs-')
-    document_key = secrets.token_urlsafe(32)
+    # Exactly 32 raw bytes, standard urlsafe base64 (with padding) for DOCUMENT_STORAGE_KEY.
+    document_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('ascii')
     api_env = base_env | {
         'DATABASE_URL': make_conninfo(dsn, user='oydp_app', password=password),
         'OIDC_ISSUER': issuer,
@@ -150,7 +177,7 @@ def main():
         'DOCUMENT_STORAGE_DIR': storage,
         'DOCUMENT_STORAGE_KEY': document_key,
     }
-    session_key = secrets.token_urlsafe(32)
+    session_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('ascii').rstrip('=')
     web_env = base_env | {
         'SESSION_KEY': session_key,
         'OIDC_ISSUER': issuer,
@@ -167,9 +194,15 @@ def main():
     }
     npm = resolve_cmd('npm')
     npx = resolve_cmd('npx')
+    for port in (3000, 8000, 9000):
+        ensure_port_free(port)
     processes = []
     try:
-        subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
+        build = subprocess.run([npm, 'run', 'build'], cwd=WEB, env=web_env)
+        if build.returncode != 0:
+            # Windows e2e can race a stale .next tree; one clean retry is enough.
+            shutil.rmtree(WEB / '.next', ignore_errors=True)
+            subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
         processes.append(spawn([sys.executable, str(ROOT / 'tools' / 'dev_oidc.py')], oidc_env, ROOT))
         processes.append(spawn([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], api_env, ROOT / 'apps' / 'api'))
         processes.append(spawn([npm, 'run', 'start'], web_env, WEB))

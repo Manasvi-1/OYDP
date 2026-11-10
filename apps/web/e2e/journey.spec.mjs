@@ -11,7 +11,13 @@ async function signIn(page, subject, tenantId, mfa) {
   if (mfa) await page.getByRole('checkbox', { name: /amr/ }).check()
   else await page.getByRole('checkbox', { name: /amr/ }).uncheck()
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.waitForURL(/\/connect(?:\?|$)/, { timeout: 30_000 })
+  // Callback may briefly render a same-origin bridge page before /connect.
+  await page.waitForURL(/\/(connect|callback)(?:\?|$)/, { timeout: 30_000 })
+  if (!page.url().includes('/connect')) {
+    const continueLink = page.getByRole('link', { name: 'Continue' })
+    if (await continueLink.count()) await continueLink.click()
+    await page.waitForURL(/\/connect(?:\?|$)/, { timeout: 30_000 })
+  }
   await page.getByLabel('Tenant ID').fill(tenantId)
   await page.getByRole('button', { name: 'Open workspace' }).click()
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
@@ -58,7 +64,9 @@ test('create, claim, document quarantine, diligence, audit, and engines', async 
     buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x70, 0x6e, 0x67]),
   })
   await page.getByRole('button', { name: 'Upload document' }).click()
-  await expect(page.getByRole('region', { name: 'Private documents' }).getByText(/Quarantined/)).toBeVisible()
+  await expect(page.getByText(/document was quarantined|Quarantined/i).first()).toBeVisible()
+  await page.getByRole('link', { name: 'Documents', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Private documents' }).getByText(/Quarantined/i)).toBeVisible()
   await page.getByRole('link', { name: 'Diligence' }).click()
   await page.getByRole('textbox', { name: 'Request title' }).fill('Ask for the packet')
   await page.getByRole('textbox', { name: 'Request note' }).fill('List the papers you hold.')
@@ -86,7 +94,7 @@ test('another tenant cannot see the candidate', async ({ page }) => {
   await page.getByRole('button', { name: /Sign out/ }).click()
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   await signIn(page, 'mallory', otherTenant, true)
-  await page.getByRole('link', { name: 'Properties' }).click()
+  await page.getByRole('navigation', { name: 'Workspace navigation' }).getByRole('link', { name: 'Properties', exact: true }).click()
   await expect(page.getByText(label)).toHaveCount(0)
 })
 
