@@ -7,6 +7,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.e2e_runtime_password.txt
 *.pyc
 .DS_Store
 coverage/
