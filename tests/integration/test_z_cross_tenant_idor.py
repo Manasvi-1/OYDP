@@ -353,13 +353,18 @@ def test_role_privilege_escalation_and_pagination_cursor_isolation(api, tenants)
     secret = t['secret_claim']
     t['as_subject'](t['subjects']['a_reader'])
     ha = t['headers_a']
+    # Tenant-wide role denial is 403; property-scoped denials stay non-disclosing 404.
     assert api.post('/v1/properties', headers=ha, json={'label': 'escalation', 'jurisdiction': 'KA'}).status_code == 403
-    assert api.post(f'/v1/properties/{pid}/claims', headers=ha, json={'statement': 'escalate'}).status_code == 403
-    assert api.post(
+    claim_denied = api.post(f'/v1/properties/{pid}/claims', headers=ha, json={'statement': 'escalate'})
+    assert claim_denied.status_code == 404
+    assert secret not in claim_denied.text
+    consent_denied = api.post(
         f'/v1/properties/{pid}/consents',
         headers=ha,
         json={'purpose': 'passport_export'},
-    ).status_code == 403
+    )
+    assert consent_denied.status_code == 404
+    assert secret not in consent_denied.text
 
     t['as_subject'](t['subjects']['a_owner'])
     # Create a second property so a next_cursor is issued.
