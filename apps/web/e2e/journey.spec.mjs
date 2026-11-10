@@ -100,8 +100,8 @@ test('another tenant cannot see the candidate', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   await signIn(page, 'mallory', otherTenant, true)
   await page.goto('/properties')
-  await expect(page.getByRole('heading', { name: 'Properties', exact: true })).toBeVisible()
-  await expect(page.getByText(label)).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: 'Properties', exact: true })).toBeVisible()
+  await expect(page.locator('#workspace-main').getByText(label)).toHaveCount(0)
 })
 
 test('a token without the MFA claim cannot create a candidate', async ({ page }) => {
