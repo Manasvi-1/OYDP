@@ -112,14 +112,20 @@ class DevOidc:
         return self._send(request, 404, {'error': 'not_found'})
 
     def form_policy(self):
-        # Chromium does not treat form-action 'self' as the loopback origin, so name it.
-        # The policy also has to allow the browser to follow the code redirect.
-        origins = {self.issuer}
+        # Chromium enforces form-action on the POST target and every redirect hop.
+        # Naming only the issuer/redirect origins still aborted the code redirect in
+        # Playwright/Chromium on Windows loopback, so allow local http redirects while
+        # keeping this development issuer bound to loopback hosts only.
+        origins = {self.issuer, 'http://127.0.0.1:3000', 'http://localhost:3000'}
         for redirect in self.redirects:
             parts = urlsplit(redirect)
             if parts.scheme and parts.netloc:
                 origins.add(f'{parts.scheme}://{parts.netloc}')
-        return "default-src 'none'; form-action " + ' '.join(sorted(origins)) + "; base-uri 'none'; frame-ancestors 'none'"
+        return (
+            "default-src 'none'; form-action 'self' "
+            + ' '.join(sorted(origins))
+            + "; base-uri 'none'; frame-ancestors 'none'"
+        )
 
     def discovery(self):
         return {

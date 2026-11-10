@@ -2,7 +2,9 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { callPropertyApi } from '../../lib/api'
 import { openJson, parseSessionInput, sessionKeyBytes, UUID } from '../../lib/contract.mjs'
+import { cookieSecure } from '../../lib/cookie-secure.mjs'
 import { fetchJwks, oidcConfig, OIDC_AAD, OIDC_COOKIE, tokenEndpoint, verifySignedJwt } from '../../lib/oidc.mjs'
+import { writePendingAuth } from '../../lib/pending-auth'
 import { writeSession } from '../../lib/session'
 
 export async function GET(request: Request) {
@@ -17,7 +19,7 @@ export async function GET(request: Request) {
   jar.set(OIDC_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/callback',
     maxAge: 0,
   })
@@ -50,7 +52,7 @@ export async function GET(request: Request) {
   const payload = await tokenResponse.json().catch(() => null) as { access_token?: unknown; id_token?: unknown } | null
   const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : ''
   const idToken = typeof payload?.id_token === 'string' ? payload.id_token : ''
-  if (!tokenResponse.ok || !accessToken || !idToken || !sessionKeyBytes(process.env.SESSION_KEY)) {
+  if (!tokenResponse.ok || !accessToken || !sessionKeyBytes(process.env.SESSION_KEY)) {
     return reject(request, 'Identity provider did not return a usable access token')
   }
   let jwks
@@ -59,14 +61,6 @@ export async function GET(request: Request) {
   } catch {
     return reject(request, 'Identity provider unavailable')
   }
-  const idCheck = verifySignedJwt(idToken, {
-    jwks,
-    issuer: config.issuer,
-    audience: config.clientId,
-    nonce: pending.nonce,
-    now,
-    typ: 'JWT',
-  })
   const accessCheck = verifySignedJwt(accessToken, {
     jwks,
     issuer: config.issuer,
@@ -74,20 +68,45 @@ export async function GET(request: Request) {
     now,
     typ: 'at+jwt',
   })
-  const tenantClaim = accessCheck.ok ? accessCheck.payload.tenant_id : ''
-  const tenantId = typeof tenantClaim === 'string' ? tenantClaim : ''
-  if (!idCheck.ok || !accessCheck.ok || !UUID.test(tenantId)) {
+  if (!accessCheck.ok) {
     return reject(request, 'Identity provider did not return a usable access token')
   }
-  const parsed = parseSessionInput({ tenantId, accessToken })
-  if (!parsed.ok) return reject(request, parsed.error)
-  try {
-    await callPropertyApi(parsed.session, '/v1/properties?limit=1')
-    await writeSession(parsed.session)
-  } catch (error) {
-    return reject(request, error instanceof Error ? error.message : 'Property service unavailable')
+  if (idToken) {
+    const idCheck = verifySignedJwt(idToken, {
+      jwks,
+      issuer: config.issuer,
+      audience: config.clientId,
+      nonce: pending.nonce,
+      now,
+      typ: 'JWT',
+    })
+    if (!idCheck.ok) {
+      return reject(request, 'Identity provider did not return a usable access token')
+    }
+  } else if (accessCheck.payload.nonce !== pending.nonce) {
+    // Loopback issuer may bind nonce on the access token when no ID token is issued.
+    return reject(request, 'Identity provider did not return a usable access token')
   }
-  return NextResponse.redirect(new URL('/properties', request.url))
+  const tenantClaim = accessCheck.payload.tenant_id
+  const tenantId = typeof tenantClaim === 'string' ? tenantClaim : ''
+  const subject = typeof accessCheck.payload.sub === 'string' ? accessCheck.payload.sub : ''
+  if (UUID.test(tenantId)) {
+    const parsed = parseSessionInput({ tenantId, accessToken })
+    if (!parsed.ok) return reject(request, parsed.error)
+    try {
+      await callPropertyApi(parsed.session, '/v1/properties?limit=1')
+      await writeSession(parsed.session)
+    } catch (error) {
+      return reject(request, error instanceof Error ? error.message : 'Property service unavailable')
+    }
+    return NextResponse.redirect(new URL('/overview', request.url))
+  }
+  try {
+    await writePendingAuth({ accessToken, subject })
+  } catch {
+    return reject(request, 'Session key is not configured')
+  }
+  return NextResponse.redirect(new URL('/connect', request.url))
 }
 
 function reject(request: Request, message: string) {

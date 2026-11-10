@@ -26,6 +26,17 @@ from scripts.migrate import migrate, provision_runtime
 WEB = ROOT / 'apps' / 'web'
 
 
+def resolve_cmd(name: str) -> str:
+    found = shutil.which(name)
+    if found:
+        return found
+    if os.name == 'nt':
+        found = shutil.which(f'{name}.cmd') or shutil.which(f'{name}.exe')
+        if found:
+            return found
+    raise SystemExit(f'Required command not found on PATH: {name}')
+
+
 def require_disposable_database():
     if os.getenv('OYDP_WEB_E2E_ALLOW') != 'yes':
         raise SystemExit('Refusing to run: set OYDP_WEB_E2E_ALLOW=yes')
@@ -49,18 +60,59 @@ def wait_for(url, timeout=40):
 
 
 def spawn(command, env, cwd):
-    return subprocess.Popen(command, cwd=cwd, env=env, start_new_session=True)
+    kwargs = {'cwd': cwd, 'env': env}
+    if os.name == 'nt':
+        kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs['start_new_session'] = True
+    return subprocess.Popen(command, **kwargs)
+
+
+def _terminate(process):
+    if process.poll() is not None:
+        return
+    if os.name == 'nt':
+        subprocess.run(
+            ['taskkill', '/PID', str(process.pid), '/T', '/F'],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
 
 
 def stop(processes):
     for process in processes:
-        if process.poll() is None:
-            os.killpg(process.pid, signal.SIGTERM)
+        _terminate(process)
     for process in processes:
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+            _terminate(process)
+            process.wait(timeout=5)
+
+
+def reset_disposable_tables(conn):
+    # Disposable reset only. Append-only audit_ledger triggers block ordinary TRUNCATE.
+    conn.execute("""
+      DO $$
+      DECLARE stmt text;
+      BEGIN
+        PERFORM set_config('session_replication_role', 'replica', true);
+        SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
+          INTO stmt
+        FROM pg_tables
+        WHERE schemaname = 'public' AND tablename <> 'schema_migrations';
+        IF stmt IS NOT NULL THEN
+          EXECUTE stmt;
+        END IF;
+        PERFORM set_config('session_replication_role', 'origin', true);
+      END $$;
+    """)
 
 
 def main():
@@ -71,19 +123,7 @@ def main():
     tenant = str(uuid.uuid4())
     other = str(uuid.uuid4())
     with psycopg.connect(dsn) as conn:
-        conn.execute("""
-          DO $$
-          DECLARE stmt text;
-          BEGIN
-            SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE'
-              INTO stmt
-            FROM pg_tables
-            WHERE schemaname = 'public' AND tablename <> 'schema_migrations';
-            IF stmt IS NOT NULL THEN
-              EXECUTE stmt;
-            END IF;
-          END $$;
-        """)
+        reset_disposable_tables(conn)
         conn.execute(
             "INSERT INTO tenant_memberships(tenant_id, subject_id, role) VALUES (%s,'alice','owner'),(%s,'mallory','owner')",
             (tenant, other),
@@ -97,9 +137,10 @@ def main():
         'OYDP_DEV_OIDC_ISSUER': issuer,
         'OYDP_DEV_OIDC_AUDIENCE': 'oydp-api',
         'OYDP_DEV_OIDC_CLIENT_ID': 'oydp-web',
-        'OYDP_DEV_OIDC_REDIRECTS': web + '/auth/callback',
+        'OYDP_DEV_OIDC_REDIRECTS': web + '/callback',
     }
     storage = tempfile.mkdtemp(prefix='oydp-docs-')
+    document_key = secrets.token_urlsafe(32)
     api_env = base_env | {
         'DATABASE_URL': make_conninfo(dsn, user='oydp_app', password=password),
         'OIDC_ISSUER': issuer,
@@ -107,26 +148,31 @@ def main():
         'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
         'DOCUMENT_STORAGE_DIR': storage,
-        'DOCUMENT_ENCRYPTION_KEY': '22' * 32,
+        'DOCUMENT_STORAGE_KEY': document_key,
     }
-    session_secret = secrets.token_urlsafe(48)
+    session_key = secrets.token_urlsafe(32)
     web_env = base_env | {
-        'SESSION_SECRET': session_secret,
+        'SESSION_KEY': session_key,
         'OIDC_ISSUER': issuer,
         'OIDC_CLIENT_ID': 'oydp-web',
-        'OIDC_REDIRECT_URI': web + '/auth/callback',
+        'OIDC_REDIRECT_URI': web + '/callback',
         'OIDC_AUDIENCE': 'oydp-api',
+        'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
+        # next start sets NODE_ENV=production; keep cookies usable on loopback HTTP.
+        'OYDP_COOKIE_SECURE': '0',
         'PROPERTY_API_BASE': 'http://127.0.0.1:8000',
         'PROPERTY_PAGE_SIZE': '1',
         'NEXT_TELEMETRY_DISABLED': '1',
     }
+    npm = resolve_cmd('npm')
+    npx = resolve_cmd('npx')
     processes = []
     try:
-        subprocess.check_call(['npm', 'run', 'build'], cwd=WEB, env=web_env)
+        subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
         processes.append(spawn([sys.executable, str(ROOT / 'tools' / 'dev_oidc.py')], oidc_env, ROOT))
         processes.append(spawn([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], api_env, ROOT / 'apps' / 'api'))
-        processes.append(spawn(['npm', 'run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], web_env, WEB))
+        processes.append(spawn([npm, 'run', 'start'], web_env, WEB))
         wait_for(issuer + '/.well-known/openid-configuration')
         wait_for('http://127.0.0.1:8000/healthz')
         wait_for(web + '/')
@@ -135,7 +181,8 @@ def main():
             'E2E_TENANT_ID': tenant,
             'E2E_OTHER_TENANT_ID': other,
         }
-        result = subprocess.run(['npx', 'playwright', 'test'], cwd=WEB, env=play_env)
+        # Journey covers sign-in through property/document/diligence/audit against the disposable DB.
+        result = subprocess.run([npx, 'playwright', 'test', 'e2e/journey.spec.mjs'], cwd=WEB, env=play_env)
         if result.returncode != 0:
             raise SystemExit(result.returncode)
     finally:

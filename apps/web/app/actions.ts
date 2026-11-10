@@ -3,11 +3,13 @@
 import { redirect } from 'next/navigation'
 import { ApiError, callPropertyApi, callPropertyUpload, MAX_DOCUMENT_BYTES } from '../lib/api'
 import { parseSessionInput, UUID } from '../lib/contract.mjs'
+import { clearPendingAuth, readPendingAuth } from '../lib/pending-auth'
 import { clearSession, readSession, writeSession } from '../lib/session'
 
 function bounce(path: string, error: unknown): never {
   const message = error instanceof ApiError ? error.message : 'The property service could not complete this request'
-  redirect(`${path}?error=${encodeURIComponent(message)}`)
+  const joiner = path.includes('?') ? '&' : '?'
+  redirect(`${path}${joiner}error=${encodeURIComponent(message)}`)
 }
 
 export async function connectSession(formData: FormData) {
@@ -20,14 +22,34 @@ export async function connectSession(formData: FormData) {
   try {
     await callPropertyApi(parsed.session, '/v1/properties?limit=1')
     await writeSession(parsed.session)
+    await clearPendingAuth()
   } catch (error) {
     bounce('/', error)
   }
-  redirect('/properties')
+  redirect('/overview')
+}
+
+export async function connectTenant(formData: FormData) {
+  const pending = await readPendingAuth()
+  if (!pending) redirect('/?error=' + encodeURIComponent('Sign in again to choose a tenant'))
+  const parsed = parseSessionInput({
+    tenantId: String(formData.get('tenantId') ?? ''),
+    accessToken: pending.accessToken,
+  })
+  if (!parsed.ok) redirect(`/connect?error=${encodeURIComponent(parsed.error)}`)
+  try {
+    await callPropertyApi(parsed.session, '/v1/properties?limit=1')
+    await writeSession(parsed.session)
+    await clearPendingAuth()
+  } catch (error) {
+    bounce('/connect', error)
+  }
+  redirect('/overview')
 }
 
 export async function disconnectSession() {
   await clearSession()
+  await clearPendingAuth()
   redirect('/')
 }
 
@@ -302,4 +324,51 @@ export async function uploadDocument(propertyId: string, formData: FormData) {
     bounce(`/properties/${propertyId}`, error)
   }
   redirect(`/properties/${propertyId}?notice=document-quarantined`)
+}
+
+export async function openDiligenceRequest(propertyId: string, formData: FormData) {
+  if (!UUID.test(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/requests`, {
+      method: 'POST',
+      body: {
+        title: String(formData.get('title') ?? ''),
+        body: String(formData.get('body') ?? ''),
+      },
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}?tab=diligence`, error)
+  }
+  redirect(`/properties/${propertyId}?tab=diligence&notice=diligence-opened`)
+}
+
+export async function addDiligenceNote(propertyId: string, requestId: string, formData: FormData) {
+  if (!UUID.test(propertyId) || !UUID.test(requestId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/requests/${requestId}/notes`, {
+      method: 'POST',
+      body: { body: String(formData.get('body') ?? '') },
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}?tab=diligence`, error)
+  }
+  redirect(`/properties/${propertyId}?tab=diligence&notice=diligence-noted`)
+}
+
+export async function closeDiligenceRequest(propertyId: string, requestId: string) {
+  if (!UUID.test(propertyId) || !UUID.test(requestId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/requests/${requestId}/close`, {
+      method: 'POST',
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}?tab=diligence`, error)
+  }
+  redirect(`/properties/${propertyId}?tab=diligence&notice=diligence-closed`)
 }

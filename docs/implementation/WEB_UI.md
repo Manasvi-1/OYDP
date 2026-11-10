@@ -1,8 +1,8 @@
 # Authenticated web workspace
 
-Pre-alpha Next.js workspace for the active property API. It signs in with the access-token profile the API already verifies, lists private properties, and on one record can record an unverified claim, a typed identifier, an unreviewed evidence note, an encrypted PDF/PNG/JPEG, an audit event name, and a diligence request. It does not certify title or select a production identity provider.
+Pre-alpha Next.js Property Intelligence Workspace for the active property API. It signs in with the access-token profile the API already verifies, provides an authenticated shell (Overview, Properties, Evidence, Diligence, Activity, Engines, Decision preview, Settings), lists private properties, and on one record can record an unverified claim, a typed identifier, an encrypted PDF/PNG/JPEG, diligence requests/notes, and a delivered audit timeline. It does not certify title or select a production identity provider.
 
-Open pull requests #5 and #6 also contain workspace attempts. Both ask an operator to paste a bearer token. This workspace uses authorization code and PKCE instead, and it does not merge those branches.
+Interview-oriented operator notes live in `docs/interview/DEMO_GUIDE.md` and `docs/interview/START_LOCAL.md`.
 
 ## Trust boundaries
 

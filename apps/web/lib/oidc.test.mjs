@@ -42,10 +42,24 @@ test('builds a local sign-in configuration and hides the verifier', () => {
   assert.equal(config.issuer, issuer)
   assert.equal(config.apiBase, 'http://127.0.0.1:8000')
   const url = authorizeRequest(config, { state: 'state-1', nonce: 'nonce-1', verifier: 'verifier-secret' })
+  assert.equal(url.pathname.endsWith('/protocol/openid-connect/auth'), true)
   assert.equal(url.searchParams.get('code_challenge_method'), 'S256')
   assert.equal(url.searchParams.get('code_challenge'), codeChallenge('verifier-secret'))
   assert.equal(url.searchParams.get('verifier'), null)
   assert.equal(url.toString().includes('verifier-secret'), false)
+})
+
+test('uses loopback authorize and resource for the development issuer', () => {
+  const loopback = {
+    ...env,
+    OIDC_ISSUER: 'http://127.0.0.1:9000',
+    OIDC_JWKS_URL: 'http://127.0.0.1:9000/.well-known/jwks.json',
+  }
+  const config = oidcConfig(loopback)
+  assert.equal(config.ok, true)
+  const url = authorizeRequest(config, { state: 'state-1', nonce: 'nonce-1', verifier: 'verifier-secret' })
+  assert.equal(url.pathname, '/authorize')
+  assert.equal(url.searchParams.get('resource'), 'oydp-api')
 })
 
 test('rejects remote http and incomplete sign-in settings', () => {

@@ -175,7 +175,7 @@ def test_login_policy_names_the_issuer_and_redirect_origin(issuer):
     policy = next(value for key, value in headers.items() if key.lower() == 'content-security-policy')
     assert issuer.issuer in policy
     assert 'http://127.0.0.1:3000' in policy
-    assert "form-action 'self'" not in policy
+    assert "form-action 'self'" in policy
 
 
 def test_discovery_stays_on_issuer_origin(issuer):

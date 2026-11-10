@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { sealJson, sessionKeyBytes } from '../../lib/contract.mjs'
+import { cookieSecure } from '../../lib/cookie-secure.mjs'
 import { authorizeRequest, oidcConfig, OIDC_AAD, OIDC_COOKIE, randomUrlToken } from '../../lib/oidc.mjs'
 
 export async function GET(request: Request) {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   jar.set(OIDC_COOKIE, sealJson(pending, process.env.SESSION_KEY, OIDC_AAD), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/callback',
     maxAge: 600,
   })
