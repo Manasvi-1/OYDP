@@ -5,7 +5,7 @@ This is an engineering draft; it is not an independent security assessment.
 | Boundary/threat | Required control | Evidence now |
 |---|---|---|
 | Client forges identity, membership or MFA | Verified OIDC identity; resolve tenant membership server-side | Pinned RS256 token checks and MFA gate with configurable `auth_time` freshness tested; production rejects freshness-disable without explicit loopback/dev; live managed OIDC enrollment still BLOCKED locally |
-| User guesses another tenant/property ID | Per-object policy plus database RLS and composite integrity | API and repository grant denials plus forced tenant RLS; expanded cross-tenant IDOR matrix awaiting native PG CI; local PG skipped when Docker/engine unavailable |
+| User guesses another tenant/property ID | Per-object policy plus database RLS and composite integrity | API and repository grant denials plus forced tenant RLS; expanded cross-tenant IDOR matrix VERIFIED in CI native PG; local PG skipped without TEST_DATABASE_URL |
 | Collaborator retains revoked access | Fetch current grants each access; terminate stale sessions where required; revocation-aware delivery | Creator-managed revocation and native concurrent membership/grant/shared-reader checks passed; file delivery pending |
 | Collaborator escalates or reshares access | Creator-only management, bounded expiry, active same-tenant recipients, audited mutations | Negative tests and audited SECURITY DEFINER function; see PROPERTY_ACCESS.md for trust assumptions and non-cascading revocation |
 | Property read permission leaks all deeds | Explicit resource grant and scanning gate | Unit policy tested |

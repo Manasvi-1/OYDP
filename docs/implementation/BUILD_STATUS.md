@@ -10,7 +10,7 @@ Base inspected: PR #17 head `f5cf84e35a469ed918172fe55dbe3240bca69f8d` (`feat/mf
 | Root `oydp/` + `migrations/` | frozen reference | Separately tested PR #1 backend; not the evolving authority |
 | AuthN JWKS / RS256 / at+jwt | executable implementation | Loopback HTTP gated by `OYDP_OIDC_DEV_HTTP` |
 | MFA freshness (`auth_time`) | executable implementation | Default max age 900s; zero rejected outside loopback/dev; live IdP enrollment BLOCKED locally |
-| Tenant RLS + membership | integration-tested (CI history) + expanded IDOR matrix (local PG skipped) | Runtime role must not migrate/admin |
+| Tenant RLS + membership | integration-tested (CI native PG, including IDOR matrix on PR #19) | Runtime role must not migrate/admin; local PG skipped without TEST_DATABASE_URL |
 | Encrypted documents + scan gate | executable implementation | Production malware scanner BLOCKED |
 | Audit outbox / ledger | executable implementation | Not an external immutable archive |
 | `apps/web` workspace | executable implementation (partial) | Session/proxy tenant isolation unit tests; browser E2E / live provider still open |
@@ -18,4 +18,4 @@ Base inspected: PR #17 head `f5cf84e35a469ed918172fe55dbe3240bca69f8d` (`feat/mf
 
 ## This increment
 
-Live Keycloak MFA verification attempted and marked BLOCKED (Docker engine unavailable). Production rejection of `OYDP_MFA_MAX_AGE_SECONDS=0` outside `OYDP_OIDC_DEV_HTTP=1`. Expanded cross-tenant IDOR integration matrix. Frontend session/proxy tenant isolation tests. Live claim inspection script. Documentation updates keep PR #17 MFA freshness conceptually separate.
+Live Keycloak MFA verification attempted and marked BLOCKED (Docker engine unavailable). Production rejection of `OYDP_MFA_MAX_AGE_SECONDS=0` outside `OYDP_OIDC_DEV_HTTP=1`. Expanded cross-tenant IDOR integration matrix VERIFIED in CI (reader privilege-escalation assertions aligned to non-disclosing 404). Frontend session/proxy tenant isolation tests. Live claim inspection script. Documentation updates keep PR #17 MFA freshness conceptually separate.

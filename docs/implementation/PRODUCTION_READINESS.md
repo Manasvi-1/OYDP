@@ -10,7 +10,7 @@ Status: **not production-ready**. Automated tests and this hardening increment d
 | Production ACR enforcement | NOT VERIFIED (local realm has no `acr` mapper) |
 | Document malware scanner | BLOCKED |
 | Independent immutable audit sink | NOT IMPLEMENTED |
-| Cross-tenant IDOR matrix | Expanded in tests; local native PG skipped; CI acceptance pending |
+| Cross-tenant IDOR matrix | Expanded matrix VERIFIED in CI native PG (PR #19 @ fc25eed); local native PG skipped without TEST_DATABASE_URL |
 | External security review | NOT DONE |
 | Privacy / deletion / restore | NOT DONE |
 | All 13 engines | NOT IMPLEMENTED (E03 diligence bounded only) |

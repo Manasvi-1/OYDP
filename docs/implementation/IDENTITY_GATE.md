@@ -40,11 +40,11 @@ A token whose `amr` claim lacks `otp` or `mfa` can still identify a subject for 
 
 ## What this run did not do
 
-Docker Desktop client is installed on this Windows workstation, but the Docker engine pipe was unavailable (`npipe:////./pipe/docker_engine`). WSL has no distributions. Ports `8080` and `5432` refused connections. The Keycloak container was not started and no browser enrollment was performed. `scripts/verify_live_keycloak_mfa.py` exited **BLOCKED**. Synthetic DevOidc tokens are not substituted as live-IdP evidence.
+Docker Desktop client is installed on this Windows workstation, but the Docker engine pipe was unavailable (`npipe:////./pipe/docker_engine`) even after attempting to launch Desktop. WSL has no distributions. Port `8080` refused connections. A local `postgres` process may listen on `5432`, but Keycloak was not started and no browser enrollment was performed. `scripts/verify_live_keycloak_mfa.py` exited **BLOCKED**. Synthetic DevOidc tokens are not substituted as live-IdP evidence.
 
 ## Auth tests
 
-Working directory: `C:\Users\WorkstationAdmin\OYDP`.
+Working directory for this security branch: `C:\Users\WorkstationAdmin\OYDP-security-wt` (git worktree; interview-demo local files remain on the primary checkout).
 
 ```text
 .\.venv\Scripts\python.exe -m pytest -q apps/api/tests/test_auth.py -ra
