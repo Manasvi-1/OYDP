@@ -158,6 +158,7 @@ export default async function PropertyPage({ params, searchParams }: {
     'property-corrected': 'The correction was submitted. The previous label stays in the correction history.',
     'write-access-updated': 'Write delegation was updated.',
     'write-access-revoked': 'Write delegation revocation was submitted.',
+    'claim-recorded': 'The claim was recorded as unverified. It is not ownership evidence.',
     'identifier-recorded': 'The identifier was submitted. A repeated value does not create a new version.',
     'review-recorded': 'The review was recorded. A review is not title.',
     'source-registered': 'The source was registered. Its rights status stays unknown.',
