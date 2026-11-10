@@ -114,7 +114,8 @@ def storage_key() -> bytes:
     if not raw:
         raise StorageUnavailable()
     try:
-        key = urlsafe_b64decode(raw)
+        padded = raw + ('=' * (-len(raw) % 4))
+        key = urlsafe_b64decode(padded)
     except Exception:
         raise StorageUnavailable() from None
     if len(key) != 32:

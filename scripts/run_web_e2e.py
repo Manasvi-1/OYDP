@@ -3,6 +3,7 @@
 Refuses to run unless OYDP_WEB_E2E_ALLOW=yes and TEST_DATABASE_URL names a
 disposable database. Prints no passwords or access tokens.
 """
+import base64
 import os
 import secrets
 import shutil
@@ -165,7 +166,8 @@ def main():
         'OYDP_DEV_OIDC_REDIRECTS': web + '/callback',
     }
     storage = tempfile.mkdtemp(prefix='oydp-docs-')
-    document_key = secrets.token_urlsafe(32)
+    # Exactly 32 raw bytes, standard urlsafe base64 (with padding) for DOCUMENT_STORAGE_KEY.
+    document_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('ascii')
     api_env = base_env | {
         'DATABASE_URL': make_conninfo(dsn, user='oydp_app', password=password),
         'OIDC_ISSUER': issuer,
@@ -175,7 +177,7 @@ def main():
         'DOCUMENT_STORAGE_DIR': storage,
         'DOCUMENT_STORAGE_KEY': document_key,
     }
-    session_key = secrets.token_urlsafe(32)
+    session_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('ascii').rstrip('=')
     web_env = base_env | {
         'SESSION_KEY': session_key,
         'OIDC_ISSUER': issuer,
@@ -196,7 +198,11 @@ def main():
         ensure_port_free(port)
     processes = []
     try:
-        subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
+        build = subprocess.run([npm, 'run', 'build'], cwd=WEB, env=web_env)
+        if build.returncode != 0:
+            # Windows e2e can race a stale .next tree; one clean retry is enough.
+            shutil.rmtree(WEB / '.next', ignore_errors=True)
+            subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
         processes.append(spawn([sys.executable, str(ROOT / 'tools' / 'dev_oidc.py')], oidc_env, ROOT))
         processes.append(spawn([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], api_env, ROOT / 'apps' / 'api'))
         processes.append(spawn([npm, 'run', 'start'], web_env, WEB))
