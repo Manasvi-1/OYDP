@@ -35,7 +35,7 @@ PYTHONPATH=apps/api;. python -m pytest -q tests/integration --tb=line -ra
 ```
 
 Result: **107 skipped**, 0 passed, 0 failed. Reason: `TEST_DATABASE_URL is required for real PostgreSQL tests`.  
-Includes new file `tests/integration/test_cross_tenant_idor.py` (8 cases). Skipped ≠ passed. Native PostGIS CI remains the acceptance authority.
+Includes new file `tests/integration/test_z_cross_tenant_idor.py` (8 cases; `test_z_` prefix so it does not migrate before `test_database`). Skipped ≠ passed locally. Native PostGIS CI is the acceptance authority.
 
 ### Web security unit tests
 

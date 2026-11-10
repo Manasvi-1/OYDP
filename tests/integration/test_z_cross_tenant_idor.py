@@ -4,6 +4,9 @@ Attacker holds a valid membership in tenant B and targets tenant A resource IDs
 while sending X-Tenant-ID for B (or forging A without membership). Expected denials
 are non-disclosing 404 for property-scoped probes with foreign membership, and 403
 when membership is missing. Never run against production data.
+
+File name uses the test_z_ prefix so pytest collects it after test_database.py.
+Migrating first would make test_database's assert migrate(DSN) fail on an empty list.
 """
 import os
 from base64 import urlsafe_b64encode
