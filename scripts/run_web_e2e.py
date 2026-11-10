@@ -63,24 +63,31 @@ def wait_for(url, timeout=40):
 def ensure_port_free(port: int):
     """Fail closed if a stale process still owns a loopback e2e port."""
     if os.name == 'nt':
-        listed = subprocess.run(
-            ['powershell', '-NoProfile', '-Command',
-             f"(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue |"
-             f" Select-Object -ExpandProperty OwningProcess) -join ','"],
-            capture_output=True, text=True, check=False,
-        )
-        pids = [part.strip() for part in (listed.stdout or '').split(',') if part.strip().isdigit()]
-        for pid in pids:
-            subprocess.run(['taskkill', '/PID', pid, '/T', '/F'], check=False,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        listed = subprocess.run(
-            ['powershell', '-NoProfile', '-Command',
-             f"@(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue).Count"],
-            capture_output=True, text=True, check=False,
-        )
-        if (listed.stdout or '').strip() not in {'', '0'}:
-            raise SystemExit(f'Port {port} is still in use after cleanup; refusing to start e2e')
-        return
+        for _ in range(10):
+            listed = subprocess.run(
+                ['powershell', '-NoProfile', '-Command',
+                 f"(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue |"
+                 f" Select-Object -ExpandProperty OwningProcess) -join ','"],
+                capture_output=True, text=True, check=False,
+            )
+            # OwningProcess 0 is a Windows phantom after abrupt kills; ignore it and retry bind.
+            pids = [
+                part.strip()
+                for part in (listed.stdout or '').split(',')
+                if part.strip().isdigit() and part.strip() not in {'0', '4'}
+            ]
+            for pid in pids:
+                subprocess.run(['taskkill', '/PID', pid, '/T', '/F'], check=False,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                import socket
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    sock.bind(('127.0.0.1', port))
+                return
+            except OSError:
+                time.sleep(1)
+        raise SystemExit(f'Port {port} is still in use after cleanup; refusing to start e2e')
     # Best-effort on POSIX; bind check below still guards startup.
     subprocess.run(['bash', '-lc', f'fuser -k {port}/tcp >/dev/null 2>&1 || true'], check=False)
 
