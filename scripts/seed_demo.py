@@ -43,10 +43,13 @@ def require_disposable_dsn() -> str:
 
 
 def truncate_public(conn: psycopg.Connection) -> None:
+    # Disposable reset only. Append-only audit_ledger triggers block ordinary TRUNCATE.
+    # session_replication_role=replica disables user triggers for this superuser session.
     conn.execute("""
       DO $$
       DECLARE stmt text;
       BEGIN
+        PERFORM set_config('session_replication_role', 'replica', true);
         SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ')
                || ' RESTART IDENTITY CASCADE'
           INTO stmt
@@ -55,6 +58,7 @@ def truncate_public(conn: psycopg.Connection) -> None:
         IF stmt IS NOT NULL THEN
           EXECUTE stmt;
         END IF;
+        PERFORM set_config('session_replication_role', 'origin', true);
       END $$;
     """)
 
