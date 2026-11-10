@@ -1,10 +1,16 @@
 """Verify access tokens using an operator-configured issuer and HTTPS JWKS."""
 import os
+import time
 from functools import lru_cache
 from urllib.parse import urlsplit
 
 import jwt
 from fastapi import Header, HTTPException
+
+# Default freshness window matches the local Keycloak AMR maxAge (900s).
+# Presence of mfa/otp in amr alone is not treated as a fresh MFA step-up.
+_DEFAULT_MFA_MAX_AGE_SECONDS = 900
+_MFA_METHODS = frozenset({'mfa', 'otp'})
 
 
 @lru_cache(maxsize=8)
@@ -23,6 +29,47 @@ def endpoint_allowed(value: str) -> bool:
         return True
     host = parts.hostname.lower().rstrip('.')
     return parts.scheme == 'http' and os.getenv('OYDP_OIDC_DEV_HTTP') == '1' and host in {'localhost', '127.0.0.1'}
+
+
+def mfa_max_age_seconds() -> int | None:
+    """Return the MFA freshness window in seconds.
+
+    Unset env uses the default window. Explicit ``0`` disables freshness checks
+    (amr-only) and is not a production posture. Negative or non-integer values
+    fail closed as misconfiguration.
+    """
+    raw = os.getenv('OYDP_MFA_MAX_AGE_SECONDS')
+    if raw is None or not raw.strip():
+        return _DEFAULT_MFA_MAX_AGE_SECONDS
+    try:
+        value = int(raw.strip(), 10)
+    except ValueError as exc:
+        raise HTTPException(503, 'Invalid MFA freshness configuration') from exc
+    if value < 0:
+        raise HTTPException(503, 'Invalid MFA freshness configuration')
+    if value == 0:
+        return None
+    return value
+
+
+def mfa_acr_values() -> frozenset[str] | None:
+    """Optional ACR allowlist. Unset means ACR is not required for MFA gates."""
+    raw = os.getenv('OYDP_MFA_ACR_VALUES')
+    if raw is None or not raw.strip():
+        return None
+    values = frozenset(item.strip() for item in raw.split(',') if item.strip())
+    if not values:
+        raise HTTPException(503, 'Invalid MFA ACR configuration')
+    return values
+
+
+def _as_unix_seconds(value) -> int:
+    # Reject bool: isinstance(True, int) is True in Python.
+    if type(value) is not int:
+        raise jwt.InvalidTokenError('Invalid authentication time')
+    if value < 0:
+        raise jwt.InvalidTokenError('Invalid authentication time')
+    return value
 
 
 def verified_claims(authorization: str | None) -> dict:
@@ -53,6 +100,10 @@ def verified_claims(authorization: str | None) -> dict:
         amr = claims.get('amr', [])
         if not isinstance(amr, list) or any(not isinstance(item, str) for item in amr):
             raise jwt.InvalidTokenError('Invalid authentication methods')
+        if 'auth_time' in claims:
+            claims['auth_time'] = _as_unix_seconds(claims['auth_time'])
+        if 'acr' in claims and not isinstance(claims['acr'], str):
+            raise jwt.InvalidTokenError('Invalid authentication context class')
         return claims
     except jwt.PyJWKClientConnectionError:
         raise HTTPException(503, 'Identity provider unavailable') from None
@@ -65,7 +116,31 @@ def verified_subject(authorization: str | None = Header(default=None)) -> str:
 
 
 def require_mfa(authorization: str | None = Header(default=None)) -> bool:
-    # Keycloak records TOTP as otp. The synthetic test tokens use mfa.
-    if not {'mfa', 'otp'}.intersection(verified_claims(authorization).get('amr', [])):
+    """Require an MFA method reference and, when configured, a fresh auth_time.
+
+    IdP assumptions: access tokens carry ``amr`` with ``mfa`` and/or ``otp``, and
+    when freshness is enabled they also carry integer ``auth_time`` (Unix seconds)
+    from the authentication event. Optional ``OYDP_MFA_ACR_VALUES`` requires a
+    matching string ``acr``. Mere presence of ``mfa``/``otp`` without a fresh
+    ``auth_time`` is rejected when freshness is enabled (the default).
+    """
+    claims = verified_claims(authorization)
+    if not _MFA_METHODS.intersection(claims.get('amr', [])):
         raise HTTPException(403, 'MFA access token required')
+    allowed_acr = mfa_acr_values()
+    if allowed_acr is not None:
+        acr = claims.get('acr')
+        if not isinstance(acr, str) or acr not in allowed_acr:
+            raise HTTPException(403, 'Fresh MFA authentication required')
+    max_age = mfa_max_age_seconds()
+    if max_age is None:
+        return True
+    if 'auth_time' not in claims:
+        raise HTTPException(403, 'Fresh MFA authentication required')
+    auth_time = claims['auth_time']
+    now = int(time.time())
+    if auth_time > now:
+        raise HTTPException(403, 'Fresh MFA authentication required')
+    if now - auth_time > max_age:
+        raise HTTPException(403, 'Fresh MFA authentication required')
     return True

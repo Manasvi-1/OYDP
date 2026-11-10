@@ -14,7 +14,7 @@ No user, password, client secret, TOTP seed, or tenant UUID is stored in the rep
 
 `oydp-web` sets client attribute `access.token.header.type.rfc9068=true`, so access tokens use JOSE header `typ=at+jwt`. The audience mapper adds `oydp-api` to the access token and not to the ID token. The AMR mapper puts the completed authenticator references on the access token. Password is reference `pwd`. The one-time code is reference `otp`. Each reference stays valid for 900 seconds, the same lifetime as the access token, so a normal code exchange still carries `otp`. Keycloak's default max age of 0 drops the reference when issuance crosses a one-second boundary.
 
-The API verifier in `apps/api/app/auth.py` checks RS256, `typ=at+jwt`, `kid`, issuer, audience, subject, expiry, and issuance time. HTTP issuer and JWKS URLs are accepted only for `localhost` and `127.0.0.1`. Writes go through `require_mfa`, which accepts `otp` or `mfa` in `amr` and rejects every other method. There is no environment flag that skips verification.
+The API verifier in `apps/api/app/auth.py` checks RS256, `typ=at+jwt`, `kid`, issuer, audience, subject, expiry, and issuance time. HTTP issuer and JWKS URLs are accepted only for `localhost` and `127.0.0.1` when `OYDP_OIDC_DEV_HTTP=1`. Writes go through `require_mfa`, which accepts `otp` or `mfa` in `amr` and, by default, requires a fresh integer `auth_time` within `OYDP_MFA_MAX_AGE_SECONDS` (default 900). Missing, malformed, future, or stale `auth_time` is rejected for those high-risk routes. Optional `OYDP_MFA_ACR_VALUES` requires a matching string `acr`. Setting `OYDP_MFA_MAX_AGE_SECONDS=0` falls back to amr-only checks and is not a production posture. There is no environment flag that skips token verification.
 
 ## Enrollment
 
@@ -27,7 +27,14 @@ The API verifier in `apps/api/app/auth.py` checks RS256, `typ=at+jwt`, `kid`, is
 7. Copy the Keycloak user id into `tenant_memberships` as `owner` or `editor` using the database owner role. The client cannot choose the role.
 8. Point the API at the issuer, audience, and JWKS URL in `.env.example`. For the workspace, set `OIDC_CLIENT_ID=oydp-web`, `OIDC_REDIRECT_URI=http://127.0.0.1:3000/callback`, and `PROPERTY_API_BASE=http://127.0.0.1:8000`.
 
-A token whose `amr` claim lacks `otp` or `mfa` can still identify a subject for a read. It cannot perform a write.
+A token whose `amr` claim lacks `otp` or `mfa` can still identify a subject for a read. It cannot perform a write. A token with MFA methods but without a fresh `auth_time` also cannot perform a write while freshness is enabled.
+
+## IdP assumptions for MFA freshness
+
+- Access tokens must carry `amr` method references from the authentication session.
+- When freshness is enabled (default), access tokens must carry integer Unix `auth_time` for the authentication event. The local realm maps Keycloak session note `AUTH_TIME` onto the access token.
+- Optional ACR enforcement requires the IdP to emit string `acr` and the operator to set `OYDP_MFA_ACR_VALUES`.
+- OYDP does not challenge the user for a new OTP itself; it rejects stale or incomplete IdP claims on high-risk operations.
 
 ## What this run did not do
 

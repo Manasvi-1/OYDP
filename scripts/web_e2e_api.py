@@ -37,8 +37,10 @@ os.environ['OIDC_JWKS_URL'] = 'https://browser-test.invalid/jwks'
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 now = datetime.now(timezone.utc)
 def token(subject, mfa=True):
+    issued = int(now.timestamp())
     return jwt.encode({'iss':os.environ['OIDC_ISSUER'],'aud':'oydp-api','sub':subject,
-        'iat':now,'exp':now+timedelta(minutes=15),'amr':['mfa'] if mfa else []}, key,
+        'iat':now,'exp':now+timedelta(minutes=15),'auth_time':issued,
+        'amr':['mfa'] if mfa else []}, key,
         algorithm='RS256',headers={'typ':'at+jwt','kid':'ephemeral-browser-key'})
 path = Path('apps/web/.e2e/credentials.json')
 path.parent.mkdir(exist_ok=True)

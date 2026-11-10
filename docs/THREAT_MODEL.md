@@ -4,7 +4,7 @@ This is an engineering draft; it is not an independent security assessment.
 
 | Boundary/threat | Required control | Evidence now |
 |---|---|---|
-| Client forges identity, membership or MFA | Verified OIDC identity; resolve tenant membership server-side | Pinned RS256 token checks and request MFA gate tested; managed OIDC login and MFA freshness pending |
+| Client forges identity, membership or MFA | Verified OIDC identity; resolve tenant membership server-side | Pinned RS256 token checks and MFA gate with configurable `auth_time` freshness tested; live managed OIDC enrollment still pending |
 | User guesses another tenant/property ID | Per-object policy plus database RLS and composite integrity | API and repository grant denials plus forced tenant RLS tested on embedded PostgreSQL; native CI tracked separately |
 | Collaborator retains revoked access | Fetch current grants each access; terminate stale sessions where required; revocation-aware delivery | Creator-managed revocation and native concurrent membership/grant/shared-reader checks passed; file delivery pending |
 | Collaborator escalates or reshares access | Creator-only management, bounded expiry, active same-tenant recipients, audited mutations | Negative tests and audited SECURITY DEFINER function; see PROPERTY_ACCESS.md for trust assumptions and non-cascading revocation |

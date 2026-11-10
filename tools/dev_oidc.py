@@ -198,8 +198,10 @@ class DevOidc:
             return self._send(request, 400, {'error': 'invalid_grant'})
         now = int(time.time())
         amr = ['pwd', 'mfa'] if saved['mfa'] else ['pwd']
+        # auth_time is the synthetic login instant. The checkbox still is not a real authenticator.
         token = jwt.encode(
-            {'iss': self.issuer, 'aud': self.audience, 'sub': saved['subject'], 'iat': now, 'exp': now + 600, 'amr': amr, 'nonce': saved['nonce']},
+            {'iss': self.issuer, 'aud': self.audience, 'sub': saved['subject'], 'iat': now, 'exp': now + 600,
+             'auth_time': now, 'amr': amr, 'nonce': saved['nonce']},
             self.key, algorithm='RS256', headers={'kid': self.kid, 'typ': 'at+jwt'})
         return self._send(request, 200, {'access_token': token, 'token_type': 'Bearer', 'expires_in': 600})
 

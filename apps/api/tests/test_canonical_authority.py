@@ -22,12 +22,14 @@ def test_active_api_does_not_import_reference_package():
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split('.')[0])
     assert 'oydp' not in imported
-    assert 'app' in sys.modules or True
     # Importing the active app must not pull the reference package into the process.
     before = {name for name in sys.modules if name == 'oydp' or name.startswith('oydp.')}
-    importlib.import_module('app.main')
+    module = importlib.import_module('app.main')
     after = {name for name in sys.modules if name == 'oydp' or name.startswith('oydp.')}
     assert after == before
+    assert module.__name__ == 'app.main'
+    assert 'app.main' in sys.modules
+    assert not any(name == 'oydp' or name.startswith('oydp.') for name in sys.modules)
 
 
 def test_canonical_migrations_live_under_infra_db():

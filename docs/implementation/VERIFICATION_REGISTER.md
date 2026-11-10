@@ -34,7 +34,7 @@ Owner explicitly requested finishing PR #1 and continuing the planned build. Imp
 
 ## Still unverified or incomplete
 
-Real identity-provider enrollment, MFA freshness and production configuration; Next.js UI; write delegation and claims in the active API; malware scanning/encrypted documents; independent immutable audit delivery; privacy/export/deletion/restore acceptance; data rights/legal review; external penetration test; all 13 engine journeys; production release approval. The root reference backend and active API do not have interchangeable data or startup contracts.
+Real identity-provider enrollment and production token configuration; Next.js browser E2E against a live IdP; malware scanner product adapter; independent immutable audit delivery; privacy/export/deletion/restore acceptance; data rights/legal review; external penetration test; all 13 engine journeys; production release approval. Configurable MFA `auth_time` freshness is implemented in code/tests; live IdP issuance of `auth_time` remains separately unverified. The root reference backend and active API do not have interchangeable data or startup contracts.
 
 ## Synchronization protocol
 

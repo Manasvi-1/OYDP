@@ -5,7 +5,7 @@ Source hierarchy: controlled OYDP master blueprint, 13-engine specification, arc
 | Requirement | Active implementation | Evidence / state |
 | --- | --- | --- |
 | E01 property identity | apps/api/app/main.py; infra/db/001,004,006 | Private create/read/share implemented; discovery/claim ledger in API 0.4.0 tested in native CI; full engine partial |
-| Identity verification | apps/api/app/auth.py | RSA negative tests, JWKS selection, issuer/audience/expiry/type and AMR validation; real provider onboarding pending |
+| Identity verification | apps/api/app/auth.py | RSA negative tests, JWKS selection, issuer/audience/expiry/type, AMR, and configurable `auth_time`/optional ACR freshness; real provider onboarding pending |
 | Tenant membership and RLS | infra/db/002,004,006; scripts/migrate.py | Native PostgreSQL/API denial tests; restricted runtime role |
 | Private property reads | infra/db/006; active API access endpoints | Creator/read-grant checks, same-tenant denial, expiry/revoke and concurrency tests |
 | Access audit | infra/db/005,006 | Atomic append-only runtime audit, idempotence/rollback tests; external immutable delivery pending |

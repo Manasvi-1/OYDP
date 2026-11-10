@@ -205,7 +205,8 @@ def test_api_full_signed_token_journey(api, monkeypatch):
             return SimpleNamespace(key=key.public_key())
     monkeypatch.setattr('app.auth.jwks_client', lambda _: Keys())
     now = int(datetime.now(timezone.utc).timestamp())
-    token = jwt.encode(dict(iss='https://id.example.test',aud='oydp-api',sub='alice',iat=now,exp=now+300,amr=['mfa']), key,
+    token = jwt.encode(dict(iss='https://id.example.test',aud='oydp-api',sub='alice',iat=now,exp=now+300,
+                            auth_time=now,amr=['mfa']), key,
                        algorithm='RS256', headers={'kid':'test','typ':'at+jwt'})
     headers = {'X-Tenant-ID':str(A), 'Authorization':'Bearer '+token}
     r = api.post('/v1/properties', headers=headers, json={'label':'Signed request','jurisdiction':'KA'})
