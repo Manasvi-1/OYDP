@@ -106,7 +106,19 @@ export async function GET(request: Request) {
   } catch {
     return reject(request, 'Session key is not configured')
   }
-  return NextResponse.redirect(new URL('/connect', request.url))
+  // Return a same-origin document so the pending-auth cookie is established before
+  // continuing. A second 302 after the IdP redirect can drop SameSite=Lax cookies.
+  const connect = new URL('/connect', request.url).pathname
+  return new NextResponse(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${connect}"><title>Continuing</title></head><body><a href="${connect}">Continue</a></body></html>`,
+    {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    },
+  )
 }
 
 function reject(request: Request, message: string) {
