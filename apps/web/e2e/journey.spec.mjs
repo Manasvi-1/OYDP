@@ -100,7 +100,7 @@ test('another tenant cannot see the candidate', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   await signIn(page, 'mallory', otherTenant, true)
   await page.goto('/properties')
-  await expect(page.getByRole('heading', { name: 'Properties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Properties', exact: true })).toBeVisible()
   await expect(page.getByText(label)).toHaveCount(0)
 })
 
