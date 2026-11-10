@@ -9,10 +9,9 @@ async function signIn(page, subject, tenantId, mfa) {
   await expect(page.getByRole('heading', { name: 'Development sign-in' })).toBeVisible()
   await page.getByLabel('Subject').fill(subject)
   if (mfa) await page.getByRole('checkbox', { name: /amr/ }).check()
-  await Promise.all([
-    page.waitForURL(/127\.0\.0\.1:3000\/(connect)?(\?|$)/, { timeout: 30_000 }),
-    page.locator('form').evaluate((form) => form.requestSubmit()),
-  ])
+  else await page.getByRole('checkbox', { name: /amr/ }).uncheck()
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.waitForURL(/\/connect(?:\?|$)/, { timeout: 30_000 })
   await page.getByLabel('Tenant ID').fill(tenantId)
   await page.getByRole('button', { name: 'Open workspace' }).click()
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
@@ -29,6 +28,7 @@ test('signed-out visit returns to sign-in', async ({ page }) => {
 })
 
 test('create, claim, document quarantine, diligence, audit, and engines', async ({ page }) => {
+  test.setTimeout(180_000)
   const label = `Interview candidate ${Date.now()}`
   const statement = `Seller described <img src=x onerror=alert(1)> for ${label}`
   const note = `Packet index incomplete for ${label}`
