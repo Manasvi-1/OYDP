@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { openJson, sealJson, sessionKeyBytes } from './contract.mjs'
+import { cookieSecure } from './cookie-secure.mjs'
 
 export const PENDING_AUTH_COOKIE = 'oydp_pending_auth'
 const PENDING_AAD = 'oydp-pending-auth'
@@ -22,7 +23,7 @@ export async function writePendingAuth(pending: PendingAuth) {
   }, process.env.SESSION_KEY, PENDING_AAD), {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/',
     maxAge: PENDING_TTL_SECONDS,
   })
@@ -46,7 +47,7 @@ export async function clearPendingAuth() {
   jar.set(PENDING_AUTH_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/',
     maxAge: 0,
   })

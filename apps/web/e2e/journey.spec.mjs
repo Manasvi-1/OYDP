@@ -6,9 +6,13 @@ const otherTenant = process.env.E2E_OTHER_TENANT_ID
 async function signIn(page, subject, tenantId, mfa) {
   await page.goto('/')
   await page.getByRole('link', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Development sign-in' })).toBeVisible()
   await page.getByLabel('Subject').fill(subject)
   if (mfa) await page.getByRole('checkbox', { name: /amr/ }).check()
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await Promise.all([
+    page.waitForURL(/127\.0\.0\.1:3000\/(connect)?(\?|$)/, { timeout: 30_000 }),
+    page.locator('form').evaluate((form) => form.requestSubmit()),
+  ])
   await page.getByLabel('Tenant ID').fill(tenantId)
   await page.getByRole('button', { name: 'Open workspace' }).click()
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
@@ -24,9 +28,10 @@ test('signed-out visit returns to sign-in', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
 })
 
-test('create, open, claim, document quarantine, and diligence', async ({ page }) => {
+test('create, claim, document quarantine, diligence, audit, and engines', async ({ page }) => {
   const label = `Interview candidate ${Date.now()}`
   const statement = `Seller described <img src=x onerror=alert(1)> for ${label}`
+  const note = `Packet index incomplete for ${label}`
   let dialog = false
   page.on('dialog', () => { dialog = true })
   await signIn(page, 'alice', tenant, true)
@@ -59,8 +64,16 @@ test('create, open, claim, document quarantine, and diligence', async ({ page })
   await page.getByRole('textbox', { name: 'Request note' }).fill('List the papers you hold.')
   await page.getByRole('button', { name: 'Open request' }).click()
   await expect(page.getByRole('region', { name: 'Diligence' }).getByRole('heading', { name: 'Ask for the packet' })).toBeVisible()
+  await page.getByRole('region', { name: 'Diligence' }).getByLabel('Request note').fill(note)
+  await page.getByRole('button', { name: 'Add note' }).click()
+  await expect(page.getByText(note)).toBeVisible()
+  await page.getByRole('button', { name: 'Close request' }).click()
+  await expect(page.getByText(/Diligence request closed|closed/i).first()).toBeVisible()
   await page.getByRole('link', { name: 'Audit' }).click()
-  await expect(page.getByRole('region', { name: 'Audit' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Audit' }).getByText('document.quarantined')).toBeVisible()
+  await page.getByRole('link', { name: 'Engines' }).click()
+  await expect(page.getByRole('heading', { name: 'Engine directory' })).toBeVisible()
+  await expect(page.getByText('Property Identity & Evidence Graph')).toBeVisible()
 })
 
 test('another tenant cannot see the candidate', async ({ page }) => {
@@ -83,5 +96,5 @@ test('a token without the MFA claim cannot create a candidate', async ({ page })
   await page.getByLabel('Label').fill('Should stay uncreated')
   await page.getByLabel('Jurisdiction').fill('Bengaluru Rural')
   await page.getByRole('button', { name: 'Save candidate' }).click()
-  await expect(page.getByText(/MFA claim does not allow|Permission or MFA|This session cannot perform/)).toBeVisible()
+  await expect(page.getByText(/MFA access token required|MFA claim does not allow|This session cannot perform/)).toBeVisible()
 })

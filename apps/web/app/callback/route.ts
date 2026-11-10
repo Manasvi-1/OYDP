@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { callPropertyApi } from '../../lib/api'
 import { openJson, parseSessionInput, sessionKeyBytes, UUID } from '../../lib/contract.mjs'
+import { cookieSecure } from '../../lib/cookie-secure.mjs'
 import { fetchJwks, oidcConfig, OIDC_AAD, OIDC_COOKIE, tokenEndpoint, verifySignedJwt } from '../../lib/oidc.mjs'
 import { writePendingAuth } from '../../lib/pending-auth'
 import { writeSession } from '../../lib/session'
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   jar.set(OIDC_COOKIE, '', {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/callback',
     maxAge: 0,
   })

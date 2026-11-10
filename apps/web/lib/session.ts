@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { decodeSession, encodeSession, SESSION_COOKIE, type WorkspaceSession } from './contract.mjs'
+import { cookieSecure } from './cookie-secure.mjs'
 import { configuredApiBase } from './origin.mjs'
 
 function clock() {
@@ -10,7 +11,7 @@ function cookieOptions(maxAge: number) {
   return {
     httpOnly: true,
     sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
+    secure: cookieSecure(),
     path: '/',
     maxAge,
   }

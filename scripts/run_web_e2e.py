@@ -159,6 +159,8 @@ def main():
         'OIDC_AUDIENCE': 'oydp-api',
         'OIDC_JWKS_URL': issuer + '/.well-known/jwks.json',
         'OYDP_OIDC_DEV_HTTP': '1',
+        # next start sets NODE_ENV=production; keep cookies usable on loopback HTTP.
+        'OYDP_COOKIE_SECURE': '0',
         'PROPERTY_API_BASE': 'http://127.0.0.1:8000',
         'PROPERTY_PAGE_SIZE': '1',
         'NEXT_TELEMETRY_DISABLED': '1',
