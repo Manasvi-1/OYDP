@@ -88,6 +88,19 @@
           }
         },
         {
+          "name": "auth-time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "claim.name": "auth_time",
+            "jsonType.label": "int",
+            "access.token.claim": "true",
+            "id.token.claim": "true"
+          }
+        },
+        {
           "name": "tenant-id",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-attribute-mapper",

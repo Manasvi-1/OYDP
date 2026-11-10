@@ -106,8 +106,10 @@ def test_code_flow_matches_api_access_token_profile(issuer, monkeypatch):
     assert header['alg'] == 'RS256' and header['typ'] == 'at+jwt' and header['kid'] == 'dev-1'
     claims = jwt.decode(token, issuer.key.public_key(), algorithms=['RS256'], audience='oydp-api', issuer=issuer.issuer)
     assert claims['sub'] == 'alice' and 'mfa' in claims['amr']
+    assert type(claims['auth_time']) is int and claims['auth_time'] <= claims['iat']
     _accept(monkeypatch, issuer, token)
     assert verified_subject('Bearer ' + token) == 'alice'
+    assert require_mfa('Bearer ' + token) is True
     jwks_client.cache_clear()
 
 

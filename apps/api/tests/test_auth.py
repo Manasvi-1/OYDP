@@ -134,15 +134,17 @@ def test_jwks_rotation(monkeypatch):
 
 def test_mfa_access_token(signing):
     from app.auth import require_mfa
-    assert require_mfa('Bearer '+signing[0](amr=['pwd','mfa'])) is True
-    assert require_mfa('Bearer '+signing[0](amr=['pwd','otp'])) is True
+    now = int(datetime.now(timezone.utc).timestamp())
+    assert require_mfa('Bearer '+signing[0](amr=['pwd','mfa'], auth_time=now)) is True
+    assert require_mfa('Bearer '+signing[0](amr=['pwd','otp'], auth_time=now)) is True
 
 
 @pytest.mark.parametrize('amr', [[], ['pwd']])
 def test_no_mfa_denied(signing, amr):
     from app.auth import require_mfa
+    now = int(datetime.now(timezone.utc).timestamp())
     with pytest.raises(HTTPException) as exc:
-        require_mfa('Bearer '+signing[0](amr=amr))
+        require_mfa('Bearer '+signing[0](amr=amr, auth_time=now))
     assert exc.value.status_code == 403
 
 
@@ -153,9 +155,83 @@ def test_malformed_mfa_claim_denied(signing, amr):
     assert exc.value.status_code == 401
 
 
+def test_mfa_without_auth_time_is_not_fresh(signing):
+    from app.auth import require_mfa
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp']))
+    assert exc.value.status_code == 403
+    assert exc.value.detail == 'Fresh MFA authentication required'
+
+
+def test_stale_auth_time_denied(signing, monkeypatch):
+    from app.auth import require_mfa
+    monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', '60')
+    now = int(datetime.now(timezone.utc).timestamp())
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now - 61))
+    assert exc.value.status_code == 403
+    assert require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now - 30)) is True
+
+
+def test_future_auth_time_denied(signing):
+    from app.auth import require_mfa
+    now = int(datetime.now(timezone.utc).timestamp())
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now + 120))
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize('auth_time', [True, '1700000000', 1.5, -1])
+def test_malformed_auth_time_denied(signing, auth_time):
+    with pytest.raises(HTTPException) as exc:
+        verified_subject('Bearer '+signing[0](auth_time=auth_time))
+    assert exc.value.status_code == 401
+
+
+def test_mfa_freshness_can_be_disabled_explicitly(signing, monkeypatch):
+    from app.auth import require_mfa
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
+    monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', '0')
+    assert require_mfa('Bearer '+signing[0](amr=['pwd', 'mfa'])) is True
+
+
+def test_mfa_freshness_zero_rejected_outside_loopback_dev(signing, monkeypatch):
+    from app.auth import assert_mfa_configuration, require_mfa
+    monkeypatch.delenv('OYDP_OIDC_DEV_HTTP', raising=False)
+    monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', '0')
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'mfa']))
+    assert exc.value.status_code == 503
+    with pytest.raises(RuntimeError, match='OYDP_MFA_MAX_AGE_SECONDS=0'):
+        assert_mfa_configuration()
+
+
+def test_invalid_mfa_max_age_fails_closed(signing, monkeypatch):
+    from app.auth import require_mfa
+    monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', 'not-a-number')
+    now = int(datetime.now(timezone.utc).timestamp())
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now))
+    assert exc.value.status_code == 503
+
+
+def test_optional_acr_allowlist(signing, monkeypatch):
+    from app.auth import require_mfa
+    monkeypatch.setenv('OYDP_MFA_ACR_VALUES', 'gold,silver')
+    now = int(datetime.now(timezone.utc).timestamp())
+    assert require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now, acr='gold')) is True
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now, acr='bronze'))
+    assert exc.value.status_code == 403
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'otp'], auth_time=now))
+    assert exc.value.status_code == 403
+
+
 def test_expired_token_denied(signing):
     from app.auth import require_mfa
-    token = 'Bearer '+signing[0](exp=1, amr=['pwd', 'otp'])
+    now = int(datetime.now(timezone.utc).timestamp())
+    token = 'Bearer '+signing[0](exp=1, amr=['pwd', 'otp'], auth_time=now)
     with pytest.raises(HTTPException) as exc:
         verified_subject(token)
     assert exc.value.status_code == 401
@@ -167,7 +243,8 @@ def test_expired_token_denied(signing):
 @pytest.mark.parametrize('audience', ['oydp-web', ['oydp-web', 'account']])
 def test_wrong_audience_denied(signing, audience):
     from app.auth import require_mfa
-    token = 'Bearer '+signing[0](aud=audience, amr=['pwd', 'otp'])
+    now = int(datetime.now(timezone.utc).timestamp())
+    token = 'Bearer '+signing[0](aud=audience, amr=['pwd', 'otp'], auth_time=now)
     with pytest.raises(HTTPException) as exc:
         verified_subject(token)
     assert exc.value.status_code == 401
@@ -178,7 +255,8 @@ def test_wrong_audience_denied(signing, audience):
 
 def test_non_mfa_token_denied_for_writes(signing):
     from app.auth import require_mfa
-    token = 'Bearer '+signing[0](amr=['pwd'])
+    now = int(datetime.now(timezone.utc).timestamp())
+    token = 'Bearer '+signing[0](amr=['pwd'], auth_time=now)
     assert verified_subject(token) == 'alice'
     with pytest.raises(HTTPException) as exc:
         require_mfa(token)
@@ -215,14 +293,22 @@ def test_local_realm_has_no_bypass_and_no_stored_users():
     assert api['standardFlowEnabled'] is False
     assert web['attributes']['pkce.code.challenge.method'] == 'S256'
     assert web['attributes']['access.token.header.type.rfc9068'] == 'true'
-    mappers = {item['protocolMapper']: item for item in web['protocolMappers']}
-    audience = mappers['oidc-audience-mapper']['config']
+    mappers = {item['name']: item for item in web['protocolMappers']}
+    audience = mappers['api-audience']['config']
     assert audience['included.client.audience'] == 'oydp-api'
     assert audience['access.token.claim'] == 'true'
     assert audience['id.token.claim'] == 'false'
-    amr = mappers['oidc-amr-mapper']['config']
+    amr = mappers['amr']['config']
     assert amr['access.token.claim'] == 'true'
     assert amr['id.token.claim'] == 'false'
+    auth_time = mappers['auth-time']
+    assert auth_time['protocolMapper'] == 'oidc-usersessionmodel-note-mapper'
+    assert auth_time['config']['user.session.note'] == 'AUTH_TIME'
+    assert auth_time['config']['claim.name'] == 'auth_time'
+    assert auth_time['config']['jsonType.label'] == 'int'
+    assert auth_time['config']['access.token.claim'] == 'true'
+    # Local realm does not emit acr; production ACR enforcement stays opt-in and unverified.
+    assert 'acr' not in mappers
     flow = next(item for item in realm['authenticationFlows'] if item['alias'] == 'oydp browser')
     executions = {item['authenticator']: item for item in flow['authenticationExecutions']}
     assert set(executions) == {'auth-username-password-form', 'auth-otp-form'}

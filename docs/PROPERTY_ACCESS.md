@@ -50,5 +50,5 @@ for disposable testing only.
 
 Pending: invitations/member discovery, creator-grant renewal, administrator recovery,
 access-management UI, independently delivered audit history, and identity-provider
-MFA freshness. Revoking a creator does not cascade to existing recipient grants;
+MFA freshness is enforced on high-risk active-API routes via `auth_time` (default max age 900s) in addition to `amr` methods; live IdP enrollment remains separately verified. Revoking a creator does not cascade to existing recipient grants;
 administrators must revoke those separately. No legal authority is conveyed.

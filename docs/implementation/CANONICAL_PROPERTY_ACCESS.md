@@ -6,14 +6,14 @@ This document describes the private-property access model on the active JWKS API
 
 New property records are private to their creator within a verified tenant. Being another tenant member, or even having tenant owner/editor role, does not reveal another creator's record. Explicit non-expired read grants authorize recipients. Live write grants also authorize property SELECT (migration `011`) so delegated editors can reach write helpers without a separate read grant. Membership is checked and locked on every request; grant readers hold a shared grant lock through their transaction. Revocation waits for already-authorized transactions and prevents later reads; already-returned data cannot be retracted.
 
-- POST `/v1/properties`: requires owner/editor membership and a signed access token with `amr` containing `mfa` or `otp`. `created_by` comes from the verified subject through the transaction context, never client input.
+- POST `/v1/properties`: requires owner/editor membership and a signed access token with `amr` containing `mfa` or `otp`, plus a fresh integer `auth_time` within `OYDP_MFA_MAX_AGE_SECONDS` (default 900). Mere `amr` presence is not treated as a fresh MFA step-up. `created_by` comes from the verified subject through the transaction context, never client input.
 - GET `/v1/properties` / GET `/v1/properties/{id}`: creator, valid read grant, or live write grant, plus current membership. Forbidden and nonexistent properties both return 404. Output includes attributable `created_by`.
 - PUT/DELETE `/v1/properties/{id}/access`: creator + owner/editor role + MFA; JSON `recipient_subject` and timezone-aware `expires_at` (share). Grants expire within 30 days. Exact repeat is idempotent. Collaborators cannot reshare.
 - PUT/DELETE `/v1/properties/{id}/writers`: creator-managed write delegation to same-tenant owner/editor members; MFA required; expiry within 30 days.
 - PATCH `/v1/properties/{id}`: creator or live write grantee; audited correction history.
 - POST/GET `/v1/properties/{id}/claims`: attributed unverified claims; write requires creator or live write grant plus MFA.
 
-Self-sharing, missing recipients, wrong-tenant recipients, invalid expiry and non-MFA sensitive actions are denied. This implements issuer-asserted MFA, not a fresh interactive MFA challenge; provider AMR semantics, auth_time freshness and actual MFA enrollment still need integration review.
+Self-sharing, missing recipients, wrong-tenant recipients, invalid expiry and non-MFA sensitive actions are denied. High-risk routes enforce issuer-asserted MFA methods plus configurable `auth_time` freshness (and optional ACR allowlist). This is still not an interactive step-up challenge inside OYDP; the IdP must emit `auth_time` on access tokens, and live provider enrollment remains separately verified.
 
 Generated `apps/api/openapi.json` is the active contract; the older `docs/openapi.json` describes the root reference package only. Validation errors omit input values; responses carry no-store/nosniff headers.
 
