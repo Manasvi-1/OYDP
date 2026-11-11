@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.13.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.14.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -558,7 +558,12 @@ def download_document(property_id: UUID, document_id: UUID, access=Depends(autho
 
 # Trusted evidence. SQL functions decide who may write. A review never changes a claim's verification.
 PACKET_NOTICE = 'This packet is not a title certificate. Claims remain unverified, and a professional review is not title.'
+GRAPH_NOTICE = (
+    'Evidence graph projection only. Not a title certificate; claims remain unverified; '
+    'reviews are not title; document citations do not change scan state.'
+)
 _PACKET_CAP = 100
+_GRAPH_EDGE_CAP = 500
 _TRUSTED_SQL = {
     'Export consent required': (403, 'Export consent required'),
     'Source is withdrawn': (422, 'Source is withdrawn'),
@@ -735,6 +740,29 @@ class EvidencePacket(BaseModel):
     documents: list[DocumentRecord]
 
 
+class EvidenceGraphEdge(BaseModel):
+    from_kind: Literal['claim', 'document', 'review']
+    from_id: UUID
+    to_kind: Literal['source', 'claim', 'document', 'identifier']
+    to_id: UUID
+    relation: Literal[
+        'cites_source',
+        'attributed_to_claim',
+        'attributed_to_source',
+        'attributed_to_identifier',
+        'cites_claim',
+        'cites_document',
+        'cites_identifier',
+    ]
+
+
+class EvidenceGraph(BaseModel):
+    property_id: UUID
+    title_verified: Literal[False]
+    notice: Literal[GRAPH_NOTICE]
+    edges: list[EvidenceGraphEdge]
+
+
 class AuditRecord(BaseModel):
     event_type: Literal[
         'property.created', 'access.granted', 'access.revoked', 'claim.recorded', 'property.corrected',
@@ -860,6 +888,71 @@ def list_reviews(property_id: UUID, access=Depends(authorized_db, scope='functio
     page = page_result(rows, limit, scope, 'recorded_at')
     page['items'] = [present_review(row) for row in page['items']]
     return page
+
+
+@app.get('/v1/properties/{property_id}/evidence-graph', response_model=EvidenceGraph)
+def get_evidence_graph(property_id: UUID, access=Depends(authorized_db, scope='function')):
+    """Read-only projection of existing attribution edges. Never asserts title or verification."""
+    conn, _role = access
+    readable_property(conn, property_id)
+    edges: list[dict] = []
+
+    def _add(from_kind, from_id, to_kind, to_id, relation):
+        edges.append({
+            'from_kind': from_kind,
+            'from_id': from_id,
+            'to_kind': to_kind,
+            'to_id': to_id,
+            'relation': relation,
+        })
+        if len(edges) > _GRAPH_EDGE_CAP:
+            raise HTTPException(422, 'Evidence graph is too large')
+
+    for row in conn.execute(
+        f"""SELECT id, source_id FROM property_claims
+            WHERE property_id=%s AND tenant_id={_TENANT} AND source_id IS NOT NULL
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _GRAPH_EDGE_CAP + 1),
+    ):
+        _add('claim', row['id'], 'source', row['source_id'], 'cites_source')
+
+    for row in conn.execute(
+        f"""SELECT id, claim_id, source_id, identifier_id FROM property_documents
+            WHERE property_id=%s AND tenant_id={_TENANT}
+              AND (claim_id IS NOT NULL OR source_id IS NOT NULL OR identifier_id IS NOT NULL)
+            ORDER BY created_at DESC, id DESC LIMIT %s""",
+        (property_id, _GRAPH_EDGE_CAP + 1),
+    ):
+        if row['claim_id'] is not None:
+            _add('document', row['id'], 'claim', row['claim_id'], 'attributed_to_claim')
+        if row['source_id'] is not None:
+            _add('document', row['id'], 'source', row['source_id'], 'attributed_to_source')
+        if row['identifier_id'] is not None:
+            _add('document', row['id'], 'identifier', row['identifier_id'], 'attributed_to_identifier')
+
+    for row in conn.execute(
+        f"""SELECT id, source_id, claim_id, document_id, identifier_id FROM professional_reviews
+            WHERE property_id=%s AND tenant_id={_TENANT}
+              AND (source_id IS NOT NULL OR claim_id IS NOT NULL
+                   OR document_id IS NOT NULL OR identifier_id IS NOT NULL)
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _GRAPH_EDGE_CAP + 1),
+    ):
+        if row['source_id'] is not None:
+            _add('review', row['id'], 'source', row['source_id'], 'cites_source')
+        if row['claim_id'] is not None:
+            _add('review', row['id'], 'claim', row['claim_id'], 'cites_claim')
+        if row['document_id'] is not None:
+            _add('review', row['id'], 'document', row['document_id'], 'cites_document')
+        if row['identifier_id'] is not None:
+            _add('review', row['id'], 'identifier', row['identifier_id'], 'cites_identifier')
+
+    return {
+        'property_id': property_id,
+        'title_verified': False,
+        'notice': GRAPH_NOTICE,
+        'edges': edges,
+    }
 
 
 @app.post('/v1/properties/{property_id}/consents', response_model=ConsentRecord)

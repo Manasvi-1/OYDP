@@ -1525,6 +1525,88 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     assert foreign_claim.status_code == 404
 
 
+def test_evidence_graph_projects_attribution_edges_without_title(api, private_record, monkeypatch):
+    _storage(monkeypatch)
+    pid, peer, headers, _, as_subject = private_record
+    empty = api.get(f'/v1/properties/{pid}/evidence-graph', headers=headers)
+    assert empty.status_code == 200, empty.text
+    assert empty.json() == {
+        'property_id': pid,
+        'title_verified': False,
+        'notice': (
+            'Evidence graph projection only. Not a title certificate; claims remain unverified; '
+            'reviews are not title; document citations do not change scan state.'
+        ),
+        'edges': [],
+    }
+    source = api.post('/v1/sources', headers=headers, json={
+        'name': 'Graph note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
+    })
+    assert source.status_code == 201, source.text
+    source_id = source.json()['id']
+    claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Unverified graph claim', 'source_id': source_id,
+    })
+    assert claim.status_code == 201, claim.text
+    claim_id = claim.json()['id']
+    identifier = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'survey', 'identifier_value': 'GRAPH-1'},
+    )
+    assert identifier.status_code == 200, identifier.text
+    identifier_id = identifier.json()['id']
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uploaded.json()['id']
+    linked = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={'claim_id': claim_id, 'source_id': source_id, 'identifier_id': identifier_id},
+    )
+    assert linked.status_code == 200, linked.text
+    review = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded',
+        'statement': 'Graph review citation, not title',
+        'claim_id': claim_id,
+        'document_id': document_id,
+        'identifier_id': identifier_id,
+        'source_id': source_id,
+    })
+    assert review.status_code == 201, review.text
+    review_id = review.json()['id']
+    graph = api.get(f'/v1/properties/{pid}/evidence-graph', headers=headers)
+    assert graph.status_code == 200, graph.text
+    body = graph.json()
+    assert body['title_verified'] is False
+    assert 'Evidence graph projection only' in body['notice']
+    assert 'ciphertext' not in graph.text and 'SELECT' not in graph.text
+    edge_set = {
+        (e['from_kind'], e['from_id'], e['to_kind'], e['to_id'], e['relation'])
+        for e in body['edges']
+    }
+    assert ('claim', claim_id, 'source', source_id, 'cites_source') in edge_set
+    assert ('document', document_id, 'claim', claim_id, 'attributed_to_claim') in edge_set
+    assert ('document', document_id, 'source', source_id, 'attributed_to_source') in edge_set
+    assert ('document', document_id, 'identifier', identifier_id, 'attributed_to_identifier') in edge_set
+    assert ('review', review_id, 'claim', claim_id, 'cites_claim') in edge_set
+    assert ('review', review_id, 'document', document_id, 'cites_document') in edge_set
+    assert ('review', review_id, 'identifier', identifier_id, 'cites_identifier') in edge_set
+    assert ('review', review_id, 'source', source_id, 'cites_source') in edge_set
+    as_subject(peer)
+    denied = api.get(f'/v1/properties/{pid}/evidence-graph', headers=headers)
+    assert denied.status_code == 404
+    assert 'Unverified graph claim' not in denied.text
+    as_subject('alice')
+    from app.main import app
+    from app.auth import verified_subject
+    app.dependency_overrides.pop(verified_subject, None)
+    unauth = api.get(f'/v1/properties/{pid}/evidence-graph', headers=headers)
+    assert unauth.status_code in (401, 503)
+    assert 'Unverified graph claim' not in unauth.text
+    app.dependency_overrides[verified_subject] = lambda: 'alice'
+
+
 def test_export_requires_live_creator_consent_and_stays_unverified(api, private_record, monkeypatch):
     _storage(monkeypatch)
     pid, _, headers, _, _ = private_record

@@ -15,6 +15,11 @@ def test_property_read_fails_closed_without_oidc():
     assert r.status_code == 503
 
 
+def test_evidence_graph_fails_closed_without_oidc():
+    r = client.get("/v1/properties/00000000-0000-0000-0000-000000000001/evidence-graph")
+    assert r.status_code == 503
+
+
 def test_privacy_response_headers():
     response=client.get('/healthz')
     assert response.headers['cache-control']=='no-store'
@@ -53,13 +58,14 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.13.0'
+    assert spec['info']['version'] == '0.14.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
         '/v1/properties/{property_id}/reviews',
         '/v1/properties/{property_id}/consents',
         '/v1/properties/{property_id}/exports',
+        '/v1/properties/{property_id}/evidence-graph',
         '/v1/properties/{property_id}/documents',
         '/v1/properties/{property_id}/audit',
         '/v1/sources',
@@ -70,6 +76,16 @@ def test_trusted_evidence_contract_does_not_grant_title():
     packet = schemas['EvidencePacket']
     assert packet['properties']['title_verified']['const'] is False
     assert 'not a title certificate' in packet['properties']['notice']['const']
+    graph = schemas['EvidenceGraph']
+    assert graph['properties']['title_verified']['const'] is False
+    assert 'Evidence graph projection only' in graph['properties']['notice']['const']
+    assert graph.get('additionalProperties') is not True
+    edge = schemas['EvidenceGraphEdge']
+    assert set(edge['required']) == {'from_kind', 'from_id', 'to_kind', 'to_id', 'relation'}
+    assert 'get' in paths['/v1/properties/{property_id}/evidence-graph']
+    assert 'post' not in paths['/v1/properties/{property_id}/evidence-graph']
+    assert 'put' not in paths['/v1/properties/{property_id}/evidence-graph']
+    assert 'delete' not in paths['/v1/properties/{property_id}/evidence-graph']
     assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert 'claim_id' in schemas['ReviewCreate']['properties']
     assert 'claim_id' in schemas['ReviewRecord']['properties']
