@@ -53,7 +53,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.10.0'
+    assert spec['info']['version'] == '0.11.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -85,10 +85,12 @@ def test_trusted_evidence_contract_does_not_grant_title():
     assert 'source_id' in schemas['PacketClaim']['properties']
     assert '/v1/properties/{property_id}/documents/{document_id}/attribution' in paths
     doc = schemas['DocumentRecord']['properties']
-    assert 'claim_id' in doc and 'source_id' in doc
+    assert 'claim_id' in doc and 'source_id' in doc and 'identifier_id' in doc
     attribution = schemas['DocumentAttribution']
     assert attribution['additionalProperties'] is False
-    assert set(attribution['properties']) == {'claim_id', 'source_id'}
+    assert set(attribution['properties']) == {'claim_id', 'source_id', 'identifier_id'}
+    packet_docs = schemas['EvidencePacket']['properties']['documents']
+    assert packet_docs['items']['$ref'] == '#/components/schemas/DocumentRecord'
     assert _schema_values(schemas['IdentifierCreate']['properties']['scheme']) == {'internal', 'survey', 'municipal', 'khata'}
     assert _schema_values(schemas['ReviewCreate']['properties']['disposition']) == {'recorded', 'abstained'}
     assert schemas['ConsentCreate']['properties']['purpose']['const'] == 'passport_export'

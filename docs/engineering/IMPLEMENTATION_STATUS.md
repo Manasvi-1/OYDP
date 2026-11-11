@@ -11,7 +11,7 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 
 | Surface | Evidence label | Task status | Notes |
 | --- | --- | --- | --- |
-| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units this session) | API 0.8.0 |
+| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units this session) | API 0.11.0 |
 | Tenant RLS + membership | integration-tested (CI) | VERIFIED in CI; local DB BLOCKED | |
 | OIDC JWKS validation | executable implementation | TESTED (units) | Live IdP BLOCKED |
 | MFA freshness + SF-008 | executable implementation | TESTED (units + route gates) | Live emission BLOCKED |
@@ -32,7 +32,8 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 | T-SEC-007 | 0 | P0 | Restore cross-tenant IDOR suite on interview branch | Merge `origin/main` | E01 | `tests/integration/test_z_cross_tenant_idor.py` | Y | Y | n/a | IDOR denials | integration CI | Suite present; CI history 223@fc25eed | VERIFIED local+CI | 8/8 local + CI |
 | T-NEXT-001 | 0 | P0 | Local disposable PG full active suite | Portable PG or Docker | E01 | `apps/api/tests` + `tests/integration` | Y | Y | n/a | RLS/IDOR | integration | 238 pass 0 skip | VERIFIED | Portable PG 16.15 @ 55432 |
 | T-E01-GRAPH-1 | 1 | P1 | Optional claim→source citation | T-NEXT-001 | E01 | `015_claim_source_attribution.sql`, `main.py` | Y | Y | optional | MFA + withdrawn gate | unit+integration | Claims stay unverified; withdrawn/foreign denied | VERIFIED | PR #25 |
-| T-NEXT-004 | 1 | P1 | Document↔claim/source attribution | 015 | E01 | `016_document_attribution.sql`, attribution route | Y | Y | optional | MFA + RLS | unit+integration | Links set; scan/verification unchanged | TESTED | 240 local pass |
+| T-NEXT-004 | 1 | P1 | Document↔claim/source attribution | 015 | E01 | `016_document_attribution.sql`, attribution route | Y | Y | optional | MFA + RLS | unit+integration | Links set; scan/verification unchanged | VERIFIED | PR #27 @ 82df32e |
+| T-NEXT-005 | 1 | P1 | Document↔identifier + export attribution refs | 016 | E01 | `017_document_identifier_attribution.sql`, attribution/export | Y | Y | optional | MFA + RLS | unit+integration | Current identifier only; export refs; title_verified false | TESTED | 240 local pass @ 55432 |
 | T-SEC-009 | 0 | P1 | HTTP route MFA gates without MFA dependency override | SF-008 | E01 | `apps/api/tests/test_mfa_route_gates.py` | stub authz only | Y | n/a | Negative MFA/auth_time | unit | pwd-only / missing / stale / zero-age → 403/503 | TESTED | 10/10 passed |
 | T-WEB-022 | 0 | P1 | Keep OIDC session cookies on callback NextResponse | Web OIDC | E01 | `apps/web` callback/auth | n/a | n/a | Y | Session cookie handoff | web CI / e2e scripts | Sign-in reaches `/connect` on loopback | TESTED (CI) | PR #22 |
 | T-SEC-003 | 1 | P2 | Production malware scanner adapter | Scanner infra | E01 | `documents.py` | Y | Y | Y | Fail-closed until pass | integration | Real adapter + CI | BLOCKED | SF-003 |
@@ -44,4 +45,4 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 
 ## Next eligible task after this session
 
-See `BUILD_LEDGER.md`. Prefer: local disposable PostGIS re-run of active integration + IDOR once Docker is available; else deepen document/export negative unit coverage that does not need PG; do not fake scanner pass.
+See `BUILD_LEDGER.md`. After T-NEXT-005 lands: deepen evidence-graph edges still missing for E01 Partial, or PostGIS IDOR when Docker is available; do not fake scanner pass.

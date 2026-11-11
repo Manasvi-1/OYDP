@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.10.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.11.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -373,17 +373,19 @@ class DocumentRecord(BaseModel):
     scanned_at: datetime | None
     claim_id: UUID | None = None
     source_id: UUID | None = None
+    identifier_id: UUID | None = None
 
 
 class DocumentAttribution(BaseModel):
     model_config = ConfigDict(extra='forbid')
     claim_id: UUID | None = None
     source_id: UUID | None = None
+    identifier_id: UUID | None = None
 
 
 _DOCUMENT_META = (
     'id,tenant_id,property_id,created_by,media_type,byte_size,sha256,scan_state,'
-    'created_at,scanned_at,claim_id,source_id'
+    'created_at,scanned_at,claim_id,source_id,identifier_id'
 )
 
 
@@ -470,21 +472,22 @@ def get_document(property_id: UUID, document_id: UUID, access=Depends(authorized
 @app.put('/v1/properties/{property_id}/documents/{document_id}/attribution', response_model=DocumentRecord)
 def attribute_document(property_id: UUID, document_id: UUID, payload: DocumentAttribution,
                        access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
-    """Link a quarantined document to an unverified claim and/or a live evidence source.
+    """Link a quarantined document to an unverified claim, live source, and/or current identifier.
 
-    Attribution does not change claim verification, source rights, or scan_state.
+    Attribution does not change claim verification, source rights, identifier status, or scan_state.
+    Export packets include these refs and still set title_verified false.
     """
     conn, role = access
     writable_property(conn, property_id)
     require_writer_role(role)
-    if payload.claim_id is None and payload.source_id is None:
+    if payload.claim_id is None and payload.source_id is None and payload.identifier_id is None:
         raise HTTPException(422, 'Invalid attribution')
     row = call_trusted(
         conn,
         f"""SELECT id, tenant_id, property_id, created_by, media_type, byte_size, sha256, scan_state,
-              created_at, scanned_at, claim_id, source_id
-            FROM public.attribute_property_document({_TENANT}, %s, %s, %s, %s)""",
-        (property_id, document_id, payload.claim_id, payload.source_id),
+              created_at, scanned_at, claim_id, source_id, identifier_id
+            FROM public.attribute_property_document({_TENANT}, %s, %s, %s, %s, %s)""",
+        (property_id, document_id, payload.claim_id, payload.source_id, payload.identifier_id),
     )
     return document_view(row)
 
