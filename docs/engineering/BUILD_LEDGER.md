@@ -11,10 +11,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. `infra/db/019_review_document_identifier_attribution.sql` — optional `document_id` / `identifier_id` on reviews; eight-arg `record_professional_review`; same-property document + current identifier only; `title_effect` stays none.
 4. API **0.13.0** surfaces those citation fields on create/list/export.
 5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
+6. PR [#31](https://github.com/Manasvi-1/OYDP/pull/31) **merged** to `main` @ `55312ef` via `gh pr merge --merge`.
 
 ### Next task (resume here)
 
-After this PR merges: optional read-only evidence-graph projection of existing edges, or PostGIS IDOR when Docker available. Not GA.
+**T-NEXT-008:** optional read-only evidence-graph projection of existing edges (claims/sources/documents/identifiers/reviews), or PostGIS IDOR when Docker available. Do not fake scanner pass. Not GA.
 
 **Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
 
