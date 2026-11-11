@@ -9,11 +9,17 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 1. PR #22 merged to `main` @ `328edc6` after full CI SUCCESS (API smoke, DB security, web, reference).
 2. Branched `security/document-route-mfa-gates` from `origin/main`.
 3. Added `apps/api/tests/test_document_route_mfa_gates.py` for upload/scan/content MFA negatives (no scanner pass forgery).
+4. PR #23 merged to `main` @ `6c56778` after full CI SUCCESS (131 unit tests in Active API smoke path).
 
-### Next task
+### Next task (resume here)
 
-**T-NEXT-001:** Disposable PostGIS + full `tests/integration` including IDOR when Docker available.  
-**T-NEXT-003:** E01 evidence-graph increment only after security gates stay green.
+**T-NEXT-001 (P0 when infra available):** Provision disposable PostGIS, set `TEST_DATABASE_URL`, run  
+`PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests tests/integration`  
+including `test_z_cross_tenant_idor.py`. Record exact counts. Do not weaken skips.
+
+**T-NEXT-003 (P2 after PG green):** E01 evidence-graph increment — no engine placeholder PRs.
+
+**Human blockers:** Install/start Docker Desktop (or equivalent PostGIS) for local integration; live Keycloak enrollment; production malware scanner adapter; independent security review.
 
 ---
 
