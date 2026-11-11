@@ -19,6 +19,13 @@ test('missing token, invalid tenant, unavailable origin fail closed before upstr
  assert.equal((await proxy(request(),['v1','properties'],{...config,base:'https://evil.invalid/path'})).status,503);
  assert.equal(calls,0);
 });
+test('forwards caller tenant header unchanged and does not invent a tenant identity',async()=>{
+ const foreign='33333333-3333-4333-8333-333333333333';
+ let captured;
+ await proxy(request('', 'GET',undefined,{'X-Tenant-ID':foreign}),['v1','properties'],{...options,fetcher:async(url,init)=>{captured=init;return Response.json({items:[],next_cursor:null});}});
+ assert.equal(captured.headers['X-Tenant-ID'],foreign);
+ assert.equal(captured.headers['X-Tenant-ID']===tenant,false);
+});
 test('rejects arbitrary paths, traversal, unsupported methods and duplicate queries',async()=>{
  for(const path of [['v1','properties','..'],['healthz'],['v1','properties',id,'other']]) assert.equal((await proxy(request(),path,options)).status,404);
  assert.equal((await proxy(request('','DELETE',{}),['v1','properties'],options)).status,404);

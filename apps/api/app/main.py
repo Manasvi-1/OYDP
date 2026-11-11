@@ -1,5 +1,5 @@
 import os
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from uuid import UUID, uuid4
 from typing import Literal
@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from app.auth import verified_subject, require_mfa
+from app.auth import assert_mfa_configuration, verified_subject, require_mfa
 from app.documents import (
     DocumentRejected, ScannerUnavailable, StorageUnavailable, aad_for, authenticated_plaintext,
     digest_bytes, gate_download, get_document_scanner, inspect_upload, read_limited,
@@ -20,7 +20,14 @@ from app.documents import (
 )
 from app.pagination import decode_cursor, page_scope, page_result
 
-app = FastAPI(title='OYDP Property Identity API', version='0.8.0')
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    assert_mfa_configuration()
+    yield
+
+
+app = FastAPI(title='OYDP Property Identity API', version='0.8.0', lifespan=lifespan)
 
 
 @app.middleware('http')

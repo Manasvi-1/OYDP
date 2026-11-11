@@ -190,8 +190,20 @@ def test_malformed_auth_time_denied(signing, auth_time):
 
 def test_mfa_freshness_can_be_disabled_explicitly(signing, monkeypatch):
     from app.auth import require_mfa
+    monkeypatch.setenv('OYDP_OIDC_DEV_HTTP', '1')
     monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', '0')
     assert require_mfa('Bearer '+signing[0](amr=['pwd', 'mfa'])) is True
+
+
+def test_mfa_freshness_zero_rejected_outside_loopback_dev(signing, monkeypatch):
+    from app.auth import assert_mfa_configuration, require_mfa
+    monkeypatch.delenv('OYDP_OIDC_DEV_HTTP', raising=False)
+    monkeypatch.setenv('OYDP_MFA_MAX_AGE_SECONDS', '0')
+    with pytest.raises(HTTPException) as exc:
+        require_mfa('Bearer '+signing[0](amr=['pwd', 'mfa']))
+    assert exc.value.status_code == 503
+    with pytest.raises(RuntimeError, match='OYDP_MFA_MAX_AGE_SECONDS=0'):
+        assert_mfa_configuration()
 
 
 def test_invalid_mfa_max_age_fails_closed(signing, monkeypatch):
@@ -295,6 +307,8 @@ def test_local_realm_has_no_bypass_and_no_stored_users():
     assert auth_time['config']['claim.name'] == 'auth_time'
     assert auth_time['config']['jsonType.label'] == 'int'
     assert auth_time['config']['access.token.claim'] == 'true'
+    # Local realm does not emit acr; production ACR enforcement stays opt-in and unverified.
+    assert 'acr' not in mappers
     flow = next(item for item in realm['authenticationFlows'] if item['alias'] == 'oydp browser')
     executions = {item['authenticator']: item for item in flow['authenticationExecutions']}
     assert set(executions) == {'auth-username-password-form', 'auth-otp-form'}

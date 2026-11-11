@@ -75,3 +75,16 @@ test('does not send a bearer token to a redirect or another origin', () => {
   assert.equal(JSON.stringify(redirected).includes('evil.example'), false)
   assert.equal(directPropertyResponse(200).ok, true)
 })
+
+test('sealed sessions keep tenant identity server-side and do not cross tenants', () => {
+  const other = '22222222-2222-4222-8222-222222222222'
+  const first = encodeSession(session(), { key, now })
+  const second = encodeSession({ tenantId: other, accessToken: 'other-token-value' }, { key, now })
+  const a = decodeSession(first, { key, now })
+  const b = decodeSession(second, { key, now })
+  assert.equal(a.tenantId, tenant)
+  assert.equal(b.tenantId, other)
+  assert.notEqual(a.accessToken, b.accessToken)
+  assert.equal(first.includes(other), false)
+  assert.equal(second.includes(tenant), false)
+})

@@ -31,12 +31,18 @@ def endpoint_allowed(value: str) -> bool:
     return parts.scheme == 'http' and os.getenv('OYDP_OIDC_DEV_HTTP') == '1' and host in {'localhost', '127.0.0.1'}
 
 
+def loopback_oidc_dev_enabled() -> bool:
+    """True only when the operator explicitly allows loopback HTTP OIDC for local work."""
+    return os.getenv('OYDP_OIDC_DEV_HTTP') == '1'
+
+
 def mfa_max_age_seconds() -> int | None:
     """Return the MFA freshness window in seconds.
 
     Unset env uses the default window. Explicit ``0`` disables freshness checks
-    (amr-only) and is not a production posture. Negative or non-integer values
-    fail closed as misconfiguration.
+    (amr-only) and is allowed only with ``OYDP_OIDC_DEV_HTTP=1``. Production and
+    any non-dev posture reject zero so amr-only never becomes a silent fallback.
+    Negative or non-integer values fail closed as misconfiguration.
     """
     raw = os.getenv('OYDP_MFA_MAX_AGE_SECONDS')
     if raw is None or not raw.strip():
@@ -48,8 +54,26 @@ def mfa_max_age_seconds() -> int | None:
     if value < 0:
         raise HTTPException(503, 'Invalid MFA freshness configuration')
     if value == 0:
+        if not loopback_oidc_dev_enabled():
+            raise HTTPException(503, 'Invalid MFA freshness configuration')
         return None
     return value
+
+
+def assert_mfa_configuration() -> None:
+    """Fail closed at process start when MFA freshness is disabled outside local loopback OIDC."""
+    raw = os.getenv('OYDP_MFA_MAX_AGE_SECONDS')
+    if raw is not None and raw.strip() == '0' and not loopback_oidc_dev_enabled():
+        raise RuntimeError(
+            'OYDP_MFA_MAX_AGE_SECONDS=0 disables MFA freshness and is refused outside '
+            'OYDP_OIDC_DEV_HTTP=1 local development'
+        )
+    # Exercise parsers so invalid ACR / max-age values fail before serving traffic.
+    try:
+        mfa_max_age_seconds()
+        mfa_acr_values()
+    except HTTPException as exc:
+        raise RuntimeError(exc.detail) from exc
 
 
 def mfa_acr_values() -> frozenset[str] | None:
