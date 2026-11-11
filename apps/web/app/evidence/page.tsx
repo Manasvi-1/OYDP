@@ -93,7 +93,7 @@ export default async function EvidencePage() {
             <tbody>
               {rows.map((row, index) => (
                 <tr key={`${row.propertyId}-${row.kind}-${index}`}>
-                  <td><Link href={`/properties/${row.propertyId}?tab=claims`}>{row.propertyLabel}</Link></td>
+                  <td><Link href={`/properties/${row.propertyId}?tab=${row.kind === 'Uploaded document' ? 'documents' : 'claims'}`}>{row.propertyLabel}</Link></td>
                   <td>{row.kind}</td>
                   <td className="claim">{row.summary}</td>
                   <td><StatusPill label={row.status} tone={row.tone} /></td>
