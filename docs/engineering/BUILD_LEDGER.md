@@ -10,11 +10,13 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 2. `PUT .../documents/{id}/attribution` (MFA); withdrawn/foreign/empty denied; runtime cannot UPDATE links directly; scan_state unchanged; claims stay unverified.
 3. API **0.10.0**; IDOR probe for attribution; local disposable PG suite **240 passed, 0 skipped**.
 
+3. PR [#27](https://github.com/Manasvi-1/OYDP/pull/27) opened @ `efc8d2e`; CI green / MERGEABLE / not draft. **Merge blocked in-session:** Cursor smart-mode approval card did not complete (`Agent host surfaced interaction has no active child turn`). Human should merge when ready.
+
 ### Next task (resume here)
 
-**T-NEXT-005:** Export packet may surface document attribution refs explicitly (still `title_verified: false`), or document↔identifier link — keep E01 Partial.
+**T-NEXT-005:** After PR #27 merges — export packet may surface document attribution refs explicitly (still `title_verified: false`), or document↔identifier link — keep E01 Partial.
 
-**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+**Human blockers:** Merge PR #27; Docker/Keycloak; live IdP; malware scanner; independent review.
 
 ---
 
