@@ -189,3 +189,22 @@ REVOKE ALL ON FUNCTION public.attribute_property_document(uuid, uuid, uuid, uuid
 
 -- Legacy parallel evidence store: keep readable for inspection, freeze runtime writes.
 DROP POLICY IF EXISTS assertion_creator_insert ON public.evidence_assertions;
+
+-- Upgrade path: when oydp_app already exists, close direct audit/assertion DML and grant
+-- EXECUTE on helpers created/replaced above. DROP/CREATE of attribute_property_document
+-- clears prior EXECUTE grants; new audit helpers never had them. Fresh installs still use
+-- scripts/migrate.py --provision-runtime for the full privilege matrix (role may not exist yet).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'oydp_app') THEN
+    REVOKE ALL ON TABLE public.property_audit_events FROM oydp_app;
+    GRANT SELECT ON TABLE public.property_audit_events TO oydp_app;
+    REVOKE ALL ON TABLE public.evidence_assertions FROM oydp_app;
+    GRANT SELECT ON TABLE public.evidence_assertions TO oydp_app;
+    GRANT EXECUTE ON FUNCTION public.record_property_created_audit(uuid, uuid) TO oydp_app;
+    GRANT EXECUTE ON FUNCTION public.record_document_quarantined_audit(uuid, uuid, uuid) TO oydp_app;
+    GRANT EXECUTE ON FUNCTION public.record_diligence_audit(uuid, uuid, text) TO oydp_app;
+    GRANT EXECUTE ON FUNCTION public.withdraw_evidence_source(uuid, uuid, text) TO oydp_app;
+    GRANT EXECUTE ON FUNCTION public.attribute_property_document(uuid, uuid, uuid, uuid, uuid, uuid) TO oydp_app;
+  END IF;
+END $$;
