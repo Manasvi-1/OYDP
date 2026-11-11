@@ -85,12 +85,17 @@ def _headers(token: str):
             '/v1/properties/{pid}/requests',
             {'json': {'title': 'Diligence gate', 'body': 'Need source pack'}},
         ),
+        (
+            'put',
+            '/v1/properties/{pid}/documents/{did}/attribution',
+            {'json': {'claim_id': str(uuid4())}},
+        ),
     ],
 )
 def test_high_risk_routes_reject_password_only_amr(mfa_client, method, path, kwargs):
     client, token, now = mfa_client
     pid = str(uuid4())
-    target = path.format(pid=pid)
+    target = path.format(pid=pid, did=str(uuid4()))
     response = getattr(client, method)(
         target,
         headers=_headers(token(amr=['pwd'], auth_time=now)),

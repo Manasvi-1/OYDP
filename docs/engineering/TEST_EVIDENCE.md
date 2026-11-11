@@ -2,6 +2,17 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-11 — T-NEXT-004 document attribution
+
+Branch: `feat/document-attribution`. Portable PG 16.15 @ `127.0.0.1:55432`, DB `oydp_security_test` recreated.
+
+```text
+PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests tests/integration --junitxml=test-results/database-local.xml
+python scripts/check_test_report.py test-results/database-local.xml
+```
+
+**Result:** **240 passed**, 0 skipped, 0 failed; guard verified; OpenAPI matches; secret scan 0 hits.
+
 ## 2026-11-11 — T-NEXT-001 local disposable PostgreSQL (portable 16.15)
 
 **Environment:** Portable PostgreSQL 16.15 at `%LOCALAPPDATA%\Temp\oydp-pg` listening on `127.0.0.1:55432` (trust). Database `oydp_security_test` dropped/recreated before each full run. Docker CLI not on PATH; Docker Desktop engine pipe unavailable. System PostgreSQL 17 on 5432 not used (password unknown). Active migrations use `pgcrypto` only — PostGIS not required for this suite (same as CI `postgres:16`).

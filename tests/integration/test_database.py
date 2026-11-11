@@ -409,7 +409,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1164,6 +1164,72 @@ def test_unexpected_scanner_answer_does_not_release_bytes(api, private_record, m
     assert _docs(pid) == [('quarantined',)]
 
 
+def test_document_attribution_links_claim_and_live_source(api, private_record, monkeypatch):
+    _storage(monkeypatch)
+    pid, peer, headers, _, as_subject = private_record
+    source = api.post('/v1/sources', headers=headers, json={
+        'name': 'Survey sketch', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
+    })
+    assert source.status_code == 201, source.text
+    source_id = source.json()['id']
+    claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Unverified boundary note', 'source_id': source_id,
+    })
+    assert claim.status_code == 201, claim.text
+    claim_id = claim.json()['id']
+    assert claim.json()['verification_status'] == 'unverified'
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uploaded.json()['id']
+    assert uploaded.json()['claim_id'] is None and uploaded.json()['source_id'] is None
+    empty = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={},
+    )
+    assert empty.status_code == 422 and empty.json()['detail'] == 'Invalid attribution'
+    linked = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={'claim_id': claim_id, 'source_id': source_id},
+    )
+    assert linked.status_code == 200, linked.text
+    body = linked.json()
+    assert body['claim_id'] == claim_id
+    assert body['source_id'] == source_id
+    assert body['scan_state'] == 'quarantined'
+    assert 'verification_status' not in body
+    meta = api.get(f'/v1/properties/{pid}/documents/{document_id}', headers=headers).json()
+    assert meta['claim_id'] == claim_id and meta['source_id'] == source_id
+    foreign_claim = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={'claim_id': str(uuid4())},
+    )
+    assert foreign_claim.status_code == 422 and foreign_claim.json()['detail'] == 'Invalid attribution'
+    withdrawn = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'Sketch replaced'})
+    assert withdrawn.status_code == 200
+    blocked = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={'claim_id': claim_id, 'source_id': source_id},
+    )
+    assert blocked.status_code == 422 and blocked.json()['detail'] == 'Source is withdrawn'
+    as_subject(peer)
+    denied = api.put(
+        f'/v1/properties/{pid}/documents/{document_id}/attribution',
+        headers=headers,
+        json={'claim_id': claim_id},
+    )
+    assert denied.status_code == 404
+    as_subject('alice')
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A, 'alice') as conn:
+        conn.execute(
+            "UPDATE property_documents SET claim_id=%s, source_id=%s WHERE id=%s",
+            (claim_id, source_id, document_id),
+        )
+
+
 def test_missing_storage_key_does_not_store_plaintext(api, private_record, monkeypatch):
     monkeypatch.delenv('DOCUMENT_STORAGE_KEY', raising=False)
     pid, _, headers, _, _ = private_record
@@ -1179,6 +1245,8 @@ def _trusted_privileges():
         'public.register_evidence_source(uuid,text,text,text)',
         'public.withdraw_evidence_source(uuid,uuid,text)',
         'public.record_professional_review(uuid,uuid,text,text,uuid)',
+        'public.record_property_claim(uuid,uuid,text,uuid)',
+        'public.attribute_property_document(uuid,uuid,uuid,uuid,uuid)',
         'public.record_property_consent(uuid,uuid,text)',
         'public.revoke_property_consent(uuid,uuid,text)',
         'public.authorize_property_export(uuid,uuid)',
