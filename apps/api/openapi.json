@@ -628,6 +628,14 @@
             "title": "Claims Citing Withdrawn Sources",
             "type": "array"
           },
+          "documents_citing_withdrawn_sources": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Documents Citing Withdrawn Sources",
+            "type": "array"
+          },
           "identifier_conflicts": {
             "items": {
               "$ref": "#/components/schemas/IdentifierRecord"
@@ -661,6 +669,14 @@
             "title": "Property Id",
             "type": "string"
           },
+          "reviews_citing_withdrawn_sources": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Reviews Citing Withdrawn Sources",
+            "type": "array"
+          },
           "title_verified": {
             "const": false,
             "title": "Title Verified",
@@ -680,7 +696,9 @@
           "open_unverified_claim_ids",
           "multiple_open_unverified_claims",
           "identifier_conflicts",
-          "claims_citing_withdrawn_sources"
+          "claims_citing_withdrawn_sources",
+          "documents_citing_withdrawn_sources",
+          "reviews_citing_withdrawn_sources"
         ],
         "title": "EvidenceConflicts",
         "type": "object"
@@ -1965,7 +1983,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.16.0"
+    "version": "0.17.0"
   },
   "openapi": "3.1.0",
   "paths": {

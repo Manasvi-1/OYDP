@@ -8,7 +8,7 @@ Updated: 2026-11-12.
 
 | Gate | State | Evidence |
 | --- | --- | --- |
-| Functional vertical slice (E01 partial + bounded E03) | Partial pass | API 0.16.0 + web workspace (graph/conflicts reads); not all blueprint E01 journeys |
+| Functional vertical slice (E01 partial + bounded E03) | Partial pass | API 0.17.0 + web workspace (graph/conflicts + attribution writes); not all blueprint E01 journeys |
 | All 13 engine end-to-end workflows | FAIL | E02, E04–E13 planned only |
 | Live IdP enrollment | FAIL / BLOCKED | SF-006 |
 | MFA freshness in production IdP tokens | FAIL / BLOCKED | Code ready; live unverified |

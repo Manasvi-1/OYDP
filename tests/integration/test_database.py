@@ -1546,6 +1546,8 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert quiet_body['multiple_open_unverified_claims'] is False
     assert quiet_body['identifier_conflicts'] == []
     assert quiet_body['claims_citing_withdrawn_sources'] == []
+    assert quiet_body['documents_citing_withdrawn_sources'] == []
+    assert quiet_body['reviews_citing_withdrawn_sources'] == []
     source = api.post('/v1/sources', headers=headers, json={
         'name': 'Conflict note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
     })
@@ -1586,6 +1588,8 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert len(body['identifier_conflicts']) == 1
     assert body['identifier_conflicts'][0]['status'] == 'conflict'
     assert set(body['claims_citing_withdrawn_sources']) == {first_id, second_id}
+    assert body['documents_citing_withdrawn_sources'] == []
+    assert body['reviews_citing_withdrawn_sources'] == []
     assert 'First unverified claim' not in signals.text
     assert 'Second unverified claim' not in signals.text
     assert all('statement' not in row for row in body['identifier_conflicts'])

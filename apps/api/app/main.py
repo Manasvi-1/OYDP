@@ -19,6 +19,17 @@ from app.documents import (
     reject_declared_length, scan_outcome, seal, storage_key,
 )
 from app.pagination import decode_cursor, page_scope, page_result
+from app.rate_limit import enforce_rate_limit
+
+
+def api_docs_enabled() -> bool:
+    """Interactive docs stay off unless local loopback OIDC or an explicit enable flag is set."""
+    flag = os.getenv('OYDP_ENABLE_API_DOCS')
+    if flag == '1':
+        return True
+    if flag == '0':
+        return False
+    return os.getenv('OYDP_OIDC_DEV_HTTP') == '1'
 
 
 @asynccontextmanager
@@ -27,7 +38,15 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.16.0', lifespan=lifespan)
+_DOCS = api_docs_enabled()
+app = FastAPI(
+    title='OYDP Property Identity API',
+    version='0.17.0',
+    lifespan=lifespan,
+    docs_url='/docs' if _DOCS else None,
+    redoc_url='/redoc' if _DOCS else None,
+    openapi_url='/openapi.json' if _DOCS else None,
+)
 
 
 @app.middleware('http')
@@ -36,6 +55,17 @@ async def privacy_headers(request, call_next):
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
+
+
+@app.middleware('http')
+async def abuse_throttle(request, call_next):
+    """Process-local throttle for mutating methods. Not a distributed edge limiter."""
+    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+        try:
+            enforce_rate_limit(request, request.headers.get('authorization'))
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
+    return await call_next(request)
 
 
 @app.exception_handler(RequestValidationError)
@@ -779,6 +809,8 @@ class EvidenceConflicts(BaseModel):
     multiple_open_unverified_claims: bool
     identifier_conflicts: list[IdentifierRecord]
     claims_citing_withdrawn_sources: list[UUID]
+    documents_citing_withdrawn_sources: list[UUID]
+    reviews_citing_withdrawn_sources: list[UUID]
 
 
 class AuditRecord(BaseModel):
@@ -1009,10 +1041,36 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
             (property_id, _CONFLICT_CLAIM_CAP),
         )
     ]
+    withdrawn_document_ids = [
+        row['id']
+        for row in conn.execute(
+            f"""SELECT d.id
+                FROM property_documents d
+                JOIN evidence_sources s ON s.tenant_id=d.tenant_id AND s.id=d.source_id
+                WHERE d.property_id=%s AND d.tenant_id={_TENANT}
+                  AND d.source_id IS NOT NULL AND s.withdrawn_at IS NOT NULL
+                ORDER BY d.created_at DESC, d.id DESC LIMIT %s""",
+            (property_id, _CONFLICT_CLAIM_CAP),
+        )
+    ]
+    withdrawn_review_ids = [
+        row['id']
+        for row in conn.execute(
+            f"""SELECT r.id
+                FROM professional_reviews r
+                JOIN evidence_sources s ON s.tenant_id=r.tenant_id AND s.id=r.source_id
+                WHERE r.property_id=%s AND r.tenant_id={_TENANT}
+                  AND r.source_id IS NOT NULL AND s.withdrawn_at IS NOT NULL
+                ORDER BY r.recorded_at DESC, r.id DESC LIMIT %s""",
+            (property_id, _CONFLICT_CLAIM_CAP),
+        )
+    ]
     unresolved = (
         len(claim_ids) >= 2
         or bool(identifier_conflicts)
         or bool(withdrawn_claim_ids)
+        or bool(withdrawn_document_ids)
+        or bool(withdrawn_review_ids)
     )
     return {
         'property_id': property_id,
@@ -1024,6 +1082,8 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
         'multiple_open_unverified_claims': len(claim_ids) >= 2,
         'identifier_conflicts': identifier_conflicts,
         'claims_citing_withdrawn_sources': withdrawn_claim_ids,
+        'documents_citing_withdrawn_sources': withdrawn_document_ids,
+        'reviews_citing_withdrawn_sources': withdrawn_review_ids,
     }
 
 

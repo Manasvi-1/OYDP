@@ -2,6 +2,23 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — PR #38 batch: OpenAPI, T-NEXT-012, conflicts, throttle, docs posture
+
+### Completed
+
+1. Regenerated `apps/api/openapi.json` via `scripts/export_active_openapi.py`; `--check` PASS (AUD-001).
+2. **T-NEXT-012:** web claim optional source citation; review claim/document/identifier citations; document attribution PUT UI + display; notices for success/error via existing bounce path.
+3. Evidence conflicts include `documents_citing_withdrawn_sources` and `reviews_citing_withdrawn_sources` (API **0.17.0**).
+4. Process-local mutation rate limit (`app/rate_limit.py`); interactive `/docs` off unless `OYDP_OIDC_DEV_HTTP=1` or `OYDP_ENABLE_API_DOCS=1`.
+5. Static migration-020 privilege assertions; orphan web clients documented in `apps/web/lib/LEGACY_CLIENTS.md` (kept for unit tests).
+6. Unit verification: API **140 passed**; web **48 passed**; typecheck/build OK; `secret_scan_light.py` **0 hits**. PG integration **BLOCKED** (no `TEST_DATABASE_URL` / Docker).
+
+### Next task (resume here)
+
+Run disposable PG acceptance for migration 020 + attribution negatives when Docker/portable PG is available. Then CI-green merge of PR #38. **T-NEXT-009** remains BLOCKED. Not GA.
+
+---
+
 ## 2026-11-12 — CSP middleware + audit forge / source-gate follow-up
 
 ### Completed
@@ -10,12 +27,8 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 2. Wired Next.js 15 CSP entry as `apps/web/middleware.js` (previous `proxy.js` was not loaded by the framework; middleware-manifest was empty).
 3. Root layout uses `connection()` for a request boundary; removed React inline `style={{...}}` so `style-src 'self'` can enforce.
 4. Aligned README / CONTRIBUTING / SECURITY / docs index; added `docs/README.md` and proprietary `LICENSE`.
-5. Follow-up from API audit: migration **020** closes direct `property_audit_events` INSERT (SECURITY DEFINER helpers), freezes `evidence_assertions` DML, restricts source withdrawal to creator/owner, merges document attribution fields, aligns diligence open/close with creator gate. API **0.16.0**.
+5. Follow-up from API audit: migration **020** closes direct `property_audit_events` INSERT (SECURITY DEFINER helpers), freezes `evidence_assertions` DML, restricts source withdrawal to creator/owner, merges document attribution fields, aligns diligence open/close with creator gate. API **0.16.0** (superseded by 0.17.0 in later entry).
 6. Web hygiene: `apps/web/README.md`, decision bucket label, e2e Continue selectors.
-
-### Next task (resume here)
-
-**T-NEXT-012:** Wire `apps/web` attribution citations (claim `source_id`, review citations, document attribution PUT/display). **T-NEXT-009** remains BLOCKED without Docker/PostGIS. Not GA.
 
 ---
 

@@ -24,7 +24,9 @@ Updated: 2026-11-12.
 | G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Attribution edges + read-only graph + conflict signals landed; human adjudication / dedup workflows still open |
 | G-ENGINES | E02, E04–E13 not started | Scope | Must remain commitments; do not fake |
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
-| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts tab on main (PR #37); CSP middleware wired (`middleware.js`); attribution write/display citations still open (`T-NEXT-012`); engines UI remains disclosure-only |
+| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts on main; CSP + attribution write/display on PR #38 (`T-NEXT-012`); engines UI remains disclosure-only |
+| G-RATELIMIT | Process-local mutation throttle only | Medium | Not multi-worker / not edge; do not claim production DDoS protection |
+| G-PG-INT | Migration 020 + attribution negatives need disposable PG | High | `TEST_DATABASE_URL` unset; Docker absent on this machine |
 
 ## Recently closed on this branch line
 
