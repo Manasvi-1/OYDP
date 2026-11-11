@@ -14,6 +14,7 @@ Updated from the live Keycloak + cross-tenant IDOR increment on branch `security
 | SF-006 | High | AuthN | Unverified / BLOCKED | Live production IdP enrollment, token revocation, and session kill on membership change | Live Keycloak verification script exits BLOCKED without a running provider |
 | SF-007 | Medium | Tenant isolation | Fixed / verified in CI | Prior cross-tenant gaps on grants/reviews/consent/export/scan/diligence/list; mistaken 403 expectation for same-tenant viewer property-scoped writes | `test_z_cross_tenant_idor.py` matrix green in Active database security (223 passed @ fc25eed); property-scoped denials stay non-disclosing 404; local native PG still skipped without TEST_DATABASE_URL |
 | SF-008 | Medium | AuthN / config | Fixed (code) | `OYDP_MFA_MAX_AGE_SECONDS=0` could disable freshness outside explicit loopback/dev | Startup `assert_mfa_configuration` and request-time checks reject zero unless `OYDP_OIDC_DEV_HTTP=1` |
+| SF-009 | Medium | AuthN / routes | Fixed (tests) | High-risk HTTP routes were covered by `require_mfa` unit calls or MFA dependency overrides, not FastAPI wiring with real tokens | `apps/api/tests/test_mfa_route_gates.py` keeps real `require_mfa` (pwd-only / missing / stale `auth_time` / zero max-age); stubs only `authorized_db` |
 
 ## Explicit non-claims
 
