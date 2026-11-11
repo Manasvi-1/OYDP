@@ -2,6 +2,21 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-11 — Document route MFA negatives (follow-on)
+
+### Completed
+
+1. PR #22 merged to `main` @ `328edc6` after full CI SUCCESS (API smoke, DB security, web, reference).
+2. Branched `security/document-route-mfa-gates` from `origin/main`.
+3. Added `apps/api/tests/test_document_route_mfa_gates.py` for upload/scan/content MFA negatives (no scanner pass forgery).
+
+### Next task
+
+**T-NEXT-001:** Disposable PostGIS + full `tests/integration` including IDOR when Docker available.  
+**T-NEXT-003:** E01 evidence-graph increment only after security gates stay green.
+
+---
+
 ## 2026-11-11 — Master autonomous execution (this session)
 
 ### Completed
@@ -11,6 +26,7 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. Added `apps/api/tests/test_mfa_route_gates.py` (real `require_mfa`, stub `authorized_db` only).
 4. Corrected stale threat-model file-service row.
 5. Created `docs/engineering/*` ledger set.
+6. Delivered and **merged** PR #22 (`328edc6`).
 
 ### Verification this session
 
