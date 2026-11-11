@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.14.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.15.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -562,8 +562,13 @@ GRAPH_NOTICE = (
     'Evidence graph projection only. Not a title certificate; claims remain unverified; '
     'reviews are not title; document citations do not change scan state.'
 )
+CONFLICT_NOTICE = (
+    'Unresolved evidence signals only. Not a title certificate; conflicts are not adjudicated; '
+    'claims remain unverified; identifier conflict status is not ownership proof.'
+)
 _PACKET_CAP = 100
 _GRAPH_EDGE_CAP = 500
+_CONFLICT_CLAIM_CAP = 100
 _TRUSTED_SQL = {
     'Export consent required': (403, 'Export consent required'),
     'Source is withdrawn': (422, 'Source is withdrawn'),
@@ -738,6 +743,7 @@ class EvidencePacket(BaseModel):
     identifiers: list[IdentifierRecord]
     reviews: list[ReviewRecord]
     documents: list[DocumentRecord]
+    sources: list[SourceRecord]
 
 
 class EvidenceGraphEdge(BaseModel):
@@ -761,6 +767,18 @@ class EvidenceGraph(BaseModel):
     title_verified: Literal[False]
     notice: Literal[GRAPH_NOTICE]
     edges: list[EvidenceGraphEdge]
+
+
+class EvidenceConflicts(BaseModel):
+    property_id: UUID
+    title_verified: Literal[False]
+    notice: Literal[CONFLICT_NOTICE]
+    unresolved: bool
+    open_unverified_claim_count: int
+    open_unverified_claim_ids: list[UUID]
+    multiple_open_unverified_claims: bool
+    identifier_conflicts: list[IdentifierRecord]
+    claims_citing_withdrawn_sources: list[UUID]
 
 
 class AuditRecord(BaseModel):
@@ -955,6 +973,60 @@ def get_evidence_graph(property_id: UUID, access=Depends(authorized_db, scope='f
     }
 
 
+@app.get('/v1/properties/{property_id}/evidence-conflicts', response_model=EvidenceConflicts)
+def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scope='function')):
+    """Surface unresolved evidence signals without adjudicating title or claim truth."""
+    conn, _role = access
+    readable_property(conn, property_id)
+    claim_rows = conn.execute(
+        f"""SELECT id FROM property_claims
+            WHERE property_id=%s AND tenant_id={_TENANT}
+              AND kind='user_claim' AND verification_status='unverified'
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _CONFLICT_CLAIM_CAP + 1),
+    ).fetchall()
+    if len(claim_rows) > _CONFLICT_CLAIM_CAP:
+        raise HTTPException(422, 'Evidence conflict set is too large')
+    claim_ids = [row['id'] for row in claim_rows]
+    identifier_conflicts = conn.execute(
+        f"""SELECT id, tenant_id, property_id, scheme, identifier_value, version, status,
+               recorded_by, recorded_at
+            FROM property_identifiers
+            WHERE property_id=%s AND tenant_id={_TENANT} AND status='conflict'
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _PACKET_CAP),
+    ).fetchall()
+    withdrawn_claim_ids = [
+        row['id']
+        for row in conn.execute(
+            f"""SELECT c.id
+                FROM property_claims c
+                JOIN evidence_sources s ON s.tenant_id=c.tenant_id AND s.id=c.source_id
+                WHERE c.property_id=%s AND c.tenant_id={_TENANT}
+                  AND c.kind='user_claim' AND c.verification_status='unverified'
+                  AND c.source_id IS NOT NULL AND s.withdrawn_at IS NOT NULL
+                ORDER BY c.recorded_at DESC, c.id DESC LIMIT %s""",
+            (property_id, _CONFLICT_CLAIM_CAP),
+        )
+    ]
+    unresolved = (
+        len(claim_ids) >= 2
+        or bool(identifier_conflicts)
+        or bool(withdrawn_claim_ids)
+    )
+    return {
+        'property_id': property_id,
+        'title_verified': False,
+        'notice': CONFLICT_NOTICE,
+        'unresolved': unresolved,
+        'open_unverified_claim_count': len(claim_ids),
+        'open_unverified_claim_ids': claim_ids,
+        'multiple_open_unverified_claims': len(claim_ids) >= 2,
+        'identifier_conflicts': identifier_conflicts,
+        'claims_citing_withdrawn_sources': withdrawn_claim_ids,
+    }
+
+
 @app.post('/v1/properties/{property_id}/consents', response_model=ConsentRecord)
 def grant_consent(property_id: UUID, payload: ConsentCreate, access=Depends(authorized_db, scope='function'),
                   mfa=Depends(require_mfa)):
@@ -1008,6 +1080,25 @@ def export_property(property_id: UUID, access=Depends(authorized_db, scope='func
     for document in documents:
         document.pop('ciphertext', None)
         document.pop('nonce', None)
+    cited_source_ids = {
+        *(claim['source_id'] for claim in claims if claim.get('source_id') is not None),
+        *(document['source_id'] for document in documents if document.get('source_id') is not None),
+        *(review['source_id'] for review in reviews if review.get('source_id') is not None),
+    }
+    sources = []
+    if cited_source_ids:
+        sources = packet_rows(
+            conn,
+            f"""SELECT id, tenant_id, name, origin, jurisdiction, rights_status, created_by, created_at,
+                   withdrawn_at, withdrawal_reason
+                 FROM evidence_sources
+                 WHERE tenant_id={_TENANT} AND id = ANY(%s)
+                 ORDER BY created_at DESC, id DESC LIMIT %s""",
+            (list(cited_source_ids),),
+        )
+        for source in sources:
+            if source['rights_status'] != 'unknown':
+                raise HTTPException(503, 'Database operation unavailable')
     return {
         'property_id': property_id,
         'title_verified': False,
@@ -1016,6 +1107,7 @@ def export_property(property_id: UUID, access=Depends(authorized_db, scope='func
         'identifiers': identifiers,
         'reviews': reviews,
         'documents': documents,
+        'sources': sources,
     }
 
 

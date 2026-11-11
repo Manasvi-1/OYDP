@@ -618,6 +618,73 @@
         "title": "DocumentRecord",
         "type": "object"
       },
+      "EvidenceConflicts": {
+        "properties": {
+          "claims_citing_withdrawn_sources": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Claims Citing Withdrawn Sources",
+            "type": "array"
+          },
+          "identifier_conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifierRecord"
+            },
+            "title": "Identifier Conflicts",
+            "type": "array"
+          },
+          "multiple_open_unverified_claims": {
+            "title": "Multiple Open Unverified Claims",
+            "type": "boolean"
+          },
+          "notice": {
+            "const": "Unresolved evidence signals only. Not a title certificate; conflicts are not adjudicated; claims remain unverified; identifier conflict status is not ownership proof.",
+            "title": "Notice",
+            "type": "string"
+          },
+          "open_unverified_claim_count": {
+            "title": "Open Unverified Claim Count",
+            "type": "integer"
+          },
+          "open_unverified_claim_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Open Unverified Claim Ids",
+            "type": "array"
+          },
+          "property_id": {
+            "format": "uuid",
+            "title": "Property Id",
+            "type": "string"
+          },
+          "title_verified": {
+            "const": false,
+            "title": "Title Verified",
+            "type": "boolean"
+          },
+          "unresolved": {
+            "title": "Unresolved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "property_id",
+          "title_verified",
+          "notice",
+          "unresolved",
+          "open_unverified_claim_count",
+          "open_unverified_claim_ids",
+          "multiple_open_unverified_claims",
+          "identifier_conflicts",
+          "claims_citing_withdrawn_sources"
+        ],
+        "title": "EvidenceConflicts",
+        "type": "object"
+      },
       "EvidenceGraph": {
         "properties": {
           "edges": {
@@ -747,6 +814,13 @@
             "title": "Reviews",
             "type": "array"
           },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRecord"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
           "title_verified": {
             "const": false,
             "title": "Title Verified",
@@ -760,7 +834,8 @@
           "claims",
           "identifiers",
           "reviews",
-          "documents"
+          "documents",
+          "sources"
         ],
         "title": "EvidencePacket",
         "type": "object"
@@ -1890,7 +1965,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3334,6 +3409,73 @@
           }
         },
         "summary": "Scan Document"
+      }
+    },
+    "/v1/properties/{property_id}/evidence-conflicts": {
+      "get": {
+        "description": "Surface unresolved evidence signals without adjudicating title or claim truth.",
+        "operationId": "get_evidence_conflicts_v1_properties__property_id__evidence_conflicts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Property Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceConflicts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Evidence Conflicts"
       }
     },
     "/v1/properties/{property_id}/evidence-graph": {

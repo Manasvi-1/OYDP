@@ -1525,6 +1525,84 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     assert foreign_claim.status_code == 404
 
 
+def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_record, monkeypatch):
+    _storage(monkeypatch)
+    pid, peer, headers, _, as_subject = private_record
+    quiet = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
+    assert quiet.status_code == 200, quiet.text
+    quiet_body = quiet.json()
+    assert quiet_body['title_verified'] is False
+    assert quiet_body['unresolved'] is False
+    assert quiet_body['open_unverified_claim_count'] == 0
+    assert quiet_body['multiple_open_unverified_claims'] is False
+    assert quiet_body['identifier_conflicts'] == []
+    assert quiet_body['claims_citing_withdrawn_sources'] == []
+    source = api.post('/v1/sources', headers=headers, json={
+        'name': 'Conflict note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
+    })
+    assert source.status_code == 201, source.text
+    source_id = source.json()['id']
+    first = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'First unverified claim', 'source_id': source_id,
+    })
+    assert first.status_code == 201, first.text
+    second = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Second unverified claim', 'source_id': source_id,
+    })
+    assert second.status_code == 201, second.text
+    first_id, second_id = first.json()['id'], second.json()['id']
+    conflicted = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'survey', 'identifier_value': 'CF-1'},
+    )
+    assert conflicted.status_code == 200, conflicted.text
+    conflict_mark = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'survey', 'identifier_value': 'CF-2', 'resolution': 'conflict'},
+    )
+    assert conflict_mark.status_code == 200, conflict_mark.text
+    assert conflict_mark.json()['status'] == 'conflict'
+    withdrawn = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'Replaced note'})
+    assert withdrawn.status_code == 200
+    signals = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
+    assert signals.status_code == 200, signals.text
+    body = signals.json()
+    assert body['title_verified'] is False
+    assert body['unresolved'] is True
+    assert body['multiple_open_unverified_claims'] is True
+    assert body['open_unverified_claim_count'] == 2
+    assert set(body['open_unverified_claim_ids']) == {first_id, second_id}
+    assert len(body['identifier_conflicts']) == 1
+    assert body['identifier_conflicts'][0]['status'] == 'conflict'
+    assert set(body['claims_citing_withdrawn_sources']) == {first_id, second_id}
+    assert 'First unverified claim' not in signals.text
+    assert 'Second unverified claim' not in signals.text
+    assert all('statement' not in row for row in body['identifier_conflicts'])
+    assert api.post(f'/v1/properties/{pid}/consents', headers=headers, json={'purpose': 'passport_export'}).status_code == 200
+    packet = api.post(f'/v1/properties/{pid}/exports', headers=headers)
+    assert packet.status_code == 200, packet.text
+    exported = packet.json()
+    assert exported['title_verified'] is False
+    assert 'sources' in exported
+    assert len(exported['sources']) == 1
+    assert exported['sources'][0]['id'] == source_id
+    assert exported['sources'][0]['rights_status'] == 'unknown'
+    assert exported['sources'][0]['withdrawn_at'] is not None
+    as_subject(peer)
+    denied = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
+    assert denied.status_code == 404
+    assert first_id not in denied.text
+    as_subject('alice')
+    from app.main import app
+    from app.auth import verified_subject
+    app.dependency_overrides.pop(verified_subject, None)
+    unauth = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
+    assert unauth.status_code in (401, 503)
+    app.dependency_overrides[verified_subject] = lambda: 'alice'
+
+
 def test_evidence_graph_projects_attribution_edges_without_title(api, private_record, monkeypatch):
     _storage(monkeypatch)
     pid, peer, headers, _, as_subject = private_record
