@@ -10,10 +10,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 2. API **0.14.0** `GET /v1/properties/{id}/evidence-graph` — read-only edge projection from existing claim/document/review attribution columns under `readable_property` + tenant RLS; `title_verified` false; no MFA (matches other property list reads); no new migration.
 3. Contract + integration + IDOR coverage for empty/happy/cross-tenant/unauthorized paths.
 4. Disposable PG `127.0.0.1:55432` suite: **242 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
+5. PR [#33](https://github.com/Manasvi-1/OYDP/pull/33) **merged** to `main` @ `5e63072` via `gh pr merge --merge`.
 
 ### Next task (resume here)
 
-After this PR merges: PostGIS IDOR when Docker available, or deepen remaining E01 surfaces without claiming GA. Not GA.
+**T-NEXT-009:** PostGIS IDOR / disposable PostGIS when Docker available; else deepen E01 negative coverage that does not need PG (document content MFA already present) without faking scanner pass. Not GA.
 
 **Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
 

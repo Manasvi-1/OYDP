@@ -36,7 +36,8 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 | T-NEXT-005 | 1 | P1 | Document↔identifier + export attribution refs | 016 | E01 | `017_document_identifier_attribution.sql`, attribution/export | Y | Y | optional | MFA + RLS | unit+integration | Current identifier only; export refs; title_verified false | VERIFIED | PR #28 @ 116bde9 |
 | T-NEXT-006 | 1 | P1 | Review↔claim attribution | 015/012 | E01 | `018_review_claim_attribution.sql`, review route/export | Y | Y | optional | MFA + RLS | unit+integration | Unverified claim only; title_effect none | VERIFIED | PR #29 @ c432b0d |
 | T-NEXT-007 | 1 | P1 | Review↔document/identifier attribution | 018 | E01 | `019_review_document_identifier_attribution.sql`, review route/export | Y | Y | optional | MFA + RLS | unit+integration | Same-property doc; current identifier; title_effect none | VERIFIED | PR #31 @ 55312ef |
-| T-NEXT-008 | 1 | P2 | Read-only evidence-graph projection | 019 | E01 | `GET .../evidence-graph` in `main.py` | n/a | Y | optional | authz/RLS | unit+integration | title_verified false; no writes | TESTED | 242 local pass @ 55432 |
+| T-NEXT-008 | 1 | P2 | Read-only evidence-graph projection | 019 | E01 | `GET .../evidence-graph` in `main.py` | n/a | Y | optional | authz/RLS | unit+integration | title_verified false; no writes | VERIFIED | PR #33 @ 5e63072 |
+| T-NEXT-009 | 0 | P1 | PostGIS IDOR / local PostGIS acceptance | Docker PostGIS | E01 | IDOR + spatial path when available | Y | Y | n/a | IDOR/RLS | integration | Native PostGIS suite | BLOCKED | No Docker |
 | T-SEC-009 | 0 | P1 | HTTP route MFA gates without MFA dependency override | SF-008 | E01 | `apps/api/tests/test_mfa_route_gates.py` | stub authz only | Y | n/a | Negative MFA/auth_time | unit | pwd-only / missing / stale / zero-age → 403/503 | TESTED | 10/10 passed |
 | T-WEB-022 | 0 | P1 | Keep OIDC session cookies on callback NextResponse | Web OIDC | E01 | `apps/web` callback/auth | n/a | n/a | Y | Session cookie handoff | web CI / e2e scripts | Sign-in reaches `/connect` on loopback | TESTED (CI) | PR #22 |
 | T-SEC-003 | 1 | P2 | Production malware scanner adapter | Scanner infra | E01 | `documents.py` | Y | Y | Y | Fail-closed until pass | integration | Real adapter + CI | BLOCKED | SF-003 |
@@ -48,4 +49,4 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 
 ## Next eligible task after this session
 
-See `BUILD_LEDGER.md`. After T-NEXT-006 lands: remaining review↔document/identifier edges or PostGIS IDOR when Docker is available; do not fake scanner pass.
+See `BUILD_LEDGER.md`. Next: T-NEXT-009 PostGIS IDOR when Docker is available; do not fake scanner pass.
