@@ -1,5 +1,9 @@
 const NONCE = /^[A-Za-z0-9+/=_-]{8,200}$/
 
+export function useProductionCsp(env = process.env) {
+  return env.NODE_ENV === 'production'
+}
+
 export function contentSecurityPolicy(nonce, production) {
   if (typeof nonce !== 'string' || !NONCE.test(nonce)) {
     throw new Error('CSP nonce is missing')

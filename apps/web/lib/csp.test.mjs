@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { contentSecurityPolicy } from './csp.mjs'
+import { contentSecurityPolicy, useProductionCsp } from './csp.mjs'
 
 test('production policy has no inline or eval script exception', () => {
   const policy = contentSecurityPolicy('abcdefghijk', true)
@@ -15,6 +15,12 @@ test('development policy keeps the eval exception explicit', () => {
   const policy = contentSecurityPolicy('abcdefghijk', false)
   assert.match(policy, /'unsafe-eval'/)
   assert.equal(policy.includes('unsafe-inline'), false)
+})
+
+test('production mode is true only when NODE_ENV is production', () => {
+  assert.equal(useProductionCsp({ NODE_ENV: 'production' }), true)
+  assert.equal(useProductionCsp({ NODE_ENV: 'development' }), false)
+  assert.equal(useProductionCsp({}), false)
 })
 
 test('rejects a short nonce', () => {

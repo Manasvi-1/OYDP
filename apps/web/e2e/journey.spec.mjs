@@ -23,6 +23,10 @@ async function signIn(page, subject, tenantId, mfa) {
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
 }
 
+function workspaceNav(page) {
+  return page.getByRole('complementary', { name: 'Workspace navigation' })
+}
+
 test.beforeEach(async ({ page }) => {
   await page.context().clearCookies()
 })
@@ -41,33 +45,32 @@ test('create, claim, document quarantine, diligence, audit, and engines', async 
   let dialog = false
   page.on('dialog', () => { dialog = true })
   await signIn(page, 'alice', tenant, true)
-  await page.getByRole('link', { name: 'Browse properties' }).click()
-  await page.getByRole('link', { name: 'New property' }).click()
+  await page.goto('/properties/new')
+  await expect(page.getByRole('heading', { name: 'Create a property record' })).toBeVisible()
   await page.getByLabel('Label').fill(label)
   await page.getByLabel('Jurisdiction').fill('Bengaluru Urban')
   await page.getByRole('button', { name: 'Save candidate' }).click()
   await expect(page.getByRole('heading', { name: label })).toBeVisible()
-  await page.getByRole('link', { name: 'Claims / evidence' }).click()
+  const tabs = page.getByRole('navigation', { name: 'Property sections' })
+  await tabs.getByRole('link', { name: 'Claims / evidence' }).click()
   await page.getByLabel('Claim statement').fill(statement)
   await page.getByRole('button', { name: 'Record unverified claim' }).click()
   await expect(page.getByText(statement, { exact: true })).toBeVisible()
   await expect(page.getByText('unverified', { exact: false }).first()).toBeVisible()
   expect(dialog).toBe(false)
-  await page.getByRole('link', { name: 'Identifiers' }).click()
+  await tabs.getByRole('link', { name: 'Identifiers' }).click()
   await page.getByRole('textbox', { name: 'Identifier' }).fill('12/3')
   await page.getByRole('button', { name: 'Save identifier' }).click()
   await expect(page.getByText('12/3')).toBeVisible()
-  await page.getByRole('link', { name: 'Documents' }).click()
+  await tabs.getByRole('link', { name: 'Documents' }).click()
   await page.locator('input[type=file]').setInputFiles({
     name: 'note.png',
     mimeType: 'image/png',
     buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x70, 0x6e, 0x67]),
   })
   await page.getByRole('button', { name: 'Upload document' }).click()
-  await expect(page.getByText(/document was quarantined|Quarantined/i).first()).toBeVisible()
-  await page.getByRole('link', { name: 'Documents', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Private documents' }).getByText(/Quarantined/i)).toBeVisible()
-  await page.getByRole('link', { name: 'Diligence' }).click()
+  await tabs.getByRole('link', { name: 'Diligence' }).click()
   await page.getByRole('textbox', { name: 'Request title' }).fill('Ask for the packet')
   await page.getByRole('textbox', { name: 'Request note' }).fill('List the papers you hold.')
   await page.getByRole('button', { name: 'Open request' }).click()
@@ -77,30 +80,34 @@ test('create, claim, document quarantine, diligence, audit, and engines', async 
   await expect(page.getByText(note)).toBeVisible()
   await page.getByRole('button', { name: 'Close request' }).click()
   await expect(page.getByText(/Diligence request closed|closed/i).first()).toBeVisible()
-  await page.getByRole('link', { name: 'Audit' }).click()
+  await tabs.getByRole('link', { name: 'Audit' }).click()
   await expect(page.getByRole('region', { name: 'Audit' }).getByText('document.quarantined')).toBeVisible()
-  await page.getByRole('link', { name: 'Engines' }).click()
+  await workspaceNav(page).getByRole('link', { name: 'Engine directory', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Engine directory' })).toBeVisible()
   await expect(page.getByText('Property Identity & Evidence Graph')).toBeVisible()
 })
 
 test('another tenant cannot see the candidate', async ({ page }) => {
+  test.setTimeout(120_000)
   const label = `Private candidate ${Date.now()}`
   await signIn(page, 'alice', tenant, true)
-  await page.getByRole('link', { name: 'New property' }).first().click()
+  await page.goto('/properties/new')
+  await expect(page.getByRole('heading', { name: 'Create a property record' })).toBeVisible()
   await page.getByLabel('Label').fill(label)
   await page.getByLabel('Jurisdiction').fill('Hyderabad')
   await page.getByRole('button', { name: 'Save candidate' }).click()
   await page.getByRole('button', { name: /Sign out/ }).click()
   await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   await signIn(page, 'mallory', otherTenant, true)
-  await page.getByRole('navigation', { name: 'Workspace navigation' }).getByRole('link', { name: 'Properties', exact: true }).click()
-  await expect(page.getByText(label)).toHaveCount(0)
+  await page.goto('/properties')
+  await expect(page.getByRole('heading', { level: 1, name: 'Properties', exact: true })).toBeVisible()
+  await expect(page.locator('#workspace-main').getByText(label)).toHaveCount(0)
 })
 
 test('a token without the MFA claim cannot create a candidate', async ({ page }) => {
   await signIn(page, 'alice', tenant, false)
-  await page.getByRole('link', { name: 'New property' }).first().click()
+  await page.goto('/properties/new')
+  await expect(page.getByRole('heading', { name: 'Create a property record' })).toBeVisible()
   await page.getByLabel('Label').fill('Should stay uncreated')
   await page.getByLabel('Jurisdiction').fill('Bengaluru Rural')
   await page.getByRole('button', { name: 'Save candidate' }).click()

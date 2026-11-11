@@ -63,6 +63,9 @@ export OIDC_AUDIENCE=oydp-api
 export OIDC_ISSUER=http://127.0.0.1:9000
 export OIDC_JWKS_URL=http://127.0.0.1:9000/.well-known/jwks.json
 export PROPERTY_API_BASE=http://127.0.0.1:8000
+# Required for http://127.0.0.1 when using `npm run start` (NODE_ENV=production).
+# Leave unset for real HTTPS deployments.
+export OYDP_COOKIE_SECURE=0
 npm run dev
 ```
 

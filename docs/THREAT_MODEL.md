@@ -9,7 +9,7 @@ This is an engineering draft; it is not an independent security assessment.
 | Collaborator retains revoked access | Fetch current grants each access; terminate stale sessions where required; revocation-aware delivery | Creator-managed revocation and native concurrent membership/grant/shared-reader checks passed; file delivery pending |
 | Collaborator escalates or reshares access | Creator-only management, bounded expiry, active same-tenant recipients, audited mutations | Negative tests and audited SECURITY DEFINER function; see PROPERTY_ACCESS.md for trust assumptions and non-cascading revocation |
 | Property read permission leaks all deeds | Explicit resource grant and scanning gate | Unit policy tested |
-| Malicious file exploits preview or scanner | Quarantine, byte caps, MIME detection, sandbox scanner, no active-content execution | No file service implemented |
+| Malicious file exploits preview or scanner | Quarantine, byte caps, MIME detection, sandbox scanner, no active-content execution | Encrypted quarantine + fail-closed download gate implemented; production malware scanner adapter BLOCKED (`get_document_scanner()` returns None) |
 | Duplicate property creates false title conclusion | Candidate identity, unresolved matches, attributed assertions, human correction | Candidate creation and unverified claims persisted; deduplication and correction workflow pending |
 | Reviewer impersonation | Verify professional credentials separately from authentication | Not implemented |
 | AI prompt injection changes access | Policy outside AI; untrusted document content; scoped retrieval | No AI implementation |

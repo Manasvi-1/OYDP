@@ -8,6 +8,7 @@ import os
 import secrets
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -60,8 +61,18 @@ def wait_for(url, timeout=40):
     raise RuntimeError('Timed out waiting for ' + url)
 
 
-def ensure_port_free(port: int):
-    """Fail closed if a stale process still owns a loopback e2e port."""
+def port_bindable(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(('127.0.0.1', port))
+        except OSError:
+            return False
+    return True
+
+
+def ensure_port_free(port: int, timeout: float = 45):
+    """Kill stale owners when possible, then require a successful bind."""
     if os.name == 'nt':
         listed = subprocess.run(
             ['powershell', '-NoProfile', '-Command',
@@ -69,20 +80,23 @@ def ensure_port_free(port: int):
              f" Select-Object -ExpandProperty OwningProcess) -join ','"],
             capture_output=True, text=True, check=False,
         )
-        pids = [part.strip() for part in (listed.stdout or '').split(',') if part.strip().isdigit()]
+        # OwningProcess 0/4 are Windows phantoms after abrupt kills.
+        pids = [
+            part.strip()
+            for part in (listed.stdout or '').split(',')
+            if part.strip().isdigit() and part.strip() not in {'0', '4'}
+        ]
         for pid in pids:
             subprocess.run(['taskkill', '/PID', pid, '/T', '/F'], check=False,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        listed = subprocess.run(
-            ['powershell', '-NoProfile', '-Command',
-             f"@(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue).Count"],
-            capture_output=True, text=True, check=False,
-        )
-        if (listed.stdout or '').strip() not in {'', '0'}:
-            raise SystemExit(f'Port {port} is still in use after cleanup; refusing to start e2e')
-        return
-    # Best-effort on POSIX; bind check below still guards startup.
-    subprocess.run(['bash', '-lc', f'fuser -k {port}/tcp >/dev/null 2>&1 || true'], check=False)
+    else:
+        subprocess.run(['bash', '-lc', f'fuser -k {port}/tcp >/dev/null 2>&1 || true'], check=False)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if port_bindable(port):
+            return
+        time.sleep(0.5)
+    raise SystemExit(f'Port {port} is still in use after cleanup; refusing to start e2e')
 
 
 def spawn(command, env, cwd):
@@ -155,8 +169,25 @@ def main():
             (tenant, other),
         )
     print('Applied migrations:', ', '.join(applied) or 'none')
-    issuer = 'http://127.0.0.1:9000'
-    web = 'http://127.0.0.1:3000'
+    web_port = int(os.getenv('OYDP_WEB_E2E_PORT', '3000'))
+    api_port = int(os.getenv('OYDP_API_E2E_PORT', '8000'))
+    oidc_port = int(os.getenv('OYDP_OIDC_E2E_PORT', '9000'))
+
+    def choose_port(preferred: int, label: str) -> int:
+        # Windows Hyper-V / abrupt kills can reserve or ghost common loopback ports.
+        for candidate in [preferred, *range(preferred + 1, preferred + 30)]:
+            if port_bindable(candidate):
+                if candidate != preferred:
+                    print(f'{label} port {preferred} not bindable; using {candidate}')
+                return candidate
+        raise SystemExit(f'No bindable {label} port near {preferred}')
+
+    web_port = choose_port(web_port, 'web')
+    api_port = choose_port(api_port, 'api')
+    oidc_port = choose_port(oidc_port, 'oidc')
+    issuer = f'http://127.0.0.1:{oidc_port}'
+    web = f'http://127.0.0.1:{web_port}'
+    api = f'http://127.0.0.1:{api_port}'
     base_env = os.environ.copy()
     oidc_env = base_env | {
         'OYDP_DEV_OIDC': '1',
@@ -188,13 +219,14 @@ def main():
         'OYDP_OIDC_DEV_HTTP': '1',
         # next start sets NODE_ENV=production; keep cookies usable on loopback HTTP.
         'OYDP_COOKIE_SECURE': '0',
-        'PROPERTY_API_BASE': 'http://127.0.0.1:8000',
+        'PROPERTY_API_BASE': api,
         'PROPERTY_PAGE_SIZE': '1',
         'NEXT_TELEMETRY_DISABLED': '1',
+        'PORT': str(web_port),
     }
     npm = resolve_cmd('npm')
     npx = resolve_cmd('npx')
-    for port in (3000, 8000, 9000):
+    for port in (web_port, api_port, oidc_port):
         ensure_port_free(port)
     processes = []
     try:
@@ -204,10 +236,11 @@ def main():
             shutil.rmtree(WEB / '.next', ignore_errors=True)
             subprocess.check_call([npm, 'run', 'build'], cwd=WEB, env=web_env)
         processes.append(spawn([sys.executable, str(ROOT / 'tools' / 'dev_oidc.py')], oidc_env, ROOT))
-        processes.append(spawn([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'], api_env, ROOT / 'apps' / 'api'))
-        processes.append(spawn([npm, 'run', 'start'], web_env, WEB))
+        processes.append(spawn([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', str(api_port)], api_env, ROOT / 'apps' / 'api'))
+        # Bypass package.json hardcoded --port 3000 so ghost sockets can fall back.
+        processes.append(spawn([npx, 'next', 'start', '--hostname', '127.0.0.1', '--port', str(web_port)], web_env, WEB))
         wait_for(issuer + '/.well-known/openid-configuration')
-        wait_for('http://127.0.0.1:8000/healthz')
+        wait_for(api + '/healthz')
         wait_for(web + '/')
         play_env = base_env | {
             'WEB_ORIGIN': web,

@@ -6,7 +6,7 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 3000",
     "typecheck": "tsc --noEmit",
-    "test": "node --test lib/contract.test.mjs lib/session-security.test.mjs lib/oidc.test.mjs lib/api-client.test.mjs lib/fields.test.mjs lib/records.test.mjs lib/session-cookie.test.mjs lib/csp.test.mjs tests/proxy.test.mjs"
+    "test": "node --test lib/contract.test.mjs lib/session-security.test.mjs lib/oidc.test.mjs lib/auth-callback.test.mjs lib/api-client.test.mjs lib/fields.test.mjs lib/records.test.mjs lib/session-cookie.test.mjs lib/csp.test.mjs tests/proxy.test.mjs"
   },
   "dependencies": {
     "next": "^15.5.4",

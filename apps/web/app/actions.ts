@@ -84,9 +84,9 @@ export async function recordClaim(propertyId: string, formData: FormData) {
       body: { statement: String(formData.get('statement') ?? '') },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=claims`, error)
   }
-  redirect(`/properties/${propertyId}`)
+  redirect(`/properties/${propertyId}?tab=claims&notice=claim-recorded`)
 }
 
 export async function shareReadAccess(propertyId: string, formData: FormData) {
@@ -94,7 +94,7 @@ export async function shareReadAccess(propertyId: string, formData: FormData) {
   const session = await readSession()
   if (!session) redirect('/')
   const expiry = new Date(String(formData.get('expiresAt') ?? ''))
-  if (Number.isNaN(expiry.getTime())) bounce(`/properties/${propertyId}`, new ApiError(422, 'Expiry must be a real date'))
+  if (Number.isNaN(expiry.getTime())) bounce(`/properties/${propertyId}?tab=access`, new ApiError(422, 'Expiry must be a real date'))
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/access`, {
       method: 'PUT',
@@ -104,9 +104,9 @@ export async function shareReadAccess(propertyId: string, formData: FormData) {
       },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=read-access-updated`)
+  redirect(`/properties/${propertyId}?tab=access&notice=read-access-updated`)
 }
 
 export async function correctProperty(propertyId: string, formData: FormData) {
@@ -122,9 +122,9 @@ export async function correctProperty(propertyId: string, formData: FormData) {
       },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=identity`, error)
   }
-  redirect(`/properties/${propertyId}?notice=property-corrected`)
+  redirect(`/properties/${propertyId}?tab=identity&notice=property-corrected`)
 }
 
 export async function grantWriteAccess(propertyId: string, formData: FormData) {
@@ -132,7 +132,7 @@ export async function grantWriteAccess(propertyId: string, formData: FormData) {
   const session = await readSession()
   if (!session) redirect('/')
   const expiry = new Date(String(formData.get('expiresAt') ?? ''))
-  if (Number.isNaN(expiry.getTime())) bounce(`/properties/${propertyId}`, new ApiError(422, 'Expiry must be a real date'))
+  if (Number.isNaN(expiry.getTime())) bounce(`/properties/${propertyId}?tab=access`, new ApiError(422, 'Expiry must be a real date'))
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/writers`, {
       method: 'PUT',
@@ -142,9 +142,9 @@ export async function grantWriteAccess(propertyId: string, formData: FormData) {
       },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=write-access-updated`)
+  redirect(`/properties/${propertyId}?tab=access&notice=write-access-updated`)
 }
 
 export async function revokeWriteAccess(propertyId: string, formData: FormData) {
@@ -157,9 +157,9 @@ export async function revokeWriteAccess(propertyId: string, formData: FormData) 
       body: { recipient_subject: String(formData.get('recipient') ?? '') },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=write-access-revoked`)
+  redirect(`/properties/${propertyId}?tab=access&notice=write-access-revoked`)
 }
 
 export async function revokeReadAccess(propertyId: string, formData: FormData) {
@@ -172,9 +172,9 @@ export async function revokeReadAccess(propertyId: string, formData: FormData) {
       body: { recipient_subject: String(formData.get('recipient') ?? '') },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=read-access-revoked`)
+  redirect(`/properties/${propertyId}?tab=access&notice=read-access-revoked`)
 }
 
 const SCHEMES = new Set(['internal', 'survey', 'municipal', 'khata'])
@@ -197,7 +197,7 @@ export async function recordIdentifier(propertyId: string, formData: FormData) {
   const scheme = String(formData.get('scheme') ?? '')
   const identifierValue = String(formData.get('identifierValue') ?? '').trim()
   const resolution = String(formData.get('resolution') ?? '')
-  if (!SCHEMES.has(scheme)) bounce(`/properties/${propertyId}`, new ApiError(422, 'Invalid identifier'))
+  if (!SCHEMES.has(scheme)) bounce(`/properties/${propertyId}?tab=identifiers`, new ApiError(422, 'Invalid identifier'))
   const body: { scheme: string; identifier_value: string; resolution?: string } = {
     scheme,
     identifier_value: identifierValue,
@@ -206,9 +206,9 @@ export async function recordIdentifier(propertyId: string, formData: FormData) {
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/identifiers`, { method: 'POST', body })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=identifiers`, error)
   }
-  redirect(`/properties/${propertyId}?notice=identifier-recorded`)
+  redirect(`/properties/${propertyId}?tab=identifiers&notice=identifier-recorded`)
 }
 
 export async function registerSource(propertyId: string, formData: FormData) {
@@ -216,7 +216,7 @@ export async function registerSource(propertyId: string, formData: FormData) {
   const session = await readSession()
   if (!session) redirect('/')
   const origin = String(formData.get('origin') ?? '')
-  if (!ORIGINS.has(origin)) bounce(`/properties/${propertyId}`, new ApiError(422, 'Invalid source'))
+  if (!ORIGINS.has(origin)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Invalid source'))
   try {
     await callPropertyApi(session, '/v1/sources', {
       method: 'POST',
@@ -227,9 +227,9 @@ export async function registerSource(propertyId: string, formData: FormData) {
       },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=claims`, error)
   }
-  redirect(`/properties/${propertyId}?notice=source-registered`)
+  redirect(`/properties/${propertyId}?tab=claims&notice=source-registered`)
 }
 
 export async function withdrawSource(propertyId: string, formData: FormData) {
@@ -237,16 +237,16 @@ export async function withdrawSource(propertyId: string, formData: FormData) {
   const session = await readSession()
   if (!session) redirect('/')
   const sourceId = String(formData.get('sourceId') ?? '')
-  if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}`, new ApiError(422, 'Invalid source'))
+  if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Invalid source'))
   try {
     await callPropertyApi(session, `/v1/sources/${sourceId}/withdrawal`, {
       method: 'POST',
       body: { reason: String(formData.get('reason') ?? '') },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=claims`, error)
   }
-  redirect(`/properties/${propertyId}?notice=source-withdrawn`)
+  redirect(`/properties/${propertyId}?tab=claims&notice=source-withdrawn`)
 }
 
 export async function recordReview(propertyId: string, formData: FormData) {
@@ -255,7 +255,7 @@ export async function recordReview(propertyId: string, formData: FormData) {
   if (!session) redirect('/')
   const disposition = String(formData.get('disposition') ?? '')
   if (disposition !== 'recorded' && disposition !== 'abstained') {
-    bounce(`/properties/${propertyId}`, new ApiError(422, 'A review is recorded or abstained. It is not title.'))
+    bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'A review is recorded or abstained. It is not title.'))
   }
   const body: { disposition: string; statement: string; source_id?: string } = {
     disposition,
@@ -263,15 +263,15 @@ export async function recordReview(propertyId: string, formData: FormData) {
   }
   const sourceId = String(formData.get('sourceId') ?? '').trim()
   if (sourceId) {
-    if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}`, new ApiError(422, 'Source ID must be a UUID'))
+    if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Source ID must be a UUID'))
     body.source_id = sourceId
   }
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/reviews`, { method: 'POST', body })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=claims`, error)
   }
-  redirect(`/properties/${propertyId}?notice=review-recorded`)
+  redirect(`/properties/${propertyId}?tab=claims&notice=review-recorded`)
 }
 
 export async function grantExportConsent(propertyId: string) {
@@ -284,9 +284,9 @@ export async function grantExportConsent(propertyId: string) {
       body: { purpose: 'passport_export' },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=consent-recorded`)
+  redirect(`/properties/${propertyId}?tab=access&notice=consent-recorded`)
 }
 
 export async function revokeExportConsent(propertyId: string) {
@@ -299,9 +299,9 @@ export async function revokeExportConsent(propertyId: string) {
       body: { purpose: 'passport_export' },
     })
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=access`, error)
   }
-  redirect(`/properties/${propertyId}?notice=consent-revoked`)
+  redirect(`/properties/${propertyId}?tab=access&notice=consent-revoked`)
 }
 
 export async function uploadDocument(propertyId: string, formData: FormData) {
@@ -310,20 +310,20 @@ export async function uploadDocument(propertyId: string, formData: FormData) {
   if (!session) redirect('/')
   const file = formData.get('document')
   if (!(file instanceof File) || file.size < 1 || file.size > MAX_DOCUMENT_BYTES) {
-    bounce(`/properties/${propertyId}`, new ApiError(413, 'Document exceeds the size limit'))
+    bounce(`/properties/${propertyId}?tab=documents`, new ApiError(413, 'Document exceeds the size limit'))
   }
   const bytes = Buffer.from(await file.arrayBuffer())
   if (bytes.byteLength < 1 || bytes.byteLength > MAX_DOCUMENT_BYTES) {
-    bounce(`/properties/${propertyId}`, new ApiError(413, 'Document exceeds the size limit'))
+    bounce(`/properties/${propertyId}?tab=documents`, new ApiError(413, 'Document exceeds the size limit'))
   }
   const media = mediaFor(bytes)
-  if (!media) bounce(`/properties/${propertyId}`, new ApiError(422, 'Document content does not match an allowed type'))
+  if (!media) bounce(`/properties/${propertyId}?tab=documents`, new ApiError(422, 'Document content does not match an allowed type'))
   try {
     await callPropertyUpload(session, `/v1/properties/${propertyId}/documents`, bytes, media)
   } catch (error) {
-    bounce(`/properties/${propertyId}`, error)
+    bounce(`/properties/${propertyId}?tab=documents`, error)
   }
-  redirect(`/properties/${propertyId}?notice=document-quarantined`)
+  redirect(`/properties/${propertyId}?tab=documents&notice=document-quarantined`)
 }
 
 export async function openDiligenceRequest(propertyId: string, formData: FormData) {
