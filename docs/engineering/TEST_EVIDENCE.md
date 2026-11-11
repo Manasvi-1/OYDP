@@ -2,6 +2,16 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-11 — Document route MFA follow-on
+
+Branch: `security/document-route-mfa-gates` @ post-`328edc6`.
+
+```text
+PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests
+```
+
+**Result:** 131 passed, 0 failed, 0 skipped (adds `test_document_route_mfa_gates.py`, 5 cases).
+
 ## 2026-11-11 — This session (Windows workstation)
 
 Environment: Python `.venv`, `PYTHONPATH` with `;` separators (`apps/api` + repo root). No Docker. `TEST_DATABASE_URL` unset.
@@ -13,7 +23,7 @@ PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests
 ```
 
 **Result:** 126 passed, 0 failed, 0 skipped, 1 warning (Starlette TestClient/`httpx` deprecation).  
-Includes new `test_mfa_route_gates.py` (10 passed).
+Includes new `test_mfa_route_gates.py` (10 passed). Later follow-on raised suite to 131 — see above.
 
 ### Reference foundation (separate discovery)
 
