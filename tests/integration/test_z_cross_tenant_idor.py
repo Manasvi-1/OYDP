@@ -198,6 +198,7 @@ def test_grants_reviews_consent_export_cross_tenant(api, tenants):
         secret,
     )
     _assert_hidden(api.get(f'/v1/properties/{pid}/reviews', headers=hb), secret)
+    _assert_hidden(api.get(f'/v1/properties/{pid}/evidence-graph', headers=hb), secret)
     _assert_hidden(
         api.post(
             f'/v1/properties/{pid}/reviews',
@@ -276,6 +277,7 @@ def test_documents_scan_identifiers_audit_diligence_cross_tenant(api, tenants, m
         secret,
     )
     _assert_hidden(api.get(f'/v1/properties/{pid}/identifiers', headers=hb), 'IDOR-A-1')
+    _assert_hidden(api.get(f'/v1/properties/{pid}/evidence-graph', headers=hb), secret)
     _assert_hidden(api.get(f'/v1/properties/{pid}/audit', headers=hb), secret)
     _assert_hidden(api.get(f'/v1/properties/{pid}/requests', headers=hb), 'Private diligence')
     _assert_hidden(

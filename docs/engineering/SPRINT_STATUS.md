@@ -17,13 +17,13 @@
 | Document↔identifier + export refs | Done (API 0.11.0 / PR #28) |
 | Review↔claim attribution | Done (API 0.12.0 / PR #29) |
 | Review↔document/identifier attribution | Done (API 0.13.0 / PR #31) |
-| Read-only evidence-graph projection | Next (`T-NEXT-008`) |
+| Read-only evidence-graph projection | In delivery (`T-NEXT-008`, API 0.14.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- None; resume at T-NEXT-008.
+- T-NEXT-008 evidence-graph projection (`feat/evidence-graph-projection`, API 0.14.0).
 
 ## Done recently (main history)
 

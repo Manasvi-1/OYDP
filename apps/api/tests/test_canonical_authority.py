@@ -54,7 +54,7 @@ def test_reference_package_is_not_mounted_by_active_openapi():
     schema = app.openapi()
     assert schema['info']['title'] == 'OYDP Property Identity API'
     # Diligence routes ship with the active contract; version must stay aligned.
-    assert schema['info']['version'] == '0.13.0'
+    assert schema['info']['version'] == '0.14.0'
     dumped = str(schema)
     assert 'oydp schema' not in dumped.lower()
     assert '/v1/properties' in schema['paths']

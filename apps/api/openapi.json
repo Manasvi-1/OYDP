@@ -618,6 +618,95 @@
         "title": "DocumentRecord",
         "type": "object"
       },
+      "EvidenceGraph": {
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceGraphEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "notice": {
+            "const": "Evidence graph projection only. Not a title certificate; claims remain unverified; reviews are not title; document citations do not change scan state.",
+            "title": "Notice",
+            "type": "string"
+          },
+          "property_id": {
+            "format": "uuid",
+            "title": "Property Id",
+            "type": "string"
+          },
+          "title_verified": {
+            "const": false,
+            "title": "Title Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "property_id",
+          "title_verified",
+          "notice",
+          "edges"
+        ],
+        "title": "EvidenceGraph",
+        "type": "object"
+      },
+      "EvidenceGraphEdge": {
+        "properties": {
+          "from_id": {
+            "format": "uuid",
+            "title": "From Id",
+            "type": "string"
+          },
+          "from_kind": {
+            "enum": [
+              "claim",
+              "document",
+              "review"
+            ],
+            "title": "From Kind",
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "cites_source",
+              "attributed_to_claim",
+              "attributed_to_source",
+              "attributed_to_identifier",
+              "cites_claim",
+              "cites_document",
+              "cites_identifier"
+            ],
+            "title": "Relation",
+            "type": "string"
+          },
+          "to_id": {
+            "format": "uuid",
+            "title": "To Id",
+            "type": "string"
+          },
+          "to_kind": {
+            "enum": [
+              "source",
+              "claim",
+              "document",
+              "identifier"
+            ],
+            "title": "To Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_kind",
+          "from_id",
+          "to_kind",
+          "to_id",
+          "relation"
+        ],
+        "title": "EvidenceGraphEdge",
+        "type": "object"
+      },
       "EvidencePacket": {
         "properties": {
           "claims": {
@@ -1801,7 +1890,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3245,6 +3334,73 @@
           }
         },
         "summary": "Scan Document"
+      }
+    },
+    "/v1/properties/{property_id}/evidence-graph": {
+      "get": {
+        "description": "Read-only projection of existing attribution edges. Never asserts title or verification.",
+        "operationId": "get_evidence_graph_v1_properties__property_id__evidence_graph_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Property Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceGraph"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Evidence Graph"
       }
     },
     "/v1/properties/{property_id}/exports": {
