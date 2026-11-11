@@ -65,6 +65,7 @@
               "document.quarantined",
               "document.scan_passed",
               "document.scan_failed",
+              "document.attributed",
               "identifier.recorded",
               "identifier.conflict",
               "review.recorded",
@@ -428,6 +429,37 @@
         "title": "CorrectionResult",
         "type": "object"
       },
+      "DocumentAttribution": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Id"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          }
+        },
+        "title": "DocumentAttribution",
+        "type": "object"
+      },
       "DocumentPage": {
         "properties": {
           "items": {
@@ -461,6 +493,18 @@
           "byte_size": {
             "title": "Byte Size",
             "type": "integer"
+          },
+          "claim_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Id"
           },
           "created_at": {
             "format": "date-time",
@@ -516,6 +560,18 @@
             "minLength": 64,
             "title": "Sha256",
             "type": "string"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
           },
           "tenant_id": {
             "format": "uuid",
@@ -1649,7 +1705,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2854,6 +2910,93 @@
           }
         },
         "summary": "Get Document"
+      }
+    },
+    "/v1/properties/{property_id}/documents/{document_id}/attribution": {
+      "put": {
+        "description": "Link a quarantined document to an unverified claim and/or a live evidence source.\n\nAttribution does not change claim verification, source rights, or scan_state.",
+        "operationId": "attribute_document_v1_properties__property_id__documents__document_id__attribution_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Property Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentAttribution"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Attribute Document"
       }
     },
     "/v1/properties/{property_id}/documents/{document_id}/content": {

@@ -12,7 +12,8 @@
 | Keep PR #22 cookie fix mergeable without regressing main security | Done (merged) |
 | Add non-overridden MFA route negatives | Done (incl. documents) |
 | Re-run native PG integration locally | Done via portable PG 16.15 @ 55432 (238 pass) |
-| Claim→source evidence edge | In delivery (`015`, API 0.9.0) |
+| Claim→source evidence edge | Done (API 0.9.0 / PR #25) |
+| Document↔claim/source attribution | In delivery (`016`, API 0.10.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 

@@ -21,7 +21,7 @@ Updated: 2026-11-11.
 | --- | --- | --- | --- |
 | G-MFA-INT | Many integration fixtures override `require_mfa=True` | Medium | Route-level unit gates added (`test_mfa_route_gates.py`); deepen DB-backed non-override cases when PG available |
 | G-SESSION | No session kill on membership revoke | High (SF-006) | Grants checked per request; token revocation at IdP not wired |
-| G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Claim→source live citation landed (`015`); document↔claim/source and fuller graph journeys still open |
+| G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Claim→source (`015`) and document↔claim/source (`016`) landed; identifier links / fuller graph journeys still open |
 | G-ENGINES | E02, E04–E13 not started | Scope | Must remain commitments; do not fake |
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected this session to reflect quarantine + BLOCKED scanner |
 | G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Expected for pre-alpha |

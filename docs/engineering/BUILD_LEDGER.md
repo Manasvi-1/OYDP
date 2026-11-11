@@ -2,6 +2,22 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-11 — T-NEXT-004 document attribution
+
+### Completed
+
+1. `infra/db/016_document_attribution.sql` + `attribute_property_document` — optional `claim_id` / `source_id` on `property_documents`.
+2. `PUT .../documents/{id}/attribution` (MFA); withdrawn/foreign/empty denied; runtime cannot UPDATE links directly; scan_state unchanged; claims stay unverified.
+3. API **0.10.0**; IDOR probe for attribution; local disposable PG suite **240 passed, 0 skipped**.
+
+### Next task (resume here)
+
+**T-NEXT-005:** Export packet may surface document attribution refs explicitly (still `title_verified: false`), or document↔identifier link — keep E01 Partial.
+
+**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+
+---
+
 ## 2026-11-11 — T-NEXT-001 local PG + claim→source graph edge
 
 ### Completed
@@ -11,12 +27,7 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. **T-E01-GRAPH slice:** `infra/db/015_claim_source_attribution.sql` — optional live `source_id` on claims via `record_property_claim`; withdrawn/foreign sources rejected; claims stay `user_claim`/`unverified`; API 0.9.0; secret scan wired into Active API smoke.
 
 4. PR #25 merged to `main` @ `7f218c3` after full CI SUCCESS.
-
-### Next task (resume here)
-
-**T-NEXT-004:** Document↔claim or document↔source attribution edge (new migration under `infra/db` only), or deepen export packet source disclosure — keep E01 Partial; no title claims.
-
-**Human blockers:** Docker engine for compose Keycloak; live IdP enrollment; production malware scanner; independent review.
+5. PR #26 ledger close merged @ `71553d2`.
 
 ---
 

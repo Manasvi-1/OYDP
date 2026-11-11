@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.9.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.10.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -371,9 +371,20 @@ class DocumentRecord(BaseModel):
     scan_state: Literal['quarantined', 'pass', 'fail']
     created_at: datetime
     scanned_at: datetime | None
+    claim_id: UUID | None = None
+    source_id: UUID | None = None
 
 
-_DOCUMENT_META = 'id,tenant_id,property_id,created_by,media_type,byte_size,sha256,scan_state,created_at,scanned_at'
+class DocumentAttribution(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    claim_id: UUID | None = None
+    source_id: UUID | None = None
+
+
+_DOCUMENT_META = (
+    'id,tenant_id,property_id,created_by,media_type,byte_size,sha256,scan_state,'
+    'created_at,scanned_at,claim_id,source_id'
+)
 
 
 def document_db_error(exc):
@@ -456,6 +467,28 @@ def get_document(property_id: UUID, document_id: UUID, access=Depends(authorized
     return document_view(document_meta(conn, property_id, document_id))
 
 
+@app.put('/v1/properties/{property_id}/documents/{document_id}/attribution', response_model=DocumentRecord)
+def attribute_document(property_id: UUID, document_id: UUID, payload: DocumentAttribution,
+                       access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    """Link a quarantined document to an unverified claim and/or a live evidence source.
+
+    Attribution does not change claim verification, source rights, or scan_state.
+    """
+    conn, role = access
+    writable_property(conn, property_id)
+    require_writer_role(role)
+    if payload.claim_id is None and payload.source_id is None:
+        raise HTTPException(422, 'Invalid attribution')
+    row = call_trusted(
+        conn,
+        f"""SELECT id, tenant_id, property_id, created_by, media_type, byte_size, sha256, scan_state,
+              created_at, scanned_at, claim_id, source_id
+            FROM public.attribute_property_document({_TENANT}, %s, %s, %s, %s)""",
+        (property_id, document_id, payload.claim_id, payload.source_id),
+    )
+    return document_view(row)
+
+
 @app.post('/v1/properties/{property_id}/documents/{document_id}/scan', response_model=DocumentRecord)
 def scan_document(property_id: UUID, document_id: UUID, access=Depends(authorized_db, scope='function'),
                   mfa=Depends(require_mfa), scanner=Depends(get_document_scanner)):
@@ -531,7 +564,9 @@ _TRUSTED_SQL = {
     'Invalid source': (422, 'Invalid source'),
     'Invalid review': (422, 'Invalid review'),
     'Invalid claim': (422, 'Invalid claim'),
+    'Invalid attribution': (422, 'Invalid attribution'),
     'Invalid request': (422, 'Invalid request'),
+    'Document not found': (404, 'Document not found'),
 }
 _TENANT = "nullif(current_setting('app.tenant_id', true), '')::uuid"
 
@@ -695,6 +730,7 @@ class AuditRecord(BaseModel):
     event_type: Literal[
         'property.created', 'access.granted', 'access.revoked', 'claim.recorded', 'property.corrected',
         'write.granted', 'write.revoked', 'document.quarantined', 'document.scan_passed', 'document.scan_failed',
+        'document.attributed',
         'identifier.recorded', 'identifier.conflict', 'review.recorded', 'consent.recorded', 'consent.revoked',
         'packet.exported', 'diligence.opened', 'diligence.noted', 'diligence.closed',
     ]

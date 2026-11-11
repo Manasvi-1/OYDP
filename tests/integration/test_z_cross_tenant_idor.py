@@ -267,6 +267,14 @@ def test_documents_scan_identifiers_audit_diligence_cross_tenant(api, tenants, m
         api.post(f'/v1/properties/{pid}/documents/{document_id}/scan', headers=hb),
         'OYDP-SYNTHETIC-CLEAN',
     )
+    _assert_hidden(
+        api.put(
+            f'/v1/properties/{pid}/documents/{document_id}/attribution',
+            headers=hb,
+            json={'claim_id': str(uuid4())},
+        ),
+        secret,
+    )
     _assert_hidden(api.get(f'/v1/properties/{pid}/identifiers', headers=hb), 'IDOR-A-1')
     _assert_hidden(api.get(f'/v1/properties/{pid}/audit', headers=hb), secret)
     _assert_hidden(api.get(f'/v1/properties/{pid}/requests', headers=hb), 'Private diligence')
