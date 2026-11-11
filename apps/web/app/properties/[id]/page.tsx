@@ -22,6 +22,8 @@ import {
   claimsQuery,
   correctionsQuery,
   documentsQuery,
+  evidenceConflictsQuery,
+  evidenceGraphQuery,
   identifiersQuery,
   notesQuery,
   requestsQuery,
@@ -124,6 +126,42 @@ interface RequestItem {
   closed_at: string | null
 }
 
+interface EvidenceGraphEdge {
+  from_kind: string
+  from_id: string
+  to_kind: string
+  to_id: string
+  relation: string
+}
+
+interface EvidenceGraphPayload {
+  property_id: string
+  title_verified: boolean
+  notice: string
+  edges: EvidenceGraphEdge[]
+}
+
+interface IdentifierConflictItem {
+  id: string
+  scheme: string
+  identifier_value: string
+  version: number
+  status: string
+  recorded_at: string
+}
+
+interface EvidenceConflictsPayload {
+  property_id: string
+  title_verified: boolean
+  notice: string
+  unresolved: boolean
+  open_unverified_claim_count: number
+  open_unverified_claim_ids: string[]
+  multiple_open_unverified_claims: boolean
+  identifier_conflicts: IdentifierConflictItem[]
+  claims_citing_withdrawn_sources: string[]
+}
+
 export default async function PropertyPage({ params, searchParams }: {
   params: Promise<{ id: string }>
   searchParams: Promise<{ error?: string; notice?: string; cursor?: string; tab?: string }>
@@ -151,6 +189,12 @@ export default async function PropertyPage({ params, searchParams }: {
   const documents = await loadPage<PageResult<DocumentItem>>(session, documentsQuery(id, undefined))
   const audit = await loadPage<PageResult<AuditItem>>(session, auditQuery(id, undefined))
   const requests = await loadPage<PageResult<RequestItem>>(session, requestsQuery(id, undefined))
+  const evidenceGraph = tab === 'graph'
+    ? await loadPage<EvidenceGraphPayload>(session, evidenceGraphQuery(id))
+    : { value: null, error: '' }
+  const evidenceConflicts = tab === 'graph'
+    ? await loadPage<EvidenceConflictsPayload>(session, evidenceConflictsQuery(id))
+    : { value: null, error: '' }
 
   const notice = {
     'read-access-updated': 'Read access was updated.',
@@ -202,6 +246,7 @@ export default async function PropertyPage({ params, searchParams }: {
       {tab === 'identity' ? <IdentityTab propertyId={id} property={property} corrections={corrections} /> : null}
       {tab === 'identifiers' ? <IdentifiersTab propertyId={id} identifiers={identifiers} /> : null}
       {tab === 'claims' ? <ClaimsTab propertyId={id} claims={claims} reviews={reviews} sources={sources} /> : null}
+      {tab === 'graph' ? <GraphTab graph={evidenceGraph} conflicts={evidenceConflicts} /> : null}
       {tab === 'documents' ? <DocumentsTab propertyId={id} documents={documents} /> : null}
       {tab === 'access' ? <AccessTab propertyId={id} /> : null}
       {tab === 'diligence' ? <DiligenceTab propertyId={id} session={session} requests={requests} /> : null}
@@ -641,6 +686,127 @@ async function DiligenceTab({ propertyId, session, requests }: {
         </label>
         <button className="primary" type="submit">Open request</button>
       </form>
+    </div>
+  )
+}
+
+function shortId(value: string) {
+  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value
+}
+
+function GraphTab({ graph, conflicts }: {
+  graph: LoadedPage<EvidenceGraphPayload>
+  conflicts: LoadedPage<EvidenceConflictsPayload>
+}) {
+  const conflictBody = conflicts.value
+  const graphBody = graph.value
+  return (
+    <div className="workspace">
+      <div className="stack">
+        <article className="panel stack" aria-labelledby="conflicts-heading">
+          <h2 id="conflicts-heading">Unresolved evidence signals</h2>
+          <p className="muted">
+            Server-side signals only. This is not title verification, and unresolved signals are not adjudication.
+          </p>
+          {conflicts.error ? <p className="banner" role="alert">{conflicts.error}</p> : null}
+          {!conflicts.error && !conflictBody ? <p className="muted">Conflict signals are still loading.</p> : null}
+          {conflictBody ? (
+            <>
+              <div className="meta">
+                <StatusPill
+                  label={conflictBody.title_verified ? 'Title claim present' : 'Not a title certificate'}
+                  tone={conflictBody.title_verified ? 'danger' : 'warn'}
+                />
+                <StatusPill
+                  label={conflictBody.unresolved ? 'Unresolved signals' : 'No unresolved signals'}
+                  tone={conflictBody.unresolved ? 'warn' : 'ok'}
+                />
+                <span>{conflictBody.open_unverified_claim_count} open unverified claim(s)</span>
+              </div>
+              <p className="muted">{conflictBody.notice}</p>
+              {conflictBody.multiple_open_unverified_claims ? (
+                <p className="notice" role="status">
+                  Multiple open unverified claims exist. They remain user claims and are not ranked or resolved here.
+                </p>
+              ) : null}
+              {conflictBody.open_unverified_claim_ids.length ? (
+                <div className="stack">
+                  <h3>Open unverified claim IDs</h3>
+                  <div className="meta">
+                    {conflictBody.open_unverified_claim_ids.map((claimId) => (
+                      <span key={claimId} className="mono">{shortId(claimId)}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="muted">No open unverified claims.</p>}
+              {conflictBody.identifier_conflicts.length ? (
+                <div className="stack">
+                  <h3>Identifier conflict rows</h3>
+                  <div className="grid">
+                    {conflictBody.identifier_conflicts.map((item) => (
+                      <article key={item.id} className="card">
+                        <div className="meta">
+                          <StatusPill label={item.status} tone="warn" />
+                          <span>{item.scheme}</span>
+                          <span className="mono">{item.identifier_value}</span>
+                          <span>v{item.version}</span>
+                        </div>
+                        <p className="muted">Conflict status is not ownership proof. Recorded {formatWhen(item.recorded_at)}.</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="muted">No identifier conflict rows.</p>}
+              {conflictBody.claims_citing_withdrawn_sources.length ? (
+                <div className="stack">
+                  <h3>Claims citing withdrawn sources</h3>
+                  <div className="meta">
+                    {conflictBody.claims_citing_withdrawn_sources.map((claimId) => (
+                      <span key={claimId} className="mono">{shortId(claimId)}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="muted">No claims currently cite a withdrawn source.</p>}
+            </>
+          ) : null}
+        </article>
+
+        <article className="panel stack" aria-labelledby="graph-heading">
+          <h2 id="graph-heading">Attribution edges</h2>
+          <p className="muted">
+            Read-only projection of existing claim, document, and review citations. Authorization is enforced by the API.
+          </p>
+          {graph.error ? <p className="banner" role="alert">{graph.error}</p> : null}
+          {!graph.error && !graphBody ? <p className="muted">Evidence graph is still loading.</p> : null}
+          {graphBody ? (
+            <>
+              <div className="meta">
+                <StatusPill
+                  label={graphBody.title_verified ? 'Title claim present' : 'Not a title certificate'}
+                  tone={graphBody.title_verified ? 'danger' : 'warn'}
+                />
+                <span>{graphBody.edges.length} edge(s)</span>
+              </div>
+              <p className="muted">{graphBody.notice}</p>
+              {graphBody.edges.length ? (
+                <div className="grid">
+                  {graphBody.edges.map((edge) => (
+                    <article key={`${edge.from_kind}-${edge.from_id}-${edge.relation}-${edge.to_kind}-${edge.to_id}`} className="card">
+                      <div className="meta">
+                        <span>{edge.from_kind}</span>
+                        <span className="mono">{shortId(edge.from_id)}</span>
+                        <span>{edge.relation}</span>
+                        <span>{edge.to_kind}</span>
+                        <span className="mono">{shortId(edge.to_id)}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="muted">No attribution edges on this property yet.</p>}
+            </>
+          ) : null}
+        </article>
+      </div>
     </div>
   )
 }

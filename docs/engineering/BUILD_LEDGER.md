@@ -2,21 +2,37 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
-## 2026-11-12 — T-NEXT-010 evidence conflict signals + export sources
+## 2026-11-12 — T-NEXT-011 web evidence graph / conflicts wiring
 
 ### Completed so far
+
+1. Branched `feat/web-evidence-graph-wiring` from `main` @ `1501d46`.
+2. `apps/web` property tab **Evidence graph** loads `GET .../evidence-graph` and `GET .../evidence-conflicts` via existing session API client (server-side only).
+3. UI shows empty/error/permission messages, unresolved-signal disclaimers, and attribution edges; no client-side authz.
+4. Web verification: `npm test` **44 passed**; `npm run typecheck` OK; `npm run build` OK. Backend not modified.
+
+### Next task (resume here)
+
+After this PR merges: next unblocked E01 depth (skip T-NEXT-009). Prefer remaining G-WEB-DEPTH or foundation negatives without Docker. Not GA.
+
+**Human blockers:** Docker/Keycloak (blocks T-NEXT-009); live IdP; malware scanner; independent review.
+
+---
+
+## 2026-11-12 — T-NEXT-010 evidence conflict signals + export sources
+
+### Completed
 
 1. Marked **T-NEXT-009** PostGIS IDOR as **BLOCKED** (Docker engine unavailable) in BUILD_LEDGER / KNOWN_GAPS; do not stall the project.
 2. Branched `feat/evidence-conflict-signals` from `main` @ `ecceab5`.
 3. API **0.15.0**: `GET .../evidence-conflicts` surfaces unresolved multi-claim / identifier-conflict / withdrawn-source citation signals without adjudication; export packets include cited `sources`.
 4. Disposable PG `127.0.0.1:55432` suite: **244 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
 5. PR [#35](https://github.com/Manasvi-1/OYDP/pull/35) **merged** to `main` @ `0199033` via `gh pr merge --merge`.
+6. PR [#36](https://github.com/Manasvi-1/OYDP/pull/36) ledger close **merged** @ `1501d46`.
 
 ### Next task (resume here)
 
-**T-NEXT-011:** wire `apps/web` to evidence-graph / evidence-conflicts (G-WEB-DEPTH) using existing real API client patterns — preserve untracked local web work. **T-NEXT-009 remains BLOCKED** (no Docker/PostGIS). Not GA.
-
-**Human blockers:** Docker/Keycloak (blocks T-NEXT-009); live IdP; malware scanner; independent review.
+**T-NEXT-011:** see newer ledger entry. **T-NEXT-009 remains BLOCKED.**
 
 ---
 
