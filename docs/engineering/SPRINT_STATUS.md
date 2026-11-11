@@ -8,10 +8,11 @@
 | Goal | State |
 | --- | --- |
 | Audit repository with evidence | Done |
-| Publish engineering ledger docs | Done (this session) |
-| Keep PR #22 cookie fix mergeable without regressing main security | Done (merged main into branch) |
-| Add non-overridden MFA route negatives | Done |
-| Re-run native PG integration locally | Blocked (no Docker) |
+| Publish engineering ledger docs | Done |
+| Keep PR #22 cookie fix mergeable without regressing main security | Done (merged) |
+| Add non-overridden MFA route negatives | Done (incl. documents) |
+| Re-run native PG integration locally | Done via portable PG 16.15 @ 55432 (238 pass) |
+| Claim→source evidence edge | In delivery (`015`, API 0.9.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 

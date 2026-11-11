@@ -2,6 +2,22 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-11 — T-NEXT-001 local PG + claim→source graph edge
+
+### Completed
+
+1. **T-NEXT-001:** Disposable PostgreSQL 16.15 portable cluster on `127.0.0.1:55432` (trust auth). Docker CLI absent; Docker Desktop present but engine pipe unavailable; system PG 17 on 5432 lacks known password / unused. Active API needs `pgcrypto` only (not PostGIS) — matches CI `postgres:16`.
+2. Fresh DB `oydp_security_test` + full suite: **238 passed, 0 skipped, 0 failed**; JUnit guard verified; IDOR file **8/8 passed**.
+3. **T-E01-GRAPH slice:** `infra/db/015_claim_source_attribution.sql` — optional live `source_id` on claims via `record_property_claim`; withdrawn/foreign sources rejected; claims stay `user_claim`/`unverified`; API 0.9.0; secret scan wired into Active API smoke.
+
+### Next task (resume here)
+
+**T-NEXT-004:** Document↔claim or document↔source attribution edge (new migration under `infra/db` only), or deepen export packet source disclosure — keep E01 Partial; no title claims.
+
+**Human blockers:** Docker engine for compose Keycloak; live IdP enrollment; production malware scanner; independent review.
+
+---
+
 ## 2026-11-11 — Document route MFA negatives (follow-on)
 
 ### Completed
@@ -10,16 +26,7 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 2. Branched `security/document-route-mfa-gates` from `origin/main`.
 3. Added `apps/api/tests/test_document_route_mfa_gates.py` for upload/scan/content MFA negatives (no scanner pass forgery).
 4. PR #23 merged to `main` @ `6c56778` after full CI SUCCESS (131 unit tests in Active API smoke path).
-
-### Next task (resume here)
-
-**T-NEXT-001 (P0 when infra available):** Provision disposable PostGIS, set `TEST_DATABASE_URL`, run  
-`PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests tests/integration`  
-including `test_z_cross_tenant_idor.py`. Record exact counts. Do not weaken skips.
-
-**T-NEXT-003 (P2 after PG green):** E01 evidence-graph increment — no engine placeholder PRs.
-
-**Human blockers:** Install/start Docker Desktop (or equivalent PostGIS) for local integration; live Keycloak enrollment; production malware scanner adapter; independent security review.
+5. PR #24 build-ledger close merged @ `5685dc1`.
 
 ---
 

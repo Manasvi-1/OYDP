@@ -96,6 +96,18 @@
       "ClaimCreate": {
         "additionalProperties": false,
         "properties": {
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
           "statement": {
             "maxLength": 10000,
             "minLength": 1,
@@ -138,7 +150,6 @@
         "type": "object"
       },
       "ClaimRecord": {
-        "additionalProperties": false,
         "properties": {
           "created_by": {
             "title": "Created By",
@@ -164,9 +175,19 @@
             "title": "Recorded At",
             "type": "string"
           },
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
           "statement": {
-            "maxLength": 10000,
-            "minLength": 1,
             "title": "Statement",
             "type": "string"
           },
@@ -182,13 +203,14 @@
           }
         },
         "required": [
-          "statement",
           "id",
           "tenant_id",
           "property_id",
           "created_by",
+          "statement",
           "kind",
           "verification_status",
+          "source_id",
           "recorded_at"
         ],
         "title": "ClaimRecord",
@@ -920,6 +942,18 @@
             "title": "Recorded At",
             "type": "string"
           },
+          "source_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
           "statement": {
             "title": "Statement",
             "type": "string"
@@ -936,6 +970,7 @@
           "created_by",
           "kind",
           "verification_status",
+          "source_id",
           "recorded_at"
         ],
         "title": "PacketClaim",
@@ -1614,7 +1649,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.8.0"
+    "version": "0.9.0"
   },
   "openapi": "3.1.0",
   "paths": {
