@@ -2,15 +2,16 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
-## 2026-11-12 — CSP middleware wiring + presentation hygiene
+## 2026-11-12 — CSP middleware + audit forge / source-gate follow-up
 
 ### Completed
 
 1. Branched `security/web-csp-and-repo-presentation` from `origin/main`.
 2. Wired Next.js 15 CSP entry as `apps/web/middleware.js` (previous `proxy.js` was not loaded by the framework; middleware-manifest was empty).
 3. Root layout uses `connection()` for a request boundary; removed React inline `style={{...}}` so `style-src 'self'` can enforce.
-4. Aligned README / CONTRIBUTING / SECURITY / docs index with API **0.15.0** and migrations **001–019**.
-5. Added middleware + corrected CSP unit tests.
+4. Aligned README / CONTRIBUTING / SECURITY / docs index; added `docs/README.md` and proprietary `LICENSE`.
+5. Follow-up from API audit: migration **020** closes direct `property_audit_events` INSERT (SECURITY DEFINER helpers), freezes `evidence_assertions` DML, restricts source withdrawal to creator/owner, merges document attribution fields, aligns diligence open/close with creator gate. API **0.16.0**.
+6. Web hygiene: `apps/web/README.md`, decision bucket label, e2e Continue selectors.
 
 ### Next task (resume here)
 

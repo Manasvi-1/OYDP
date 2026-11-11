@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.15.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.16.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -103,8 +103,7 @@ def create_property(payload: PropertyCreate, access=Depends(authorized_db, scope
         raise HTTPException(403, 'Property write permission required')
     row = conn.execute("INSERT INTO properties(tenant_id,label,jurisdiction) VALUES (nullif(current_setting('app.tenant_id', true), '')::uuid,%s,%s) RETURNING *",
                         (payload.label, payload.jurisdiction)).fetchone()
-    conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES (%s,%s,current_setting('app.subject_id'), 'property.created')",
-                 (row['tenant_id'], row['id']))
+    conn.execute("SELECT public.record_property_created_audit(%s, %s)", (row['tenant_id'], row['id']))
     return row
 
 
@@ -439,9 +438,8 @@ def quarantine_document(tenant_id, subject, property_id, payload, media, key):
           VALUES (%s,%s,%s,current_setting('app.subject_id'),%s,%s,%s,'quarantined',%s,%s)
           RETURNING {_DOCUMENT_META}""",
           (document_id, parent['tenant_id'], property_id, media, len(payload), digest_bytes(payload), ciphertext, nonce)).fetchone()
-        conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type,document_id)
-          VALUES (%s,%s,current_setting('app.subject_id'),'document.quarantined',%s)""",
-          (parent['tenant_id'], property_id, document_id))
+        conn.execute("SELECT public.record_document_quarantined_audit(%s, %s, %s)",
+                     (parent['tenant_id'], property_id, document_id))
     return document_view(row)
 
 
@@ -474,8 +472,10 @@ def attribute_document(property_id: UUID, document_id: UUID, payload: DocumentAt
                        access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     """Link a quarantined document to an unverified claim, live source, and/or current identifier.
 
-    Attribution does not change claim verification, source rights, identifier status, or scan_state.
-    Export packets include these refs and still set title_verified false.
+    Non-null fields in the body replace the matching link; omitted (null) fields keep the
+    current attribution. Attribution does not change claim verification, source rights,
+    identifier status, or scan_state. Export packets include these refs and still set
+    title_verified false.
     """
     conn, role = access
     writable_property(conn, property_id)
@@ -1185,14 +1185,13 @@ class NotePage(BaseModel):
 
 
 def audit_diligence(conn, tenant_id, property_id, event_type):
-    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
-      VALUES(%s,%s,current_setting('app.subject_id'),%s)""", (tenant_id, property_id, event_type))
+    conn.execute("SELECT public.record_diligence_audit(%s, %s, %s)", (tenant_id, property_id, event_type))
 
 
 @app.post('/v1/properties/{property_id}/requests', status_code=201, response_model=RequestRecord)
 def open_request(property_id: UUID, payload: RequestCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
-    conn, _role = access
-    parent = writable_property(conn, property_id)
+    conn, role = access
+    parent = creator_gate(conn, property_id, role)
     try:
         row = conn.execute("""INSERT INTO diligence_requests(tenant_id,property_id,title,body)
           VALUES(%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, payload.title, payload.body)).fetchone()
@@ -1241,8 +1240,8 @@ def list_notes(property_id: UUID, request_id: UUID, access=Depends(authorized_db
 
 @app.post('/v1/properties/{property_id}/requests/{request_id}/close', response_model=RequestRecord)
 def close_request(property_id: UUID, request_id: UUID, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
-    conn, _role = access
-    parent = writable_property(conn, property_id)
+    conn, role = access
+    parent = creator_gate(conn, property_id, role)
     row = conn.execute("""UPDATE diligence_requests SET status='closed', closed_at=clock_timestamp()
       WHERE id=%s AND property_id=%s AND status='open' RETURNING *""", (request_id, property_id)).fetchone()
     if row is None:

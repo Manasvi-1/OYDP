@@ -63,7 +63,10 @@ def provision_runtime(dsn, password):
             raise ValueError('Runtime role must not own relations')
         conn.execute('REVOKE CREATE ON SCHEMA public FROM PUBLIC')
         conn.execute('GRANT USAGE ON SCHEMA public TO oydp_app')
-        conn.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON properties, evidence_assertions TO oydp_app')
+        conn.execute('GRANT SELECT, INSERT, UPDATE, DELETE ON properties TO oydp_app')
+        # Legacy evidence_assertions is frozen; trusted evidence uses SECURITY DEFINER helpers.
+        conn.execute('REVOKE ALL ON evidence_assertions FROM oydp_app')
+        conn.execute('GRANT SELECT ON evidence_assertions TO oydp_app')
         conn.execute('REVOKE ALL ON tenant_memberships, schema_migrations FROM oydp_app')
         conn.execute('GRANT SELECT ON tenant_memberships TO oydp_app')
         conn.execute('GRANT UPDATE(subject_id) ON tenant_memberships TO oydp_app')
@@ -78,7 +81,11 @@ def provision_runtime(dsn, password):
         conn.execute('REVOKE ALL ON property_corrections FROM oydp_app')
         conn.execute('GRANT SELECT ON property_corrections TO oydp_app')
         conn.execute('REVOKE ALL ON property_audit_events FROM oydp_app')
-        conn.execute('GRANT SELECT, INSERT ON property_audit_events TO oydp_app')
+        # Audit rows append only through SECURITY DEFINER helpers (never direct INSERT).
+        conn.execute('GRANT SELECT ON property_audit_events TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_created_audit(uuid,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_document_quarantined_audit(uuid,uuid,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_diligence_audit(uuid,uuid,text) TO oydp_app')
         conn.execute('REVOKE ALL ON property_claims FROM oydp_app')
         # Claims are append-only through record_property_claim so source citations stay gated.
         conn.execute('GRANT SELECT ON property_claims TO oydp_app')

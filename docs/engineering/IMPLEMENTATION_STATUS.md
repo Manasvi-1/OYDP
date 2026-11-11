@@ -11,7 +11,7 @@ Updated: 2026-11-11. Branch evidence: `feat/interview-demo-workspace` (post-merg
 
 | Surface | Evidence label | Task status | Notes |
 | --- | --- | --- | --- |
-| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units this session) | API 0.15.0 |
+| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units this session) | API 0.16.0 |
 | Tenant RLS + membership | integration-tested (CI) | VERIFIED in CI; local DB BLOCKED | |
 | OIDC JWKS validation | executable implementation | TESTED (units) | Live IdP BLOCKED |
 | MFA freshness + SF-008 | executable implementation | TESTED (units + route gates) | Live emission BLOCKED |

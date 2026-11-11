@@ -80,13 +80,13 @@ def test_failed_property_does_not_enqueue(api):
     with psycopg.connect(DSN) as conn:
         conn.execute("INSERT INTO tenant_memberships VALUES (%s,'audit-alice','owner')", (tenant,))
         before = conn.execute('SELECT count(*) FROM audit_outbox').fetchone()[0]
-        conn.execute('REVOKE INSERT ON property_audit_events FROM oydp_app')
+        conn.execute('REVOKE EXECUTE ON FUNCTION public.record_property_created_audit(uuid,uuid) FROM oydp_app')
     try:
         failed = api.post('/v1/properties', headers={'X-Tenant-ID': str(tenant)}, json={'label': 'Must not land', 'jurisdiction': 'KA'})
         assert failed.status_code == 503
     finally:
         with psycopg.connect(DSN) as conn:
-            conn.execute('GRANT INSERT ON property_audit_events TO oydp_app')
+            conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_created_audit(uuid,uuid) TO oydp_app')
             assert conn.execute('SELECT count(*) FROM audit_outbox').fetchone()[0] == before
             assert conn.execute("SELECT id FROM properties WHERE label='Must not land'").fetchone() is None
 

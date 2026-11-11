@@ -35,7 +35,8 @@ Updated: 2026-11-12.
 | Interview OIDC cookie loss on callback | PR #22 commits | Web CI SUCCESS |
 | Claim→source / document / review attribution + graph projection | PRs #25–#33 | Active API 0.14.0 on main |
 | Evidence conflicts + export sources + web graph/conflicts UI | PRs #35–#37 | API 0.15.0; web PR #37 |
-| Web CSP middleware unwired (`proxy.js` unused by Next 15) | This branch | `middleware.js` + build manifest matchers |
+| Web CSP middleware unwired (`proxy.js` unused by Next 15) | This branch / PR #38 | `middleware.js` + build manifest matchers |
+| Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | This branch | Migration `020` + API 0.16.0 |
 
 ## Explicit non-goals this session
 

@@ -7,7 +7,7 @@ test('real property/claim persistence, read grant/revocation, tenant and MFA den
    await page.goto('/');
    await page.getByLabel('Tenant ID',{exact:true}).fill(credentials.tenant);
    await page.getByLabel('API access token',{exact:true}).fill(token);
-   await page.getByRole('button',{name:'Connect workspace'}).click();
+   await page.getByRole('button',{name:'Continue'}).click();
    await expect(page.getByRole('button',{name:'Refresh',exact:true})).toBeEnabled();
  }
  async function disconnect(){await page.getByRole('button',{name:'Disconnect',exact:true}).click();}

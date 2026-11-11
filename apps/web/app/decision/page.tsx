@@ -8,7 +8,7 @@ import { StatusPill } from '../components/status-pill'
 export const dynamic = 'force-dynamic'
 
 type Bucket =
-  | 'Verified-by-identified-source'
+  | 'Cited-identified-source'
   | 'User-submitted claim'
   | 'Unreviewed evidence'
   | 'Missing'
@@ -75,7 +75,7 @@ export default async function DecisionPage() {
         const cited = Boolean(review.source_id)
         rows.push({
           signal: 'Professional review',
-          bucket: cited ? 'Verified-by-identified-source' : 'Unreviewed evidence',
+          bucket: cited ? 'Cited-identified-source' : 'Unreviewed evidence',
           detail: `${review.disposition}: ${String(review.statement ?? '').slice(0, 120)} · title_effect=${review.title_effect}`,
           tone: cited ? 'info' : 'warn',
         })

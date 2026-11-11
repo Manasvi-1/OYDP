@@ -15,7 +15,7 @@
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square&labelColor=0F172A)](#where-we-actually-are)
 [![Engines](https://img.shields.io/badge/engines-13%20planned-0F766E?style=flat-square&labelColor=0F172A)](#the-13-engines)
 [![Shape](https://img.shields.io/badge/shape-modular%20monolith-334155?style=flat-square&labelColor=0F172A)](#how-it-fits-together)
-[![API](https://img.shields.io/badge/API-0.15.0%20property%20identity-0EA5E9?style=flat-square&labelColor=0F172A)](#what-this-checkout-does)
+[![API](https://img.shields.io/badge/API-0.16.0%20property%20identity-0EA5E9?style=flat-square&labelColor=0F172A)](#what-this-checkout-does)
 
 <br/>
 
@@ -122,8 +122,8 @@ Honest status. Amber means a bounded slice exists in this repo and is not produc
 
 | Surface | Status | Notes |
 | --- | :---: | --- |
-| FastAPI `apps/api` | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Property Identity API **0.15.0** |
-| Postgres + PostGIS + RLS | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | `infra/db` migrations `001`–`019`, role `oydp_app`, forced row security |
+| FastAPI `apps/api` | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Property Identity API **0.16.0** |
+| Postgres + PostGIS + RLS | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | `infra/db` migrations `001`–`020`, role `oydp_app`, forced row security |
 | Next.js `apps/web` | ![amber](https://img.shields.io/badge/-pre--alpha-F59E0B?style=flat-square) | Authenticated workspace with evidence graph / conflict reads. Not a finished product UI |
 | OIDC and MFA freshness | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | High-risk routes require a fresh MFA `auth_time`. Loopback HTTP is an explicit dev flag |
 | Separate evidence platform / workers | ![slate](https://img.shields.io/badge/-planned-64748B?style=flat-square) | Document bytes stay encrypted in Postgres |
@@ -132,7 +132,7 @@ Honest status. Amber means a bounded slice exists in this repo and is not produc
 
 ### What this checkout does
 
-The active services are `apps/api` and the Next.js workspace in `apps/web`. `apps/api/app/main.py` sets the API version to **0.15.0**. Root `oydp/` is not that service.
+The active services are `apps/api` and the Next.js workspace in `apps/web`. `apps/api/app/main.py` sets the API version to **0.16.0**. Root `oydp/` is not that service.
 
 For a property the caller is allowed to see, the API can:
 
@@ -160,11 +160,11 @@ How the slices are implemented, and which limits remain, is written under [`docs
 
 ### API version
 
-The running Property Identity API reports **0.15.0**. Earlier privacy, discovery, trusted-evidence, diligence, attribution, graph, and conflict work sits inside that service. It is not a versioned public product with an SLA.
+The running Property Identity API reports **0.16.0**. Earlier privacy, discovery, trusted-evidence, diligence, attribution, graph, and conflict work sits inside that service. It is not a versioned public product with an SLA.
 
-### Canonical migrations `001`–`019`
+### Canonical migrations `001`–`020`
 
-Apply `infra/db` migrations **001 through 019** in order on a fresh foundation database. Do not cherry-pick mid-stream; if you fork schema locally, rebase onto the merged sequence before opening a PR.
+Apply `infra/db` migrations **001 through 020** in order on a fresh foundation database. Do not cherry-pick mid-stream; if you fork schema locally, rebase onto the merged sequence before opening a PR.
 
 ---
 
@@ -173,9 +173,9 @@ Apply `infra/db` migrations **001 through 019** in order on a fresh foundation d
 ```
 OYDP/
 ├── apps/
-│   ├── api/          # Canonical FastAPI surface (active, 0.15.0)
+│   ├── api/          # Canonical FastAPI surface (active, 0.16.0)
 │   └── web/          # Authenticated Next.js workspace (pre-alpha)
-├── infra/db/         # Canonical checksum migrations 001–019 (public schema)
+├── infra/db/         # Canonical checksum migrations 001–020 (public schema)
 ├── oydp/             # Frozen PR #1 reference package (not mounted)
 ├── migrations/       # Reference oydp-schema migrations only
 ├── docs/             # Design, boundaries, engineering notes (see docs/README.md)
@@ -196,7 +196,7 @@ When a doc and the tree disagree, trust `AGENTS.md` and the code. `apps/api` wit
 1. Clone the repo and enter it.
 2. Install Python 3.11+, Node (for web), Docker (Postgres/PostGIS recommended).
 3. Copy `.env.example` → `.env` and fill OIDC + database URLs for **local** use only.
-4. Bring up PostGIS, run migrations through **019**, start the API from the **canonical** backend path (see reconciliation warning).
+4. Bring up PostGIS, run migrations through **020**, start the API from the **canonical** backend path (see reconciliation warning).
 5. Run the test suite before you trust your checkout.
 
 ```bash
@@ -229,7 +229,7 @@ We do not document a production deploy here — because we are not production.
 
 | Horizon | Focus |
 | --- | --- |
-| **Now** | `apps/api` 0.15.0 and the `apps/web` workspace on the shared identity, RLS, evidence graph, and conflict paths. MFA freshness and web CSP middleware are enforced in code. Live identity enrollment is not |
+| **Now** | `apps/api` 0.16.0 and the `apps/web` workspace on the shared identity, RLS, evidence graph, and conflict paths. MFA freshness and web CSP middleware are enforced in code. Live identity enrollment is not |
 | **Next** | A real malware-scanner adapter; production identity enrollment and revocation; an external write-once audit store; the rest of E02–E13 without calling any of them complete |
 | **Later** | Broader engine delivery (E02–E13 beyond current slices); workers; carefully scoped regional expansion past Bengaluru / Karnataka / Hyderabad — still without fake gov certainty |
 
@@ -245,7 +245,7 @@ We are pre-alpha. That is not an excuse for sloppy auth, leaked secrets, or disa
 
 ## Ownership & licensing
 
-Ownership and licensing are **not finalized**. Do not assume OSI open source, commercial rights, or contribution terms beyond what is written in-repo today. If you need clarity for a partnership or fork, ask the founder before shipping derivatives.
+Ownership and licensing are **not finalized**. See [`LICENSE`](LICENSE) (all rights reserved until terms are published). Do not assume OSI open source, commercial rights, or contribution terms beyond what is written in-repo today. If you need clarity for a partnership or fork, ask the founder before shipping derivatives.
 
 ---
 

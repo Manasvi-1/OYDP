@@ -63,7 +63,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.15.0'
+    assert spec['info']['version'] == '0.16.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',

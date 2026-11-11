@@ -1,23 +1,34 @@
 # OYDP private property workspace
 
-Draft Next.js frontend for the active API 0.4.0. Requires Node 22+ and the active FastAPI service plus migrated PostgreSQL runtime role. No browser sign-in provider is bundled.
+Authenticated Next.js workspace for the active Property Identity API (**0.16.0**). Requires Node 20+, the FastAPI service in `apps/api`, and a migrated PostgreSQL database with role `oydp_app`.
+
+## Local run
 
 ```sh
 cd apps/web
 npm ci
-OYDP_API_ORIGIN=http://127.0.0.1:8000 npm run dev
+# Configure PROPERTY_API_BASE, SESSION_KEY, and OIDC settings in the repo-root .env (see .env.example).
+npm run dev
 ```
 
-Open http://127.0.0.1:3000. Use an operator-issued API access token and an existing tenant UUID. The backend requires configured HTTPS JWKS/issuer/audience, RS256 `at+jwt` access tokens, current membership, and signed `amr: ["mfa"]` for writes. Never use production records/tokens in test fixtures. No API URL or service secret is exposed through NEXT_PUBLIC variables.
+Open http://127.0.0.1:3000. Local demos may paste an operator-issued access token and tenant UUID, or use loopback OIDC when configured. The API still requires RS256 `at+jwt` tokens, membership, and MFA freshness for high-risk writes. Never use production records or tokens in fixtures. No API origin or secret is exposed through `NEXT_PUBLIC_*` variables.
 
 ```sh
 npm test
+npm run typecheck
 npm run build
 npm start
 ```
 
-The proxy accepts only a fixed HTTPS upstream or local loopback HTTP. Credentials remain in React memory, cleared on disconnect/reload/401. Run privately over HTTPS outside loopback. There is no tenant/user provisioning bypass. API responses and pages carry no-store headers. HTML responses use a fresh 256-bit nonce CSP with dynamic rendering; production scripts/styles require a matching nonce, and inline/eval bypasses are disabled. The development server permits eval for framework debugging. Caller-provided nonce/CSP headers are replaced. Browser provider login remains pending. No analytics or external fonts are loaded.
+## Security notes
 
-See `docs/implementation/POST_PR4_AUDIT.md` for verified baseline and outstanding acceptance gates. The absence of live identity/provider browser tests prevents a production-ready claim.
+- Sessions are AES-GCM sealed httpOnly cookies (`SESSION_KEY`). Tokens are not kept in React memory or `localStorage`.
+- `PROPERTY_API_BASE` is server configuration only; the browser cannot choose another origin.
+- `middleware.js` issues a fresh CSP nonce per HTML request and replaces forged caller CSP headers. Production scripts disallow `unsafe-inline` / `unsafe-eval`.
+- Documented CSP details: `docs/implementation/WEB_CSP.md`.
 
-Browser acceptance: `npm run test:e2e` requires an explicitly disposable native PostgreSQL database named `oydp_web_e2e`, TEST_DATABASE_URL and OYDP_BROWSER_DISPOSABLE=yes. It generates ephemeral credentials under ignored `.e2e/`, starts the actual API and production Next server, and substitutes only test JWKS transport. Never run the harness against a shared database. CI provisions the disposable service.
+## Browser e2e
+
+Playwright harnesses under `e2e/` require an explicitly disposable database and local API/web processes. Prefer the commands documented in `docs/interview/START_LOCAL.md`. Do not point the harness at a shared database.
+
+This workspace is pre-alpha. CSP and session controls are defense in depth, not production certification.

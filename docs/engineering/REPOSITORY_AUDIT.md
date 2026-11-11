@@ -26,7 +26,7 @@ Evidence-backed audit of `Manasvi-1/OYDP`. Labels use only: planned, UI prototyp
 
 | ID | Area | Classification | Evidence summary |
 | --- | --- | --- | --- |
-| A | Active Property Identity API (`apps/api` 0.15.0) | **real** / integration-tested (partial) | Private create/read/share, claims, corrections, write grants, documents quarantine, trusted evidence, attribution edges, evidence graph/conflicts, consents/export, audit outbox, diligence; OpenAPI check matches; unit suite executed this session |
+| A | Active Property Identity API (`apps/api` 0.16.0) | **real** / integration-tested (partial) | Private create/read/share, claims, corrections, write grants, documents quarantine, trusted evidence, attribution edges, evidence graph/conflicts, consents/export, audit outbox, diligence; audit append gated; OpenAPI check matches; unit suite executed this session |
 | B | AuthN (OIDC JWKS RS256 `at+jwt`) | **real** (unit); live IdP **not independently verified** | `apps/api/app/auth.py`; loopback HTTP gated by `OYDP_OIDC_DEV_HTTP=1`; MFA `amr` + `auth_time`; SF-008 rejects `OYDP_MFA_MAX_AGE_SECONDS=0` outside loopback |
 | C | AuthZ / tenant isolation / RLS | **real** / integration-tested in CI history | `infra/db` RLS + membership; IDOR matrix on main/CI (`test_z_cross_tenant_idor.py`); local native PG **blocked** this machine (no Docker / no `TEST_DATABASE_URL`) |
 | D | Document ACL / quarantine | **real** fail-closed; scanner **placeholder/BLOCKED** | AES-GCM seal, quarantined insert, download only `scan_state=pass`; `get_document_scanner()` returns `None` |
