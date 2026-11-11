@@ -15,13 +15,14 @@
 | Claim→source evidence edge | Done (API 0.9.0 / PR #25) |
 | Document↔claim/source attribution | Done (API 0.10.0 / PR #27) |
 | Document↔identifier + export refs | Done (API 0.11.0 / PR #28) |
-| Review↔claim attribution | In delivery (`018`, API 0.12.0) |
+| Review↔claim attribution | Done (API 0.12.0 / PR #29) |
+| Review↔document/identifier or graph projection | Next (`T-NEXT-007`) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- T-NEXT-006 review↔claim attribution (`feat/review-claim-attribution`, API 0.12.0).
+- None; resume at T-NEXT-007.
 
 ## Done recently (main history)
 
