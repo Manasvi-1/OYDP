@@ -18,13 +18,14 @@
 | Review↔claim attribution | Done (API 0.12.0 / PR #29) |
 | Review↔document/identifier attribution | Done (API 0.13.0 / PR #31) |
 | Read-only evidence-graph projection | Done (API 0.14.0 / PR #33) |
-| PostGIS IDOR / local PostGIS | Next (`T-NEXT-009`, blocked without Docker) |
+| PostGIS IDOR / local PostGIS | **BLOCKED** (`T-NEXT-009`, no Docker) |
+| Evidence conflict signals + export sources | In delivery (`T-NEXT-010`, API 0.15.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- None; resume at T-NEXT-009 when Docker/PostGIS available.
+- T-NEXT-010 evidence conflict signals (`feat/evidence-conflict-signals`, API 0.15.0). T-NEXT-009 stays blocked.
 
 ## Done recently (main history)
 

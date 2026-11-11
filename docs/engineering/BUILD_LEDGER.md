@@ -2,6 +2,23 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — T-NEXT-010 evidence conflict signals + export sources
+
+### Completed so far
+
+1. Marked **T-NEXT-009** PostGIS IDOR as **BLOCKED** (Docker engine unavailable) in BUILD_LEDGER / KNOWN_GAPS; do not stall the project.
+2. Branched `feat/evidence-conflict-signals` from `main` @ `ecceab5`.
+3. API **0.15.0**: `GET .../evidence-conflicts` surfaces unresolved multi-claim / identifier-conflict / withdrawn-source citation signals without adjudication; export packets include cited `sources`.
+4. Disposable PG `127.0.0.1:55432` suite: **244 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
+
+### Next task (resume here)
+
+After this PR merges: web wiring to graph/conflicts (G-WEB-DEPTH) or other unblocked E01 depth. **T-NEXT-009 remains BLOCKED.** Not GA.
+
+**Human blockers:** Docker/Keycloak (blocks T-NEXT-009); live IdP; malware scanner; independent review.
+
+---
+
 ## 2026-11-12 — T-NEXT-008 read-only evidence-graph projection
 
 ### Completed
@@ -11,12 +28,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. Contract + integration + IDOR coverage for empty/happy/cross-tenant/unauthorized paths.
 4. Disposable PG `127.0.0.1:55432` suite: **242 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
 5. PR [#33](https://github.com/Manasvi-1/OYDP/pull/33) **merged** to `main` @ `5e63072` via `gh pr merge --merge`.
+6. PR [#34](https://github.com/Manasvi-1/OYDP/pull/34) ledger close **merged** @ `ecceab5`.
 
 ### Next task (resume here)
 
-**T-NEXT-009:** PostGIS IDOR / disposable PostGIS when Docker available; else deepen E01 negative coverage that does not need PG (document content MFA already present) without faking scanner pass. Not GA.
-
-**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+**T-NEXT-009 BLOCKED** (no Docker/PostGIS). Continue unblocked E01 work — see T-NEXT-010 entry.
 
 ---
 
