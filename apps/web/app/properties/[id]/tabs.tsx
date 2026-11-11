@@ -5,6 +5,7 @@ const TABS = [
   { id: 'identity', label: 'Identity' },
   { id: 'identifiers', label: 'Identifiers' },
   { id: 'claims', label: 'Claims / evidence' },
+  { id: 'graph', label: 'Evidence graph' },
   { id: 'documents', label: 'Documents' },
   { id: 'access', label: 'Access / sharing' },
   { id: 'diligence', label: 'Diligence' },

@@ -20,13 +20,13 @@
 | Read-only evidence-graph projection | Done (API 0.14.0 / PR #33) |
 | PostGIS IDOR / local PostGIS | **BLOCKED** (`T-NEXT-009`, no Docker) |
 | Evidence conflict signals + export sources | Done (API 0.15.0 / PR #35) |
-| Web wiring to graph/conflicts | Next (`T-NEXT-011`) |
+| Web wiring to graph/conflicts | In delivery (`T-NEXT-011`) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- None; resume at T-NEXT-011. T-NEXT-009 stays blocked.
+- T-NEXT-011 web evidence graph wiring (`feat/web-evidence-graph-wiring`). T-NEXT-009 stays blocked.
 
 ## Done recently (main history)
 

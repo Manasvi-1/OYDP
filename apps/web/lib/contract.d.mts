@@ -36,6 +36,8 @@ export function identifiersQuery(propertyId: string, cursor?: string): string
 export function reviewsQuery(propertyId: string, cursor?: string): string
 export function documentsQuery(propertyId: string, cursor?: string): string
 export function auditQuery(propertyId: string, cursor?: string): string
+export function evidenceGraphQuery(propertyId: string): string
+export function evidenceConflictsQuery(propertyId: string): string
 export function sourcesQuery(cursor?: string): string
 export function requestsQuery(propertyId: string, cursor?: string): string
 export function notesQuery(propertyId: string, requestId: string, cursor?: string): string

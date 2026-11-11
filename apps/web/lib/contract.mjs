@@ -142,6 +142,14 @@ export function auditQuery(propertyId, cursor) {
   return propertyQuery(propertyId, 'audit', cursor)
 }
 
+export function evidenceGraphQuery(propertyId) {
+  return `/v1/properties/${propertyId}/evidence-graph`
+}
+
+export function evidenceConflictsQuery(propertyId) {
+  return `/v1/properties/${propertyId}/evidence-conflicts`
+}
+
 export function sourcesQuery(cursor) {
   const params = new URLSearchParams({ limit: '25' })
   if (cursor) params.set('cursor', cursor)

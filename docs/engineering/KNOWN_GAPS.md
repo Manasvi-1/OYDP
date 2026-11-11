@@ -24,7 +24,7 @@ Updated: 2026-11-12.
 | G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Attribution edges + read-only graph + conflict signals landed; human adjudication / dedup workflows still open |
 | G-ENGINES | E02, E04–E13 not started | Scope | Must remain commitments; do not fake |
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
-| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Expected for pre-alpha; evidence-conflicts/graph not yet wired in UI |
+| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Evidence graph/conflicts tab in delivery on `feat/web-evidence-graph-wiring`; engines UI remains disclosure-only |
 
 ## Recently closed on this branch line
 
