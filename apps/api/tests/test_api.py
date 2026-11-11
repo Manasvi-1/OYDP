@@ -53,7 +53,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.12.0'
+    assert spec['info']['version'] == '0.13.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -73,6 +73,11 @@ def test_trusted_evidence_contract_does_not_grant_title():
     assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert 'claim_id' in schemas['ReviewCreate']['properties']
     assert 'claim_id' in schemas['ReviewRecord']['properties']
+    assert 'document_id' in schemas['ReviewCreate']['properties']
+    assert 'document_id' in schemas['ReviewRecord']['properties']
+    assert 'identifier_id' in schemas['ReviewCreate']['properties']
+    assert 'identifier_id' in schemas['ReviewRecord']['properties']
+    assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert schemas['SourceRecord']['properties']['rights_status']['const'] == 'unknown'
     assert 'rights_status' not in schemas['SourceCreate']['properties']
     assert schemas['SourceCreate']['additionalProperties'] is False

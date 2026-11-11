@@ -1362,6 +1362,30 @@
             "title": "Disposition",
             "type": "string"
           },
+          "document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
+          "identifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier Id"
+          },
           "source_id": {
             "anyOf": [
               {
@@ -1438,10 +1462,34 @@
             "title": "Disposition",
             "type": "string"
           },
+          "document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Id"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "identifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier Id"
           },
           "property_id": {
             "format": "uuid",
@@ -1753,7 +1801,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.12.0"
+    "version": "0.13.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3982,7 +4030,7 @@
         "summary": "List Reviews"
       },
       "post": {
-        "description": "Store a review. Optional live source and/or unverified claim citations stay non-title.",
+        "description": "Store a review. Optional source/claim/document/identifier citations stay non-title.",
         "operationId": "record_review_v1_properties__property_id__reviews_post",
         "parameters": [
           {

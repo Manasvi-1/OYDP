@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.12.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.13.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -671,6 +671,8 @@ class ReviewCreate(BaseModel):
     statement: str = Field(min_length=1, max_length=2000)
     source_id: UUID | None = None
     claim_id: UUID | None = None
+    document_id: UUID | None = None
+    identifier_id: UUID | None = None
 
 
 class ReviewRecord(BaseModel):
@@ -682,6 +684,8 @@ class ReviewRecord(BaseModel):
     statement: str
     source_id: UUID | None
     claim_id: UUID | None = None
+    document_id: UUID | None = None
+    identifier_id: UUID | None = None
     recorded_at: datetime
     title_effect: Literal['none']
 
@@ -827,12 +831,16 @@ def withdraw_source(source_id: UUID, payload: SourceWithdrawal, access=Depends(a
 @app.post('/v1/properties/{property_id}/reviews', status_code=201, response_model=ReviewRecord)
 def record_review(property_id: UUID, payload: ReviewCreate, access=Depends(authorized_db, scope='function'),
                   mfa=Depends(require_mfa)):
-    """Store a review. Optional live source and/or unverified claim citations stay non-title."""
+    """Store a review. Optional source/claim/document/identifier citations stay non-title."""
     conn, role = access
     writable_property(conn, property_id)
     require_writer_role(role)
-    row = call_trusted(conn, f"""SELECT * FROM public.record_professional_review({_TENANT}, %s, %s, %s, %s, %s)""",
-                       (property_id, payload.disposition, payload.statement, payload.source_id, payload.claim_id))
+    row = call_trusted(
+        conn,
+        f"""SELECT * FROM public.record_professional_review({_TENANT}, %s, %s, %s, %s, %s, %s, %s)""",
+        (property_id, payload.disposition, payload.statement, payload.source_id, payload.claim_id,
+         payload.document_id, payload.identifier_id),
+    )
     return present_review(row)
 
 
@@ -843,7 +851,7 @@ def list_reviews(property_id: UUID, access=Depends(authorized_db, scope='functio
     readable_property(conn, property_id)
     scope, at, record_id = cursor_context(conn, 'reviews', cursor, property_id)
     rows = conn.execute(f"""SELECT id, tenant_id, property_id, reviewer_subject, disposition, statement,
-        source_id, claim_id, recorded_at
+        source_id, claim_id, document_id, identifier_id, recorded_at
       FROM professional_reviews
       WHERE property_id=%s AND tenant_id={_TENANT}
         AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
@@ -896,7 +904,7 @@ def export_property(property_id: UUID, access=Depends(authorized_db, scope='func
       WHERE property_id=%s AND tenant_id={_TENANT}
       ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))
     reviews = [present_review(row) for row in packet_rows(conn, f"""SELECT id, tenant_id, property_id, reviewer_subject,
-        disposition, statement, source_id, claim_id, recorded_at
+        disposition, statement, source_id, claim_id, document_id, identifier_id, recorded_at
       FROM professional_reviews
       WHERE property_id=%s AND tenant_id={_TENANT}
       ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))]
