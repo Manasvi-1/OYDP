@@ -13,13 +13,14 @@
 | Add non-overridden MFA route negatives | Done (incl. documents) |
 | Re-run native PG integration locally | Done via portable PG 16.15 @ 55432 (238 pass) |
 | Claim→source evidence edge | Done (API 0.9.0 / PR #25) |
-| Document↔claim/source attribution | In delivery (`016`, API 0.10.0) |
+| Document↔claim/source attribution | Done (API 0.10.0 / PR #27) |
+| Document↔identifier + export refs | In delivery (`017`, API 0.11.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- PR #22 delivery (push + CI re-check + merge if eligible).
+- T-NEXT-005 document↔identifier attribution (`feat/document-identifier-attribution`, API 0.11.0).
 
 ## Done recently (main history)
 

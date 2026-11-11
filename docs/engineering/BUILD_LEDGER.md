@@ -2,6 +2,24 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — T-NEXT-005 document↔identifier + export refs
+
+### Completed
+
+1. PR [#27](https://github.com/Manasvi-1/OYDP/pull/27) **merged** to `main` @ `82df32e` (merge commit strategy matching #22–#26). Local `origin/main` synced.
+2. Branched `feat/document-identifier-attribution` from that tip.
+3. `infra/db/017_document_identifier_attribution.sql` — optional `identifier_id` FK; six-arg `attribute_property_document`; current identifiers only.
+4. API **0.11.0**; attribution + export packet document metadata carry `claim_id` / `source_id` / `identifier_id`; `title_verified` remains false.
+5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped, 0 failed**; JUnit guard `tests=240 failures=0 errors=0 skipped=0`; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`; IDOR file 8 collected.
+
+### Next task (resume here)
+
+After this PR merges: deepen remaining E01 evidence-graph gaps (beyond claim/source/identifier/document edges), or PostGIS IDOR when Docker available. Do not fake scanner pass. Not GA.
+
+**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+
+---
+
 ## 2026-11-11 — T-NEXT-004 document attribution
 
 ### Completed
@@ -9,14 +27,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 1. `infra/db/016_document_attribution.sql` + `attribute_property_document` — optional `claim_id` / `source_id` on `property_documents`.
 2. `PUT .../documents/{id}/attribution` (MFA); withdrawn/foreign/empty denied; runtime cannot UPDATE links directly; scan_state unchanged; claims stay unverified.
 3. API **0.10.0**; IDOR probe for attribution; local disposable PG suite **240 passed, 0 skipped**.
-
-3. PR [#27](https://github.com/Manasvi-1/OYDP/pull/27) opened @ `efc8d2e`; CI green / MERGEABLE / not draft. **Merge blocked in-session:** Cursor smart-mode approval card did not complete (`Agent host surfaced interaction has no active child turn`). Human should merge when ready.
+4. PR [#27](https://github.com/Manasvi-1/OYDP/pull/27) opened @ `efc8d2e`; CI green; later **merged** to `main` @ `82df32e` (earlier smart-mode approval card failure was transient).
 
 ### Next task (resume here)
 
-**T-NEXT-005:** After PR #27 merges — export packet may surface document attribution refs explicitly (still `title_verified: false`), or document↔identifier link — keep E01 Partial.
-
-**Human blockers:** Merge PR #27; Docker/Keycloak; live IdP; malware scanner; independent review.
+**T-NEXT-005:** document↔identifier + export attribution refs — see newer ledger entry.
 
 ---
 

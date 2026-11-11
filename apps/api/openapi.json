@@ -444,6 +444,18 @@
             ],
             "title": "Claim Id"
           },
+          "identifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier Id"
+          },
           "source_id": {
             "anyOf": [
               {
@@ -519,6 +531,18 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "identifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier Id"
           },
           "media_type": {
             "enum": [
@@ -1705,7 +1729,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.10.0"
+    "version": "0.11.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2914,7 +2938,7 @@
     },
     "/v1/properties/{property_id}/documents/{document_id}/attribution": {
       "put": {
-        "description": "Link a quarantined document to an unverified claim and/or a live evidence source.\n\nAttribution does not change claim verification, source rights, or scan_state.",
+        "description": "Link a quarantined document to an unverified claim, live source, and/or current identifier.\n\nAttribution does not change claim verification, source rights, identifier status, or scan_state.\nExport packets include these refs and still set title_verified false.",
         "operationId": "attribute_document_v1_properties__property_id__documents__document_id__attribution_put",
         "parameters": [
           {

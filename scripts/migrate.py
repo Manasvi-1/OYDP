@@ -84,12 +84,12 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT SELECT ON property_claims TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_claim(uuid, uuid, text, uuid) TO oydp_app')
         conn.execute('REVOKE ALL ON property_documents FROM oydp_app')
-        conn.execute('GRANT SELECT (id, tenant_id, property_id, created_by, media_type, byte_size, sha256, scan_state, created_at, scanned_at, claim_id, source_id) ON property_documents TO oydp_app')
+        conn.execute('GRANT SELECT (id, tenant_id, property_id, created_by, media_type, byte_size, sha256, scan_state, created_at, scanned_at, claim_id, source_id, identifier_id) ON property_documents TO oydp_app')
         conn.execute('GRANT INSERT ON property_documents TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_document_scan(uuid,uuid,uuid,text,bytea) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.load_quarantined_document(uuid,uuid,uuid) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.load_document_ciphertext(uuid,uuid,uuid) TO oydp_app')
-        conn.execute('GRANT EXECUTE ON FUNCTION public.attribute_property_document(uuid,uuid,uuid,uuid,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.attribute_property_document(uuid,uuid,uuid,uuid,uuid,uuid) TO oydp_app')
         # Trusted evidence is readable by the runtime role and writable only through the functions below.
         # The role cannot insert its own ledger rows or call the trigger and edit-check functions.
         conn.execute('REVOKE ALL ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger FROM oydp_app')
