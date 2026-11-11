@@ -77,7 +77,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         </div>
       )}
       {page?.next_cursor ? (
-        <p style={{ marginTop: '1rem' }}>
+        <p className="pager-row">
           <Link className="secondary" href={`/properties?cursor=${encodeURIComponent(page.next_cursor)}`}>Older properties</Link>
         </p>
       ) : null}

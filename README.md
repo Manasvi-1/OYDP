@@ -15,7 +15,7 @@
 [![Status](https://img.shields.io/badge/status-pre--alpha-F59E0B?style=flat-square&labelColor=0F172A)](#where-we-actually-are)
 [![Engines](https://img.shields.io/badge/engines-13%20planned-0F766E?style=flat-square&labelColor=0F172A)](#the-13-engines)
 [![Shape](https://img.shields.io/badge/shape-modular%20monolith-334155?style=flat-square&labelColor=0F172A)](#how-it-fits-together)
-[![API](https://img.shields.io/badge/API-0.8.0%20property%20identity-0EA5E9?style=flat-square&labelColor=0F172A)](#what-this-checkout-does)
+[![API](https://img.shields.io/badge/API-0.15.0%20property%20identity-0EA5E9?style=flat-square&labelColor=0F172A)](#what-this-checkout-does)
 
 <br/>
 
@@ -59,7 +59,7 @@ Thirteen engines are **planned release commitments**. None are production-comple
 
 | ID | Engine | Notes |
 | :---: | --- | --- |
-| **E01** | Property Identity & Evidence Graph | Partial. Private properties, unverified claims, grants, corrections, delegated write, quarantined documents, identifiers, sources, reviews, and consent-gated export. Not title, and not a complete evidence graph |
+| **E01** | Property Identity & Evidence Graph | Partial. Private properties, unverified claims, grants, corrections, delegated write, quarantined documents, identifiers, sources, reviews, consent-gated export, read-only evidence graph, and unresolved conflict signals. Not title, and not a complete evidence graph |
 | **E02** | AI Property Advisor | Planned. Not built |
 | **E03** | Transaction & Legal Workspace | Bounded diligence requests and notes only. Not offers, payments, or legal conclusions |
 | **E04** | Living Property Passport | Planned |
@@ -122,9 +122,9 @@ Honest status. Amber means a bounded slice exists in this repo and is not produc
 
 | Surface | Status | Notes |
 | --- | :---: | --- |
-| FastAPI `apps/api` | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Property Identity API **0.8.0** |
-| Postgres + PostGIS + RLS | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | `infra/db` migrations `001`–`014`, role `oydp_app`, forced row security |
-| Next.js `apps/web` | ![amber](https://img.shields.io/badge/-pre--alpha-F59E0B?style=flat-square) | Authenticated workspace. Not a finished product UI |
+| FastAPI `apps/api` | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | Property Identity API **0.15.0** |
+| Postgres + PostGIS + RLS | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | `infra/db` migrations `001`–`019`, role `oydp_app`, forced row security |
+| Next.js `apps/web` | ![amber](https://img.shields.io/badge/-pre--alpha-F59E0B?style=flat-square) | Authenticated workspace with evidence graph / conflict reads. Not a finished product UI |
 | OIDC and MFA freshness | ![amber](https://img.shields.io/badge/-partial-F59E0B?style=flat-square) | High-risk routes require a fresh MFA `auth_time`. Loopback HTTP is an explicit dev flag |
 | Separate evidence platform / workers | ![slate](https://img.shields.io/badge/-planned-64748B?style=flat-square) | Document bytes stay encrypted in Postgres |
 | Engines E02–E13 | ![slate](https://img.shields.io/badge/-not%20complete-64748B?style=flat-square) | Launch commitments. Only E03 diligence requests exist, and only in a bounded form |
@@ -132,26 +132,27 @@ Honest status. Amber means a bounded slice exists in this repo and is not produc
 
 ### What this checkout does
 
-The active services are `apps/api` and the Next.js workspace in `apps/web`. `apps/api/app/main.py` sets the API version to **0.8.0**. Root `oydp/` is not that service.
+The active services are `apps/api` and the Next.js workspace in `apps/web`. `apps/api/app/main.py` sets the API version to **0.15.0**. Root `oydp/` is not that service.
 
 For a property the caller is allowed to see, the API can:
 
 - Keep the property private to its creator or to an unexpired, unrevoked read grant
-- Record claims as unverified user claims
+- Record claims as unverified user claims, optionally citing a live source
 - Correct the label and jurisdiction, and keep the correction history
 - Delegate write to another member of the same tenant for a limited time
-- Store an upload as an encrypted quarantined document. The request cannot mark the file clean. No malware scanner is bundled, so a clean download stays closed
+- Store an upload as an encrypted quarantined document with optional claim/source/identifier attribution. The request cannot mark the file clean. No malware scanner is bundled, so a clean download stays closed
 - Record versioned identifiers
 - Register a source while rights status stays unknown
-- Store a professional review that does not change title
-- Export an evidence packet only after the database records live creator consent. The packet’s `title_verified` field is false
+- Store a professional review that does not change title, with optional source/claim/document/identifier citations
+- Project a read-only evidence graph and unresolved conflict signals (not adjudicated; never title)
+- Export an evidence packet only after the database records live creator consent. The packet’s `title_verified` field is false; cited sources are included when present
 - Append audit events to an audit ledger. The application role cannot rewrite it. This is not an external write-once archive, and a database superuser can still disable triggers
 
 Local sign-in is a development path. The API accepts an `http://127.0.0.1` or `http://localhost` issuer and JWKS URL only when `OYDP_OIDC_DEV_HTTP=1`. The disposable issuer in `tools/dev_oidc.py` binds loopback and refuses to start unless `OYDP_DEV_OIDC=1`. High-risk routes require `mfa` or `otp` in `amr` and a fresh integer `auth_time` (default maximum age 900 seconds). Setting that age to `0` is refused unless the loopback dev flag is on. Live Keycloak enrollment is not verified in this repository.
 
 This build does not verify title, speak for a government office, or guarantee a value.
 
-How the slices are implemented, and which limits remain, is written under [`docs/implementation/`](docs/implementation/). Useful entry points are `BUILD_STATUS.md`, `IDENTITY_GATE.md`, `VERIFICATION_REGISTER.md`, and [`docs/ENGINE_REGISTER.md`](docs/ENGINE_REGISTER.md). Those notes are not production approval and not an independent audit.
+How the slices are implemented, and which limits remain, is written under [`docs/`](docs/README.md). Useful entry points are `docs/implementation/BUILD_STATUS.md`, `IDENTITY_GATE.md`, `VERIFICATION_REGISTER.md`, `WEB_CSP.md`, and [`docs/ENGINE_REGISTER.md`](docs/ENGINE_REGISTER.md). Those notes are not production approval and not an independent audit.
 
 ### Dual-backend reconciliation
 
@@ -159,11 +160,11 @@ How the slices are implemented, and which limits remain, is written under [`docs
 
 ### API version
 
-The running Property Identity API reports **0.8.0**. Earlier privacy and discovery work sits inside that service. It is not a versioned public product with an SLA.
+The running Property Identity API reports **0.15.0**. Earlier privacy, discovery, trusted-evidence, diligence, attribution, graph, and conflict work sits inside that service. It is not a versioned public product with an SLA.
 
-### Merged workspace migrations `008`–`014`
+### Canonical migrations `001`–`019`
 
-Workspace migrations **008 through 014** are merged into the shared migration line. Apply them in order on a fresh foundation database. Do not cherry-pick mid-stream; if you fork schema locally, rebase onto the merged sequence before opening a PR.
+Apply `infra/db` migrations **001 through 019** in order on a fresh foundation database. Do not cherry-pick mid-stream; if you fork schema locally, rebase onto the merged sequence before opening a PR.
 
 ---
 
@@ -172,12 +173,13 @@ Workspace migrations **008 through 014** are merged into the shared migration li
 ```
 OYDP/
 ├── apps/
-│   ├── api/          # Canonical FastAPI surface (active)
+│   ├── api/          # Canonical FastAPI surface (active, 0.15.0)
 │   └── web/          # Authenticated Next.js workspace (pre-alpha)
-├── infra/db/         # Canonical checksum migrations (public schema)
+├── infra/db/         # Canonical checksum migrations 001–019 (public schema)
 ├── oydp/             # Frozen PR #1 reference package (not mounted)
 ├── migrations/       # Reference oydp-schema migrations only
-├── docs/             # Design, boundaries, engineering notes
+├── docs/             # Design, boundaries, engineering notes (see docs/README.md)
+├── .github/          # CI workflows + pull request template
 ├── AGENTS.md         # Agent & contributor gates — read before automated edits
 ├── SECURITY.md       # Vulnerability disclosure
 └── README.md         # You are here
@@ -194,7 +196,7 @@ When a doc and the tree disagree, trust `AGENTS.md` and the code. `apps/api` wit
 1. Clone the repo and enter it.
 2. Install Python 3.11+, Node (for web), Docker (Postgres/PostGIS recommended).
 3. Copy `.env.example` → `.env` and fill OIDC + database URLs for **local** use only.
-4. Bring up PostGIS, run migrations through **014**, start the API from the **canonical** backend path (see reconciliation warning).
+4. Bring up PostGIS, run migrations through **019**, start the API from the **canonical** backend path (see reconciliation warning).
 5. Run the test suite before you trust your checkout.
 
 ```bash
@@ -227,7 +229,7 @@ We do not document a production deploy here — because we are not production.
 
 | Horizon | Focus |
 | --- | --- |
-| **Now** | `apps/api` 0.8.0 and the `apps/web` workspace on the shared identity, RLS, and evidence paths. MFA freshness is enforced in code. Live identity enrollment is not |
+| **Now** | `apps/api` 0.15.0 and the `apps/web` workspace on the shared identity, RLS, evidence graph, and conflict paths. MFA freshness and web CSP middleware are enforced in code. Live identity enrollment is not |
 | **Next** | A real malware-scanner adapter; production identity enrollment and revocation; an external write-once audit store; the rest of E02–E13 without calling any of them complete |
 | **Later** | Broader engine delivery (E02–E13 beyond current slices); workers; carefully scoped regional expansion past Bengaluru / Karnataka / Hyderabad — still without fake gov certainty |
 
@@ -259,6 +261,7 @@ This README does not certify a test count, an audit, or production readiness. Re
 | --- | --- |
 | [`SECURITY.md`](SECURITY.md) | Disclosure path |
 | [`AGENTS.md`](AGENTS.md) | Automation / contributor gates |
+| [`docs/README.md`](docs/README.md) | Documentation map |
 | [`docs/implementation/`](docs/implementation/) | What is built, how it is gated, and what is not verified |
 | [`docs/ENGINE_REGISTER.md`](docs/ENGINE_REGISTER.md) | Which of the 13 engines exist |
 

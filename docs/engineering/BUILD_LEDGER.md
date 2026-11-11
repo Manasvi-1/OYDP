@@ -2,6 +2,22 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — CSP middleware wiring + presentation hygiene
+
+### Completed
+
+1. Branched `security/web-csp-and-repo-presentation` from `origin/main`.
+2. Wired Next.js 15 CSP entry as `apps/web/middleware.js` (previous `proxy.js` was not loaded by the framework; middleware-manifest was empty).
+3. Root layout uses `connection()` for a request boundary; removed React inline `style={{...}}` so `style-src 'self'` can enforce.
+4. Aligned README / CONTRIBUTING / SECURITY / docs index with API **0.15.0** and migrations **001–019**.
+5. Added middleware + corrected CSP unit tests.
+
+### Next task (resume here)
+
+**T-NEXT-012:** Wire `apps/web` attribution citations (claim `source_id`, review citations, document attribution PUT/display). **T-NEXT-009** remains BLOCKED without Docker/PostGIS. Not GA.
+
+---
+
 ## 2026-11-12 — T-NEXT-011 web evidence graph / conflicts wiring
 
 ### Completed so far

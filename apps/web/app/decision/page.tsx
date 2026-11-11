@@ -120,7 +120,7 @@ export default async function DecisionPage() {
       {property ? (
         <>
           <p className="muted">Source property: <Link href={`/properties/${property.id}`}>{property.label}</Link></p>
-          <div className="table-wrap" style={{ marginTop: '1rem' }}>
+          <div className="table-wrap table-wrap-spaced">
             <table className="data">
               <thead>
                 <tr>

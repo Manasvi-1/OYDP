@@ -26,7 +26,7 @@ Evidence-backed audit of `Manasvi-1/OYDP`. Labels use only: planned, UI prototyp
 
 | ID | Area | Classification | Evidence summary |
 | --- | --- | --- | --- |
-| A | Active Property Identity API (`apps/api` 0.8.0) | **real** / integration-tested (partial) | Private create/read/share, claims, corrections, write grants, documents quarantine, trusted evidence, consents/export, audit outbox, diligence; OpenAPI check matches; unit suite executed this session |
+| A | Active Property Identity API (`apps/api` 0.15.0) | **real** / integration-tested (partial) | Private create/read/share, claims, corrections, write grants, documents quarantine, trusted evidence, attribution edges, evidence graph/conflicts, consents/export, audit outbox, diligence; OpenAPI check matches; unit suite executed this session |
 | B | AuthN (OIDC JWKS RS256 `at+jwt`) | **real** (unit); live IdP **not independently verified** | `apps/api/app/auth.py`; loopback HTTP gated by `OYDP_OIDC_DEV_HTTP=1`; MFA `amr` + `auth_time`; SF-008 rejects `OYDP_MFA_MAX_AGE_SECONDS=0` outside loopback |
 | C | AuthZ / tenant isolation / RLS | **real** / integration-tested in CI history | `infra/db` RLS + membership; IDOR matrix on main/CI (`test_z_cross_tenant_idor.py`); local native PG **blocked** this machine (no Docker / no `TEST_DATABASE_URL`) |
 | D | Document ACL / quarantine | **real** fail-closed; scanner **placeholder/BLOCKED** | AES-GCM seal, quarantined insert, download only `scan_state=pass`; `get_document_scanner()` returns `None` |
@@ -38,7 +38,7 @@ Evidence-backed audit of `Manasvi-1/OYDP`. Labels use only: planned, UI prototyp
 
 | Claim | Verdict | Notes |
 | --- | --- | --- |
-| DB persistence via `infra/db` | Verified in CI history; not re-run locally this session | Migrations `001`–`014`; role `oydp_app` |
+| DB persistence via `infra/db` | Verified in CI history; not re-run locally this session | Migrations `001`–`019`; role `oydp_app` |
 | Clean migrations / checksum discipline | Executable control present | New migrations only under `infra/db` |
 | Real OIDC validation | Executable + unit-tested | Synthetic JWKS ≠ live provider |
 | Backend authz | Executable + negative unit/route tests | Route MFA gates added this session |

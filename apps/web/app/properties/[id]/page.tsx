@@ -227,7 +227,7 @@ export default async function PropertyPage({ params, searchParams }: {
             <span className="mono">{property.created_by}</span>
             <StatusPill label="Unverified record" tone="warn" />
           </div>
-          <p className="lede" style={{ marginTop: '0.75rem' }}>
+          <p className="lede lede-follow">
             User-entered identifiers and claims are not official government verification.
           </p>
         </div>
@@ -265,7 +265,7 @@ function OverviewTab({ property, claimsCount, documentsCount, openRequests }: {
     <div className="metric-grid">
       <article className="metric-card">
         <div className="metric-label">Jurisdiction</div>
-        <div className="metric-value" style={{ fontSize: '1.15rem' }}>{property.jurisdiction}</div>
+        <div className="metric-value metric-value-detail">{property.jurisdiction}</div>
         <div className="metric-note">User-entered. Not a cadastral confirmation.</div>
       </article>
       <article className="metric-card">

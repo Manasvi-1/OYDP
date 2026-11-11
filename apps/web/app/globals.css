@@ -300,6 +300,17 @@ h1, h2, h3 {
   font-size: 1.6rem;
   color: var(--navy-900);
 }
+.metric-card .metric-value-compact {
+  font-size: 1.1rem;
+}
+.metric-card .metric-value-detail {
+  font-size: 1.15rem;
+}
+.table-wrap-spaced { margin-top: 1rem; }
+.pager-row { margin-top: 1rem; }
+.lede-follow { margin-top: 0.75rem; }
+.form-narrow { max-width: 36rem; }
+.form-follow { margin-top: 1rem; }
 .metric-card .metric-note {
   color: var(--slate-500);
   font-size: 0.78rem;
