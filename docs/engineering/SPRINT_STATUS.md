@@ -16,13 +16,13 @@
 | Document↔claim/source attribution | Done (API 0.10.0 / PR #27) |
 | Document↔identifier + export refs | Done (API 0.11.0 / PR #28) |
 | Review↔claim attribution | Done (API 0.12.0 / PR #29) |
-| Review↔document/identifier or graph projection | Next (`T-NEXT-007`) |
+| Review↔document/identifier attribution | In delivery (`019`, API 0.13.0) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- None; resume at T-NEXT-007.
+- T-NEXT-007 review↔document/identifier (`feat/review-document-identifier-attribution`, API 0.13.0).
 
 ## Done recently (main history)
 

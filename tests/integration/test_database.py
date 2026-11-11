@@ -409,7 +409,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1287,7 +1287,7 @@ def _trusted_privileges():
         'public.record_property_identifier(uuid,uuid,text,text,text)',
         'public.register_evidence_source(uuid,text,text,text)',
         'public.withdraw_evidence_source(uuid,uuid,text)',
-        'public.record_professional_review(uuid,uuid,text,text,uuid,uuid)',
+        'public.record_professional_review(uuid,uuid,text,text,uuid,uuid,uuid,uuid)',
         'public.record_property_claim(uuid,uuid,text,uuid)',
         'public.attribute_property_document(uuid,uuid,uuid,uuid,uuid,uuid)',
         'public.record_property_consent(uuid,uuid,text)',
@@ -1380,8 +1380,9 @@ def test_identifier_cross_tenant_is_hidden_and_reader_cannot_write(api, private_
     assert [row for row in api.get(url, headers=headers).json()['items'] if row['status'] == 'current'][0]['identifier_value'] == 'KH-1'
 
 
-def test_writer_can_record_identifier_and_review_without_verifying_a_claim(api, private_record):
+def test_writer_can_record_identifier_and_review_without_verifying_a_claim(api, private_record, monkeypatch):
     from datetime import datetime, timedelta, timezone
+    _storage(monkeypatch)
     pid, _, headers, _, as_subject = private_record
     claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={'statement': 'Unverified boundary claim'})
     assert claim.status_code == 201 and claim.json()['verification_status'] == 'unverified'
@@ -1392,14 +1393,54 @@ def test_writer_can_record_identifier_and_review_without_verifying_a_claim(api, 
     recorded = api.post(f'/v1/properties/{pid}/identifiers', headers=headers, json={'scheme': 'municipal', 'identifier_value': 'MUN-1'})
     assert recorded.status_code == 200, recorded.text
     assert recorded.json()['recorded_by'] == editor and recorded.json()['status'] == 'current'
-    review = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={'disposition': 'recorded', 'statement': 'Noted from the file, not a title finding'})
+    identifier_id = recorded.json()['id']
+    uploaded = _upload(api, headers, pid, _pdf())
+    assert uploaded.status_code == 201, uploaded.text
+    document_id = uploaded.json()['id']
+    assert uploaded.json()['scan_state'] == 'quarantined'
+    review = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded',
+        'statement': 'Noted from the file, not a title finding',
+        'claim_id': claim.json()['id'],
+        'document_id': document_id,
+        'identifier_id': identifier_id,
+    })
     assert review.status_code == 201, review.text
-    assert review.json()['title_effect'] == 'none' and review.json()['disposition'] == 'recorded'
-    assert review.json()['claim_id'] is None and review.json()['source_id'] is None
+    body = review.json()
+    assert body['title_effect'] == 'none' and body['disposition'] == 'recorded'
+    assert body['claim_id'] == claim.json()['id']
+    assert body['document_id'] == document_id
+    assert body['identifier_id'] == identifier_id
+    assert body['source_id'] is None
+    listed = api.get(f'/v1/properties/{pid}/reviews', headers=headers).json()['items']
+    assert listed and listed[0]['document_id'] == document_id and listed[0]['identifier_id'] == identifier_id
+    foreign_document = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'Unknown document citation', 'document_id': str(uuid4()),
+    })
+    assert foreign_document.status_code == 422 and foreign_document.json()['detail'] == 'Invalid attribution'
+    foreign_identifier = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'Unknown identifier citation', 'identifier_id': str(uuid4()),
+    })
+    assert foreign_identifier.status_code == 422 and foreign_identifier.json()['detail'] == 'Invalid attribution'
+    superseded = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'municipal', 'identifier_value': 'MUN-2', 'resolution': 'supersede'},
+    )
+    assert superseded.status_code == 200, superseded.text
+    stale = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'Superseded identifier must fail', 'identifier_id': identifier_id,
+    })
+    assert stale.status_code == 422 and stale.json()['detail'] == 'Invalid attribution'
     claims = api.get(f'/v1/properties/{pid}/claims', headers=headers).json()['items']
     assert claims and all(item['verification_status'] == 'unverified' for item in claims)
     with psycopg.connect(DSN) as conn:
         assert conn.execute('SELECT DISTINCT verification_status FROM property_claims WHERE property_id=%s', (pid,)).fetchall() == [('unverified',)]
+        row = conn.execute(
+            'SELECT document_id::text, identifier_id::text FROM professional_reviews WHERE id=%s',
+            (body['id'],),
+        ).fetchone()
+        assert row == (document_id, identifier_id)
 
 
 @pytest.mark.parametrize('disposition', ['verified', 'title', 'official'])

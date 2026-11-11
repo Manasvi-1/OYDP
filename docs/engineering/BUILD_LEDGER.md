@@ -2,6 +2,24 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — T-NEXT-007 review↔document/identifier attribution
+
+### Completed
+
+1. PR [#30](https://github.com/Manasvi-1/OYDP/pull/30) **merged** to `main` @ `60e249e` via `gh pr merge --merge`.
+2. Branched `feat/review-document-identifier-attribution` from that tip.
+3. `infra/db/019_review_document_identifier_attribution.sql` — optional `document_id` / `identifier_id` on reviews; eight-arg `record_professional_review`; same-property document + current identifier only; `title_effect` stays none.
+4. API **0.13.0** surfaces those citation fields on create/list/export.
+5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
+
+### Next task (resume here)
+
+After this PR merges: optional read-only evidence-graph projection of existing edges, or PostGIS IDOR when Docker available. Not GA.
+
+**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+
+---
+
 ## 2026-11-12 — T-NEXT-006 review↔claim attribution
 
 ### Completed
@@ -12,12 +30,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 4. API **0.12.0**; reviews/list/export carry optional `claim_id`.
 5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
 6. PR [#29](https://github.com/Manasvi-1/OYDP/pull/29) **merged** to `main` @ `c432b0d` via `gh pr merge --merge`.
+7. PR [#30](https://github.com/Manasvi-1/OYDP/pull/30) ledger close **merged** @ `60e249e`.
 
 ### Next task (resume here)
 
-**T-NEXT-007:** remaining E01 graph edges without Docker/Keycloak — prefer review↔document and/or review↔identifier citations (still `title_effect: none`), or a read-only evidence-graph projection of existing edges. Else PostGIS IDOR when Docker available. Not GA.
-
-**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+**T-NEXT-007:** see newer ledger entry.
 
 ---
 
