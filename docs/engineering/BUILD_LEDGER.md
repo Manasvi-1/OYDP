@@ -10,6 +10,8 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 2. Fresh DB `oydp_security_test` + full suite: **238 passed, 0 skipped, 0 failed**; JUnit guard verified; IDOR file **8/8 passed**.
 3. **T-E01-GRAPH slice:** `infra/db/015_claim_source_attribution.sql` — optional live `source_id` on claims via `record_property_claim`; withdrawn/foreign sources rejected; claims stay `user_claim`/`unverified`; API 0.9.0; secret scan wired into Active API smoke.
 
+4. PR #25 merged to `main` @ `7f218c3` after full CI SUCCESS.
+
 ### Next task (resume here)
 
 **T-NEXT-004:** Document↔claim or document↔source attribution edge (new migration under `infra/db` only), or deepen export packet source disclosure — keep E01 Partial; no title claims.
@@ -56,6 +58,8 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 - Branch: `feat/interview-demo-workspace`
 - Push merge + MFA route tests + engineering docs; update PR #22
 - Merge PR #22 only if still green and eligibility holds (no branch protection; still require CI green + no critical defects)
+
+4. PR #25 merged to `main` @ `7f218c3` after full CI SUCCESS.
 
 ### Next task (resume here)
 
