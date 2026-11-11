@@ -80,7 +80,9 @@ def provision_runtime(dsn, password):
         conn.execute('REVOKE ALL ON property_audit_events FROM oydp_app')
         conn.execute('GRANT SELECT, INSERT ON property_audit_events TO oydp_app')
         conn.execute('REVOKE ALL ON property_claims FROM oydp_app')
-        conn.execute('GRANT SELECT, INSERT ON property_claims TO oydp_app')
+        # Claims are append-only through record_property_claim so source citations stay gated.
+        conn.execute('GRANT SELECT ON property_claims TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_claim(uuid, uuid, text, uuid) TO oydp_app')
         conn.execute('REVOKE ALL ON property_documents FROM oydp_app')
         conn.execute('GRANT SELECT (id, tenant_id, property_id, created_by, media_type, byte_size, sha256, scan_state, created_at, scanned_at) ON property_documents TO oydp_app')
         conn.execute('GRANT INSERT ON property_documents TO oydp_app')

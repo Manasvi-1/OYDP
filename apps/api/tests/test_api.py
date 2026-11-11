@@ -53,7 +53,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.8.0'
+    assert spec['info']['version'] == '0.9.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -74,6 +74,15 @@ def test_trusted_evidence_contract_does_not_grant_title():
     assert schemas['SourceRecord']['properties']['rights_status']['const'] == 'unknown'
     assert 'rights_status' not in schemas['SourceCreate']['properties']
     assert schemas['SourceCreate']['additionalProperties'] is False
+    claim_create = schemas['ClaimCreate']
+    assert set(claim_create['required']) == {'statement'}
+    assert 'source_id' in claim_create['properties']
+    assert claim_create['additionalProperties'] is False
+    claim_record = schemas['ClaimRecord']
+    assert claim_record['properties']['kind']['const'] == 'user_claim'
+    assert claim_record['properties']['verification_status']['const'] == 'unverified'
+    assert 'source_id' in claim_record['properties']
+    assert 'source_id' in schemas['PacketClaim']['properties']
     assert _schema_values(schemas['IdentifierCreate']['properties']['scheme']) == {'internal', 'survey', 'municipal', 'khata'}
     assert _schema_values(schemas['ReviewCreate']['properties']['disposition']) == {'recorded', 'abstained'}
     assert schemas['ConsentCreate']['properties']['purpose']['const'] == 'passport_export'

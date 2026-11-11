@@ -2,6 +2,19 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-11 — T-NEXT-001 local disposable PostgreSQL (portable 16.15)
+
+**Environment:** Portable PostgreSQL 16.15 at `%LOCALAPPDATA%\Temp\oydp-pg` listening on `127.0.0.1:55432` (trust). Database `oydp_security_test` dropped/recreated before each full run. Docker CLI not on PATH; Docker Desktop engine pipe unavailable. System PostgreSQL 17 on 5432 not used (password unknown). Active migrations use `pgcrypto` only — PostGIS not required for this suite (same as CI `postgres:16`).
+
+```text
+PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests tests/integration --junitxml=test-results/database-local.xml
+python scripts/check_test_report.py test-results/database-local.xml
+```
+
+**Baseline on main `5685dc1`:** 238 passed, 0 skipped, 0 failed; guard verified.  
+**IDOR only:** `tests/integration/test_z_cross_tenant_idor.py` → 8 passed.  
+**After claim→source (`feat/claim-source-attribution`):** 238 passed, 0 skipped, 0 failed; guard verified; OpenAPI check matches; `secret_scan_light` → 0 hits.
+
 ## 2026-11-11 — Document route MFA follow-on
 
 Branch: `security/document-route-mfa-gates` @ post-`328edc6`.

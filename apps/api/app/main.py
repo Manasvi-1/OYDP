@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.8.0', lifespan=lifespan)
+app = FastAPI(title='OYDP Property Identity API', version='0.9.0', lifespan=lifespan)
 
 
 @app.middleware('http')
@@ -213,15 +213,18 @@ def revoke_property(property_id: UUID, payload: Recipient, access=Depends(author
 class ClaimCreate(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     statement: str = Field(min_length=1, max_length=10000)
+    source_id: UUID | None = None
 
 
-class ClaimRecord(ClaimCreate):
+class ClaimRecord(BaseModel):
     id: UUID
     tenant_id: UUID
     property_id: UUID
     created_by: str
+    statement: str
     kind: Literal['user_claim']
     verification_status: Literal['unverified']
+    source_id: UUID | None
     recorded_at: datetime
 
 
@@ -233,14 +236,15 @@ class ClaimPage(BaseModel):
 @app.post('/v1/properties/{property_id}/claims', status_code=201, response_model=ClaimRecord)
 def record_claim(property_id: UUID, payload: ClaimCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     conn, role = access
-    parent = writable_property(conn, property_id)
-    if role not in ('owner','editor'):
-        raise HTTPException(403, 'Property write permission required')
-    row = conn.execute("INSERT INTO property_claims(tenant_id,property_id,statement) VALUES(%s,%s,%s) RETURNING *",
-                       (parent['tenant_id'],property_id,payload.statement)).fetchone()
-    conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type,claim_id) VALUES(%s,%s,current_setting('app.subject_id'),'claim.recorded',%s)",
-                 (parent['tenant_id'],property_id,row['id']))
-    return row
+    # Property-scoped denial stays 404; tenant role denial is 403 after visibility.
+    writable_property(conn, property_id)
+    require_writer_role(role)
+    return call_trusted(
+        conn,
+        f"""SELECT id, tenant_id, property_id, created_by, statement, kind, verification_status, source_id, recorded_at
+          FROM public.record_property_claim({_TENANT}, %s, %s, %s)""",
+        (property_id, payload.statement, payload.source_id),
+    )
 
 
 @app.get('/v1/properties/{property_id}/claims', response_model=ClaimPage)
@@ -526,6 +530,7 @@ _TRUSTED_SQL = {
     'Invalid identifier': (422, 'Invalid identifier'),
     'Invalid source': (422, 'Invalid source'),
     'Invalid review': (422, 'Invalid review'),
+    'Invalid claim': (422, 'Invalid claim'),
     'Invalid request': (422, 'Invalid request'),
 }
 _TENANT = "nullif(current_setting('app.tenant_id', true), '')::uuid"
@@ -672,6 +677,7 @@ class PacketClaim(BaseModel):
     created_by: str
     kind: Literal['user_claim']
     verification_status: Literal['unverified']
+    source_id: UUID | None
     recorded_at: datetime
 
 
@@ -835,7 +841,7 @@ def export_property(property_id: UUID, access=Depends(authorized_db, scope='func
         conn.execute(f"SELECT public.authorize_property_export({_TENANT}, %s)", (property_id,)).fetchone()
     except psycopg.Error as exc:
         raise trusted_http_error(exc) from None
-    claims = packet_rows(conn, f"""SELECT id, statement, created_by, kind, verification_status, recorded_at
+    claims = packet_rows(conn, f"""SELECT id, statement, created_by, kind, verification_status, source_id, recorded_at
       FROM property_claims
       WHERE property_id=%s AND tenant_id={_TENANT}
       ORDER BY recorded_at DESC, id DESC LIMIT %s""", (property_id,))

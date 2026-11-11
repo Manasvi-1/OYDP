@@ -409,7 +409,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -624,8 +624,14 @@ def test_claim_audit_tenant_integrity_even_for_admin(api, discovery):
 
 def test_claim_database_rejects_official_classification(api, discovery):
     tenant,owner,_,_,create,_=discovery;pid=create()
-    with pytest.raises(psycopg.errors.CheckViolation), runtime(tenant,owner) as conn:
-        conn.execute("INSERT INTO property_claims(tenant_id,property_id,statement,kind) VALUES(%s,%s,'Not official','official_observation')",(tenant,pid))
+    # Runtime cannot INSERT claims directly; table CHECK still refuses non-user_claim kinds.
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(tenant,owner) as conn:
+        conn.execute("INSERT INTO property_claims(tenant_id,property_id,statement) VALUES(%s,%s,'blocked direct insert')",(tenant,pid))
+    with pytest.raises(psycopg.errors.CheckViolation), psycopg.connect(DSN) as conn:
+        conn.execute(
+            "INSERT INTO property_claims(tenant_id,property_id,created_by,statement,kind) VALUES(%s,%s,%s,'Not official','official_observation')",
+            (tenant, pid, owner),
+        )
 
 
 def test_claims_cross_tenant_hidden_even_with_valid_other_membership(api, discovery):
@@ -1307,6 +1313,13 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     source_id = created.json()['id']
     listed = api.get('/v1/sources', headers=headers).json()['items']
     assert listed[0]['id'] == source_id and listed[0]['rights_status'] == 'unknown'
+    claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Unverified note linked to a live source', 'source_id': source_id,
+    })
+    assert claim.status_code == 201, claim.text
+    assert claim.json()['verification_status'] == 'unverified'
+    assert claim.json()['kind'] == 'user_claim'
+    assert claim.json()['source_id'] == source_id
     cited = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
         'disposition': 'abstained', 'statement': 'The note was read and no conclusion was reached', 'source_id': source_id,
     })
@@ -1316,6 +1329,10 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     assert withdrawn.status_code == 200 and withdrawn.json()['changed'] is True
     again = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'The note was replaced'})
     assert again.json()['changed'] is False
+    blocked_claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Must not cite a withdrawn source', 'source_id': source_id,
+    })
+    assert blocked_claim.status_code == 422 and blocked_claim.json()['detail'] == 'Source is withdrawn'
     blocked = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
         'disposition': 'recorded', 'statement': 'This citation must fail', 'source_id': source_id,
     })
@@ -1324,6 +1341,10 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
         'disposition': 'recorded', 'statement': 'Missing source', 'source_id': str(uuid4()),
     })
     assert unknown.status_code == 422 and unknown.json()['detail'] == 'Source is withdrawn'
+    unknown_claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Missing source claim', 'source_id': str(uuid4()),
+    })
+    assert unknown_claim.status_code == 422 and unknown_claim.json()['detail'] == 'Source is withdrawn'
     outsider = 'source-cross-' + str(uuid4())
     with pytest.raises(psycopg.Error), psycopg.connect(DSN) as conn:
         conn.execute("UPDATE evidence_sources SET rights_status='licensed' WHERE id=%s", (source_id,))
@@ -1335,6 +1356,12 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     hidden = api.post(f'/v1/sources/{source_id}/withdrawal', headers={'X-Tenant-ID': str(B)}, json={'reason': 'Cross tenant'})
     assert hidden.status_code == 404
     assert api.get('/v1/sources', headers={'X-Tenant-ID': str(B)}).json()['items'] == []
+    foreign_claim = api.post(
+        f'/v1/properties/{pid}/claims',
+        headers={'X-Tenant-ID': str(B)},
+        json={'statement': 'Cross-tenant claim citation', 'source_id': source_id},
+    )
+    assert foreign_claim.status_code == 404
 
 
 def test_export_requires_live_creator_consent_and_stays_unverified(api, private_record, monkeypatch):
