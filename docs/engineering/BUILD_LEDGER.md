@@ -2,6 +2,24 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — T-NEXT-006 review↔claim attribution
+
+### Completed
+
+1. PR [#28](https://github.com/Manasvi-1/OYDP/pull/28) **merged** to `main` @ `116bde9` via `gh pr merge --merge` (no smart-mode card).
+2. Branched `feat/review-claim-attribution` from that tip.
+3. `infra/db/018_review_claim_attribution.sql` — optional `claim_id` on `professional_reviews`; six-arg `record_professional_review`; unverified same-property claims only; `title_effect` stays none.
+4. API **0.12.0**; reviews/list/export carry optional `claim_id`.
+5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped**; JUnit guard OK; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`.
+
+### Next task (resume here)
+
+After this PR merges: remaining E01 graph gaps (e.g. review↔document/identifier) or PostGIS IDOR when Docker available. Not GA.
+
+**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+
+---
+
 ## 2026-11-12 — T-NEXT-005 document↔identifier + export refs
 
 ### Completed
@@ -11,12 +29,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. `infra/db/017_document_identifier_attribution.sql` — optional `identifier_id` FK; six-arg `attribute_property_document`; current identifiers only.
 4. API **0.11.0**; attribution + export packet document metadata carry `claim_id` / `source_id` / `identifier_id`; `title_verified` remains false.
 5. Disposable PG `127.0.0.1:55432` suite: **240 passed, 0 skipped, 0 failed**; JUnit guard `tests=240 failures=0 errors=0 skipped=0`; OpenAPI `--check` match; `SECRET_SCAN_HITS 0`; IDOR file 8 collected.
+6. PR [#28](https://github.com/Manasvi-1/OYDP/pull/28) **merged** to `main` @ `116bde9`.
 
 ### Next task (resume here)
 
-After this PR merges: deepen remaining E01 evidence-graph gaps (beyond claim/source/identifier/document edges), or PostGIS IDOR when Docker available. Do not fake scanner pass. Not GA.
-
-**Human blockers:** Docker/Keycloak; live IdP; malware scanner; independent review.
+**T-NEXT-006:** review↔claim — see newer ledger entry.
 
 ---
 

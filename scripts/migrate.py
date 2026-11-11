@@ -97,7 +97,7 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_identifier(uuid,uuid,text,text,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.register_evidence_source(uuid,text,text,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.withdraw_evidence_source(uuid,uuid,text) TO oydp_app')
-        conn.execute('GRANT EXECUTE ON FUNCTION public.record_professional_review(uuid,uuid,text,text,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_professional_review(uuid,uuid,text,text,uuid,uuid) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_consent(uuid,uuid,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.revoke_property_consent(uuid,uuid,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.authorize_property_export(uuid,uuid) TO oydp_app')

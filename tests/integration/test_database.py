@@ -409,7 +409,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1287,7 +1287,7 @@ def _trusted_privileges():
         'public.record_property_identifier(uuid,uuid,text,text,text)',
         'public.register_evidence_source(uuid,text,text,text)',
         'public.withdraw_evidence_source(uuid,uuid,text)',
-        'public.record_professional_review(uuid,uuid,text,text,uuid)',
+        'public.record_professional_review(uuid,uuid,text,text,uuid,uuid)',
         'public.record_property_claim(uuid,uuid,text,uuid)',
         'public.attribute_property_document(uuid,uuid,uuid,uuid,uuid,uuid)',
         'public.record_property_consent(uuid,uuid,text)',
@@ -1395,6 +1395,7 @@ def test_writer_can_record_identifier_and_review_without_verifying_a_claim(api, 
     review = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={'disposition': 'recorded', 'statement': 'Noted from the file, not a title finding'})
     assert review.status_code == 201, review.text
     assert review.json()['title_effect'] == 'none' and review.json()['disposition'] == 'recorded'
+    assert review.json()['claim_id'] is None and review.json()['source_id'] is None
     claims = api.get(f'/v1/properties/{pid}/claims', headers=headers).json()['items']
     assert claims and all(item['verification_status'] == 'unverified' for item in claims)
     with psycopg.connect(DSN) as conn:
@@ -1432,10 +1433,18 @@ def test_withdrawn_or_unknown_source_cannot_be_cited(api, private_record):
     assert claim.json()['kind'] == 'user_claim'
     assert claim.json()['source_id'] == source_id
     cited = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
-        'disposition': 'abstained', 'statement': 'The note was read and no conclusion was reached', 'source_id': source_id,
+        'disposition': 'abstained', 'statement': 'The note was read and no conclusion was reached',
+        'source_id': source_id, 'claim_id': claim.json()['id'],
     })
     assert cited.status_code == 201, cited.text
     assert cited.json()['title_effect'] == 'none'
+    assert cited.json()['source_id'] == source_id
+    assert cited.json()['claim_id'] == claim.json()['id']
+    assert claim.json()['verification_status'] == 'unverified'
+    unknown_review_claim = api.post(f'/v1/properties/{pid}/reviews', headers=headers, json={
+        'disposition': 'recorded', 'statement': 'Must reject a foreign claim citation', 'claim_id': str(uuid4()),
+    })
+    assert unknown_review_claim.status_code == 422 and unknown_review_claim.json()['detail'] == 'Invalid attribution'
     withdrawn = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'The note was replaced'})
     assert withdrawn.status_code == 200 and withdrawn.json()['changed'] is True
     again = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'The note was replaced'})
