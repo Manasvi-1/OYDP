@@ -2,6 +2,22 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — PR #38 PG acceptance + merge gate
+
+### Completed
+
+1. Verified live state: `origin/main` @ `f350a99` (PR #37 T-NEXT-011 merged). Open PR #38 CI green / MERGEABLE. Working tree clean on `security/web-csp-and-repo-presentation`.
+2. Portable PostgreSQL 16.15 on `127.0.0.1:55432` (trust); recreated `oydp_security_test`.
+3. `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_security_test` + `PYTHONPATH=apps/api;.` → `pytest -q apps/api/tests tests/integration` → **250 passed**, 0 skipped, 0 failed (covers migration 020 + attribution negatives).
+4. `scripts/check_test_report.py` → Acceptance report verified: 250 cases; zero skips/failures. OpenAPI `--check` match. `SECRET_SCAN_HITS 0`.
+5. **T-NEXT-011** closed on main via PR #37 — do not redo. **T-NEXT-009** remains BLOCKED (no Docker/PostGIS).
+
+### Next task (resume here)
+
+Merge PR #38 when CI remains green. Then unblocked security/foundation/E01 depth (skip T-NEXT-009): prefer membership-revoke session posture without live IdP where possible, then E01 adjudication/dedup or G-WEB-DEPTH. Not GA.
+
+---
+
 ## 2026-11-12 — PR #38 batch: OpenAPI, T-NEXT-012, conflicts, throttle, docs posture
 
 ### Completed
@@ -11,11 +27,11 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 3. Evidence conflicts include `documents_citing_withdrawn_sources` and `reviews_citing_withdrawn_sources` (API **0.17.0**).
 4. Process-local mutation rate limit (`app/rate_limit.py`); interactive `/docs` off unless `OYDP_OIDC_DEV_HTTP=1` or `OYDP_ENABLE_API_DOCS=1`.
 5. Static migration-020 privilege assertions; orphan web clients documented in `apps/web/lib/LEGACY_CLIENTS.md` (kept for unit tests).
-6. Unit verification: API **140 passed**; web **48 passed**; typecheck/build OK; `secret_scan_light.py` **0 hits**. PG integration **BLOCKED** (no `TEST_DATABASE_URL` / Docker).
+6. Earlier unit-only verification: API **140 passed**; web **48 passed**; typecheck/build OK; `secret_scan_light.py` **0 hits**. PG integration completed in newer ledger entry (250 passed).
 
 ### Next task (resume here)
 
-Run disposable PG acceptance for migration 020 + attribution negatives when Docker/portable PG is available. Then CI-green merge of PR #38. **T-NEXT-009** remains BLOCKED. Not GA.
+See newer ledger entry (PG acceptance + merge).
 
 ---
 

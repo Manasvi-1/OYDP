@@ -26,7 +26,7 @@ Updated: 2026-11-12.
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
 | G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts on main; CSP + attribution write/display on PR #38 (`T-NEXT-012`); engines UI remains disclosure-only |
 | G-RATELIMIT | Process-local mutation throttle only | Medium | Not multi-worker / not edge; do not claim production DDoS protection |
-| G-PG-INT | Migration 020 + attribution negatives need disposable PG | High | `TEST_DATABASE_URL` unset; Docker absent on this machine |
+| G-PG-INT | Migration 020 + attribution negatives need disposable PG | Closed (non-PostGIS) | Portable PG 16.15 @ 55432: **250 passed** on PR #38 tip; PostGIS/T-NEXT-009 still blocked |
 
 ## Recently closed on this branch line
 
@@ -39,6 +39,7 @@ Updated: 2026-11-12.
 | Evidence conflicts + export sources + web graph/conflicts UI | PRs #35–#37 | API 0.15.0; web PR #37 |
 | Web CSP middleware unwired (`proxy.js` unused by Next 15) | This branch / PR #38 | `middleware.js` + build manifest matchers |
 | Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | This branch | Migration `020` + API 0.16.0 |
+| Local non-PostGIS PG acceptance for 020 | This branch | Portable PG 250 passed @ 55432 |
 
 ## Explicit non-goals this session
 
