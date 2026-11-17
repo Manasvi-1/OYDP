@@ -2,6 +2,32 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-17 — T-NEXT-009 later recheck (still BLOCKED)
+
+### Checked
+
+1. Same branch `docs/t-next-009-postgis-attempt` @ `f7cdc23`, PR #40 still open. Dirty files on `feat/membership-session-posture` were not staged, reset, or overwritten. Worktrees `OYDP-conflict-wt` and `OYDP-security-wt` were not modified.
+2. Docker client `29.9.2` is still not on PATH. `docker info` exit 1: `failed to connect to the docker API at npipe:////./pipe/docker_engine` (`open //./pipe/docker_engine: The system cannot find the file specified.`). `Test-Path \\.\pipe\docker_engine` is False. Compose plugin `v5.6.1`.
+3. `Docker Desktop.exe` host log still ends at `2026-11-17T17:32:01.779750700Z` with the missing `SOFTWARE\\Docker Inc.\\Docker Desktop` registry key. `com.docker.service` is not installed. This process is not elevated (`IsAdmin=False`, user `Manasvi_Gowda\WorkstationAdmin`). Windows features were not enabled and the machine was not rebooted.
+4. `wsl --status` still reports no distributions and `WSL2 is unable to start since virtualization is not enabled on this machine.` `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` remain InstallState `2`. `HyperVisorPresent` is True and virtualization-based security is running; that did not create the engine pipe. `Get-ComputerInfo` OsName: `Microsoft Windows 11 Home Single Language`.
+5. `postgresql-x64-17` is Running. Pid `6588` (`postgres`) listens on `0.0.0.0:5432` and `::5432`. `compose.yaml` still maps `127.0.0.1:5432:5432` for `postgis/postgis:16-3.4`. The host port was not remapped because no container started.
+6. `docker-compose.exe -f compose.yaml up db -d` with no env: exit 1, missing `POSTGRES_PASSWORD` and `KEYCLOAK_ADMIN_PASSWORD`. Retry with process-only generated passwords and no `.env` file: exit 1, same npipe error. Those process variables were cleared afterward.
+7. Database `oydp_security_test` was not created on PostGIS. `TEST_DATABASE_URL` was not set.
+
+### Tests
+
+Not executed. No passed, failed, or skipped counts. `tests/integration/test_z_cross_tenant_idor.py` was not collected. Its skip when `TEST_DATABASE_URL` is unset was not modified. No PostGIS-path product fix, because the suite never reached PostGIS.
+
+### Status
+
+**T-NEXT-009 remains BLOCKED.** Not closed. Not merged.
+
+### Next task (resume here)
+
+An elevated administrator must enable `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux`, reboot, and finish the Docker Desktop install so `HKLM:\SOFTWARE\Docker Inc.\Docker Desktop` and `com.docker.service` exist. Then remap the compose db host port off `5432`, start healthy `postgis/postgis:16-3.4`, create `oydp_security_test`, set `TEST_DATABASE_URL`, and run `PYTHONPATH=apps/api;.` `python -m pytest -q apps/api/tests tests/integration`. Do not treat portable PostgreSQL as this closure. Not GA.
+
+---
+
 ## 2026-11-17 — T-NEXT-009 compose PostGIS attempt (still BLOCKED)
 
 ### Checked

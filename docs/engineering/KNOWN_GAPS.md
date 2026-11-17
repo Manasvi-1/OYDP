@@ -10,7 +10,7 @@ Updated: 2026-11-17.
 | --- | --- | --- | --- | --- |
 | G-IDP | Live Keycloak/OIDC enrollment and `auth_time` emission verification | High | Docker/daemon unavailable on audit machine; no production IdP | DevOidc + synthetic JWKS unit tests; realm mapper present |
 | G-SCAN | Production malware scanner adapter | Medium | No bundled AV product / paid service authorization | Fail-closed quarantine; download denied until `pass` |
-| G-PG-LOCAL | Local disposable PostGIS via Docker Compose | Medium | 2026-11-17: engine pipe `\\.\pipe\docker_engine` absent; Docker Desktop missing `HKLM:\SOFTWARE\Docker Inc.\Docker Desktop`; WSL2 cannot start; `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` InstallState 2 (Disabled). `docker compose up db -d` exit 1 (npipe not found). | Non-PostGIS portable PostgreSQL is not a substitute. **T-NEXT-009 stays BLOCKED** until compose `postgis/postgis:16-3.4` is healthy. 55432 was not listening, so no secondary suite was run. |
+| G-PG-LOCAL | Local disposable PostGIS via Docker Compose | Medium | 2026-11-17 later recheck: `docker info` exit 1, pipe `\\.\pipe\docker_engine` absent; Docker Desktop registry key missing; `com.docker.service` not installed; process not elevated. WSL2 cannot start; `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` still InstallState 2. `docker compose up db -d` exit 1 (npipe not found). `postgresql-x64-17` pid 6588 owns `0.0.0.0:5432`. | Non-PostGIS portable PostgreSQL is not a substitute. **T-NEXT-009 stays BLOCKED.** Pytest was not run. URL skips were not weakened. |
 | G-REVIEW | Independent human/security review | High | Requires named reviewers | Self-review + automated negatives only |
 | G-WORM | External immutable audit sink | Medium | Ops/infrastructure | In-DB ledger + outbox (superuser can disable triggers) |
 | G-PRIVACY | Deletion, retention, legal hold, restore drills | High | Product/legal design incomplete | Not claimed |
@@ -43,7 +43,7 @@ Updated: 2026-11-17.
 
 ## 2026-11-17 T-NEXT-009 recheck
 
-Compose PostGIS did not start. Exact command and blocker strings are in `BUILD_LEDGER.md` (2026-11-17 entry). Active pytest was not run. `tests/integration/test_z_cross_tenant_idor.py` still skips when `TEST_DATABASE_URL` is unset; that skip was not weakened. System `postgresql-x64-17` still owns port 5432, which `compose.yaml` also publishes.
+Compose PostGIS did not start on the later recheck either. `docker info` and `docker compose up db -d` both exit 1 because `\\.\pipe\docker_engine` is missing. Active pytest was not run, so there is no passed/failed/skipped count. `tests/integration/test_z_cross_tenant_idor.py` still skips when `TEST_DATABASE_URL` is unset; that skip was not weakened. System `postgresql-x64-17` (pid 6588, process `postgres`) still owns port 5432, which `compose.yaml` also publishes. The host port was not remapped because no container started. Exact strings are in `BUILD_LEDGER.md`.
 
 ## Explicit non-goals this session
 
