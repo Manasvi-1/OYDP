@@ -2,6 +2,34 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-17 — T-NEXT-009 compose PostGIS attempt (still BLOCKED)
+
+### Checked
+
+1. Base `origin/main` @ `d960308` (PR #38 merged). Ledger-only branch `docs/t-next-009-postgis-attempt`. Unrelated uncommitted work on `feat/membership-session-posture` was not staged.
+2. Docker client `29.9.2` at `C:\Program Files\Docker\Docker\resources\bin\docker.exe` (not on PATH). `docker compose` from that binary: `docker: unknown command: docker compose`. `C:\Program Files\Docker\Docker\resources\cli-plugins\docker-compose.exe`: `Docker Compose version v5.6.1`.
+3. Engine pipe `\\.\pipe\docker_engine` absent (`Test-Path` False). No Docker process remained running.
+4. Non-elevated `Docker Desktop.exe` exited immediately. Host log `2026-11-17T16:54:31.846418800Z`: `getting backend binary path: cannot find registry key "SOFTWARE\\Docker Inc.\\Docker Desktop": The system cannot find the file specified.` `HKLM:\SOFTWARE\Docker Inc.\Docker Desktop` is absent. Service `com.docker.service` is not installed.
+5. `wsl --status` exact blockers: `WSL1 is not supported with your current machine configuration.` `Please enable the "Windows Subsystem for Linux" optional component to use WSL1.` `WSL2 is unable to start since virtualization is not enabled on this machine.` `Please ensure the "Virtual Machine Platform" optional component is enabled and virtualization is turned on in your computer's firmware settings.` `Windows Subsystem for Linux has no installed distributions.`
+6. `Win32_OptionalFeature` InstallState `2` (Disabled) for `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux`. `Win32_Processor.VirtualizationFirmwareEnabled` is `True`. Install-log OS: `Windows 10 Home Single Language`. Historical installer `2026-11-04`: `No installation found`; `Not run as admin, relaunching with UAC prompt`; `installer exited with status 1`. This session did not relaunch an elevated installer and did not enable those Windows features.
+7. Compose attempt used process-environment passwords only. No `.env` file was written. Command: `& 'C:\Program Files\Docker\Docker\resources\cli-plugins\docker-compose.exe' -f compose.yaml up db -d`. Exit 1: `failed to connect to the docker API at npipe:////./pipe/docker_engine; check if the path is correct and if the daemon is running: open //./pipe/docker_engine: The system cannot find the file specified.`
+8. `compose.yaml` service `db` is `postgis/postgis:16-3.4` on `127.0.0.1:5432`. Windows service `postgresql-x64-17` is Running; pid `6588` owns `0.0.0.0:5432`. That conflict was left in place because the engine never started a container.
+9. Portable cluster `%LOCALAPPDATA%\Temp\oydp-pg` is on disk. `127.0.0.1:55432` has no listener (last server log `2026-11-12 18:24:24 IST`). Secondary non-PostGIS pytest was not run.
+
+### Tests
+
+Not executed. `TEST_DATABASE_URL` was not set. No passed, failed, or skipped counts. `tests/integration/test_z_cross_tenant_idor.py` was not collected. Its `pytestmark` skip when `TEST_DATABASE_URL` is unset was not modified.
+
+### Status
+
+**T-NEXT-009 remains BLOCKED.** Not closed. Not merged. No product or test code changes in this commit.
+
+### Next task (resume here)
+
+Do not treat portable PostgreSQL as PostGIS acceptance. Closing T-NEXT-009 needs a healthy Docker engine, `postgis/postgis:16-3.4` from `compose.yaml`, migrations on `infra/db`, and `PYTHONPATH=apps/api;.` `pytest -q apps/api/tests tests/integration` with `TEST_DATABASE_URL` pointed at a disposable PostGIS database (CI name `oydp_security_test`). Enabling `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` needs an elevated administrator and usually a reboot. Not GA.
+
+---
+
 ## 2026-11-12 — PR #38 PG acceptance + merge gate
 
 ### Completed

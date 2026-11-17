@@ -2,7 +2,7 @@
 
 Honest unfinished / blocked / defective items. Prefer fixing security and foundation before engine expansion.
 
-Updated: 2026-11-12.
+Updated: 2026-11-17.
 
 ## Blocked on external infrastructure or human action
 
@@ -10,7 +10,7 @@ Updated: 2026-11-12.
 | --- | --- | --- | --- | --- |
 | G-IDP | Live Keycloak/OIDC enrollment and `auth_time` emission verification | High | Docker/daemon unavailable on audit machine; no production IdP | DevOidc + synthetic JWKS unit tests; realm mapper present |
 | G-SCAN | Production malware scanner adapter | Medium | No bundled AV product / paid service authorization | Fail-closed quarantine; download denied until `pass` |
-| G-PG-LOCAL | Local disposable PostGIS via Docker Compose | Medium | Docker CLI absent; Desktop engine pipe unavailable | Mitigated for non-PostGIS: portable PostgreSQL 16.15 on 55432 runs full active suite; **T-NEXT-009 PostGIS IDOR remains BLOCKED** until Docker/PostGIS available |
+| G-PG-LOCAL | Local disposable PostGIS via Docker Compose | Medium | 2026-11-17: engine pipe `\\.\pipe\docker_engine` absent; Docker Desktop missing `HKLM:\SOFTWARE\Docker Inc.\Docker Desktop`; WSL2 cannot start; `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` InstallState 2 (Disabled). `docker compose up db -d` exit 1 (npipe not found). | Non-PostGIS portable PostgreSQL is not a substitute. **T-NEXT-009 stays BLOCKED** until compose `postgis/postgis:16-3.4` is healthy. 55432 was not listening, so no secondary suite was run. |
 | G-REVIEW | Independent human/security review | High | Requires named reviewers | Self-review + automated negatives only |
 | G-WORM | External immutable audit sink | Medium | Ops/infrastructure | In-DB ledger + outbox (superuser can disable triggers) |
 | G-PRIVACY | Deletion, retention, legal hold, restore drills | High | Product/legal design incomplete | Not claimed |
@@ -26,7 +26,7 @@ Updated: 2026-11-12.
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
 | G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts on main; CSP + attribution write/display on PR #38 (`T-NEXT-012`); engines UI remains disclosure-only |
 | G-RATELIMIT | Process-local mutation throttle only | Medium | Not multi-worker / not edge; do not claim production DDoS protection |
-| G-PG-INT | Migration 020 + attribution negatives need disposable PG | Closed (non-PostGIS) | Portable PG 16.15 @ 55432: **250 passed** on PR #38 tip; PostGIS/T-NEXT-009 still blocked |
+| G-PG-INT | Migration 020 + attribution negatives need disposable PG | Closed (non-PostGIS) | Portable PG 16.15 @ 55432: **250 passed** on PR #38 tip (`d960308` history). 2026-11-17 PostGIS recheck did not rerun that suite. T-NEXT-009 still blocked |
 
 ## Recently closed on this branch line
 
@@ -41,6 +41,10 @@ Updated: 2026-11-12.
 | Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | This branch | Migration `020` + API 0.16.0 |
 | Local non-PostGIS PG acceptance for 020 | This branch | Portable PG 250 passed @ 55432 |
 
+## 2026-11-17 T-NEXT-009 recheck
+
+Compose PostGIS did not start. Exact command and blocker strings are in `BUILD_LEDGER.md` (2026-11-17 entry). Active pytest was not run. `tests/integration/test_z_cross_tenant_idor.py` still skips when `TEST_DATABASE_URL` is unset; that skip was not weakened. System `postgresql-x64-17` still owns port 5432, which `compose.yaml` also publishes.
+
 ## Explicit non-goals this session
 
-Deploy, paid cloud spend, merging when CI red, force-push, rewriting reference `oydp/` backend, claiming GA or independent audit. Do not stall the project on **T-NEXT-009** while Docker remains unavailable.
+Deploy, paid cloud spend, merging when CI red, force-push, rewriting reference `oydp/` backend, claiming GA or independent audit. Do not stall the project on **T-NEXT-009** while Docker remains unavailable. Do not record T-NEXT-009 as closed on portable PostgreSQL.
