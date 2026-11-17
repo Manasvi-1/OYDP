@@ -2,11 +2,27 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-17 — PR #38 merged + CVE lock bump
+
+### Completed
+
+1. PR [#38](https://github.com/Manasvi-1/OYDP/pull/38) **merged** to `main` @ `d960308` via `gh pr merge --merge`.
+2. Pre-merge blocker (honest correction): tip `ea811e2` was **MERGEABLE** but `mergeStateStatus=UNSTABLE` — not “CI green”. Failing job `apps/api unit and OpenAPI` / pip-audit: `opentelemetry-api==1.45.1` / **CVE-2026-126360**; fix `1.45.2`.
+3. Bumped `apps/api/requirements.lock` only (`opentelemetry-api==1.45.2` + wheel/sdist hashes) @ `27fc8cd`. `requirements.txt` does not pin the transitive package.
+4. Local `pip-audit` still blocked on this Windows Python (no `venv` stdlib); GitHub Actions pip-audit on the bump commit passed. Post-bump checks all green: unit/OpenAPI, DB acceptance, web, reference package.
+5. **T-NEXT-012** and CSP/presentation batch are on main via PR #38. **T-NEXT-009** remains BLOCKED (no Docker/PostGIS).
+
+### Next task (resume here)
+
+Unblocked security/foundation/E01 depth (skip T-NEXT-009): prefer membership-revoke session posture without live IdP where possible, then E01 adjudication/dedup or remaining G-WEB-DEPTH. Not GA.
+
+---
+
 ## 2026-11-12 — PR #38 PG acceptance + merge gate
 
 ### Completed
 
-1. Verified live state: `origin/main` @ `f350a99` (PR #37 T-NEXT-011 merged). Open PR #38 CI green / MERGEABLE. Working tree clean on `security/web-csp-and-repo-presentation`.
+1. Verified live state: `origin/main` @ `f350a99` (PR #37 T-NEXT-011 merged). Open PR #38 was **MERGEABLE** with portable-PG acceptance recorded; **do not read this entry as final CI-green** — later tip `ea811e2` was `UNSTABLE` until the OpenTelemetry CVE bump (see newer entry).
 2. Portable PostgreSQL 16.15 on `127.0.0.1:55432` (trust); recreated `oydp_security_test`.
 3. `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_security_test` + `PYTHONPATH=apps/api;.` → `pytest -q apps/api/tests tests/integration` → **250 passed**, 0 skipped, 0 failed (covers migration 020 + attribution negatives).
 4. `scripts/check_test_report.py` → Acceptance report verified: 250 cases; zero skips/failures. OpenAPI `--check` match. `SECRET_SCAN_HITS 0`.
@@ -14,7 +30,7 @@ Append-only style session ledger for autonomous execution. Newest entry first.
 
 ### Next task (resume here)
 
-Merge PR #38 when CI remains green. Then unblocked security/foundation/E01 depth (skip T-NEXT-009): prefer membership-revoke session posture without live IdP where possible, then E01 adjudication/dedup or G-WEB-DEPTH. Not GA.
+Superseded: PR #38 merged @ `d960308` after CVE lock bump (see newer entry).
 
 ---
 

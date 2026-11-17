@@ -24,9 +24,9 @@ Updated: 2026-11-12.
 | G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Attribution edges + read-only graph + conflict signals landed; human adjudication / dedup workflows still open |
 | G-ENGINES | E02, E04–E13 not started | Scope | Must remain commitments; do not fake |
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
-| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts on main; CSP + attribution write/display on PR #38 (`T-NEXT-012`); engines UI remains disclosure-only |
+| G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts + CSP + attribution write/display on main (PR #38 / `T-NEXT-012`); engines UI remains disclosure-only |
 | G-RATELIMIT | Process-local mutation throttle only | Medium | Not multi-worker / not edge; do not claim production DDoS protection |
-| G-PG-INT | Migration 020 + attribution negatives need disposable PG | Closed (non-PostGIS) | Portable PG 16.15 @ 55432: **250 passed** on PR #38 tip; PostGIS/T-NEXT-009 still blocked |
+| G-PG-INT | Migration 020 + attribution negatives need disposable PG | Closed (non-PostGIS) | Portable PG 16.15 @ 55432: **250 passed** on PR #38 line; PostGIS/T-NEXT-009 still blocked |
 
 ## Recently closed on this branch line
 
@@ -37,9 +37,10 @@ Updated: 2026-11-12.
 | Interview OIDC cookie loss on callback | PR #22 commits | Web CI SUCCESS |
 | Claim→source / document / review attribution + graph projection | PRs #25–#33 | Active API 0.14.0 on main |
 | Evidence conflicts + export sources + web graph/conflicts UI | PRs #35–#37 | API 0.15.0; web PR #37 |
-| Web CSP middleware unwired (`proxy.js` unused by Next 15) | This branch / PR #38 | `middleware.js` + build manifest matchers |
-| Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | This branch | Migration `020` + API 0.16.0 |
-| Local non-PostGIS PG acceptance for 020 | This branch | Portable PG 250 passed @ 55432 |
+| Web CSP middleware unwired (`proxy.js` unused by Next 15) | PR #38 @ `d960308` | `middleware.js` + build manifest matchers |
+| Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | PR #38 @ `d960308` | Migration `020` + API 0.16.0+ |
+| Local non-PostGIS PG acceptance for 020 | PR #38 line | Portable PG 250 passed @ 55432 |
+| pip-audit CVE-2026-126360 on `opentelemetry-api` 1.45.1 | PR #38 tip `27fc8cd` | Lock bump to `1.45.2`; CI unit/OpenAPI green before merge |
 
 ## Explicit non-goals this session
 
