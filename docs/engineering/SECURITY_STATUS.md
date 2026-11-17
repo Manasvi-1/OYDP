@@ -31,7 +31,7 @@ Updated: 2026-11-11. Companion: `docs/implementation/SECURITY_FINDINGS.md`, `doc
 | SF-003 Malware scanner | Medium | BLOCKED |
 | SF-004 External immutable audit | Medium | Open |
 | SF-005 Tautology test | Low | Fixed |
-| SF-006 Live IdP / session kill | High | BLOCKED / unverified |
+| SF-006 Live IdP / provider token revocation | High | BLOCKED. Application not-before posture is tested (migration 021); it does not revoke IdP tokens |
 | SF-007 IDOR matrix | Medium | Fixed / CI verified; local PG blocked here |
 | SF-008 MFA max-age 0 prod | Medium | Fixed (code); restored onto interview branch |
 
@@ -44,4 +44,4 @@ Updated: 2026-11-11. Companion: `docs/implementation/SECURITY_FINDINGS.md`, `doc
 
 ## Residual risk statement
 
-Automated green tests do not prove production security. Live IdP, malware scanning, session revocation at the provider, privacy deletion, and independent review remain open. Do not ship GA on this evidence alone.
+Automated green tests do not prove production security. Live IdP, malware scanning, session revocation at the provider, privacy deletion, and independent review remain open. Application membership-session checks are not a substitute for provider revocation. Do not ship GA on this evidence alone.

@@ -1088,6 +1088,62 @@
         "title": "IdentifierResult",
         "type": "object"
       },
+      "MembershipSessionPosture": {
+        "additionalProperties": false,
+        "properties": {
+          "not_before_epoch": {
+            "title": "Not Before Epoch",
+            "type": "integer"
+          },
+          "notice": {
+            "const": "Application session posture only. Live IdP token revocation is not performed.",
+            "default": "Application session posture only. Live IdP token revocation is not performed.",
+            "title": "Notice",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "membership_revoked",
+              "session_kill"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "subject_id": {
+            "title": "Subject Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "subject_id",
+          "not_before_epoch",
+          "reason"
+        ],
+        "title": "MembershipSessionPosture",
+        "type": "object"
+      },
+      "MembershipSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "subject_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Subject Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_id"
+        ],
+        "title": "MembershipSubject",
+        "type": "object"
+      },
       "NoteCreate": {
         "additionalProperties": false,
         "properties": {
@@ -1983,7 +2039,7 @@
   },
   "info": {
     "title": "OYDP Property Identity API",
-    "version": "0.17.0"
+    "version": "0.18.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4888,6 +4944,140 @@
           }
         },
         "summary": "Withdraw Source"
+      }
+    },
+    "/v1/tenant/membership-revocations": {
+      "post": {
+        "description": "Owner-only membership revoke with application session invalidation. Does not call a live IdP.",
+        "operationId": "revoke_tenant_member_v1_tenant_membership_revocations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipSubject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipSessionPosture"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Tenant Member"
+      }
+    },
+    "/v1/tenant/session-invalidations": {
+      "post": {
+        "description": "Owner-only session kill for a current member without removing membership. No live IdP call.",
+        "operationId": "invalidate_tenant_member_session_v1_tenant_session_invalidations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Tenant-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipSubject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipSessionPosture"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invalidate Tenant Member Session"
       }
     }
   }

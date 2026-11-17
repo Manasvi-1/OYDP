@@ -63,7 +63,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = app.openapi()
-    assert spec['info']['version'] == '0.17.0'
+    assert spec['info']['version'] == '0.18.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -76,6 +76,8 @@ def test_trusted_evidence_contract_does_not_grant_title():
         '/v1/properties/{property_id}/audit',
         '/v1/sources',
         '/v1/sources/{source_id}/withdrawal',
+        '/v1/tenant/membership-revocations',
+        '/v1/tenant/session-invalidations',
     ):
         assert path in paths
     schemas = spec['components']['schemas']

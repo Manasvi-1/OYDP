@@ -1,6 +1,6 @@
 # OYDP private property workspace
 
-Authenticated Next.js workspace for the active Property Identity API (**0.17.0**). Requires Node 20+, the FastAPI service in `apps/api`, and a migrated PostgreSQL database with role `oydp_app`.
+Authenticated Next.js workspace for the active Property Identity API (**0.18.0**). Requires Node 20+, the FastAPI service in `apps/api`, and a migrated PostgreSQL database with role `oydp_app`.
 
 ## Local run
 

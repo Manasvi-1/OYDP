@@ -1,7 +1,7 @@
 # Sprint status
 
-**Sprint focus:** Merge PR #38 after portable-PG acceptance; continue unblocked security/E01.  
-**Date:** 2026-11-12.
+**Sprint focus:** Application membership-session posture without a live IdP. PR #38 is on main. Do not merge open docs PRs unless asked.  
+**Date:** 2026-11-17.
 
 ## Goals
 
@@ -15,6 +15,7 @@
 | Withdrawn-source conflicts for docs/reviews | Done (API 0.17.0) |
 | Process-local rate limit + docs exposure posture | Done (honest non-distributed) |
 | PostGIS IDOR / local PostGIS | **BLOCKED** (`T-NEXT-009`, no Docker) |
+| Membership-revoke session posture | TESTED in code (API 0.18.0, migration 021). Live IdP revocation still blocked |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
