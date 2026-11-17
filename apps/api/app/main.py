@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from app.auth import assert_mfa_configuration, verified_subject, require_mfa
+from app.auth import assert_mfa_configuration, verified_claims, verified_subject, require_mfa
 from app.documents import (
     DocumentRejected, ScannerUnavailable, StorageUnavailable, aad_for, authenticated_plaintext,
     digest_bytes, gate_download, get_document_scanner, inspect_upload, read_limited,
@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
 _DOCS = api_docs_enabled()
 app = FastAPI(
     title='OYDP Property Identity API',
-    version='0.17.0',
+    version='0.18.0',
     lifespan=lifespan,
     docs_url='/docs' if _DOCS else None,
     redoc_url='/redoc' if _DOCS else None,
@@ -93,6 +93,22 @@ class PropertyRecord(PropertyCreate):
     created_by: str
 
 
+class MembershipSubject(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    subject_id: str = Field(min_length=1, max_length=255)
+
+
+class MembershipSessionPosture(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    tenant_id: UUID
+    subject_id: str
+    not_before_epoch: int
+    reason: Literal['membership_revoked', 'session_kill']
+    notice: Literal[
+        'Application session posture only. Live IdP token revocation is not performed.'
+    ] = 'Application session posture only. Live IdP token revocation is not performed.'
+
+
 @contextmanager
 def tenant_db(tenant_id: UUID, subject: str):
     dsn = os.environ.get('DATABASE_URL')
@@ -112,18 +128,95 @@ def tenant_db(tenant_id: UUID, subject: str):
         raise HTTPException(503, 'Database operation unavailable') from None
 
 
-def authorized_db(tenant_id: UUID = Header(alias='X-Tenant-ID'), subject: str = Depends(verified_subject)):
+def access_token_iat(authorization: str | None = Header(default=None)) -> int:
+    """Return the verified access-token iat used for membership session posture checks."""
+    iat = verified_claims(authorization)['iat']
+    if type(iat) is not int or iat < 0:
+        raise HTTPException(401, 'Invalid access token', headers={'WWW-Authenticate': 'Bearer'})
+    return iat
+
+
+def enforce_membership_session(conn, tenant_id: UUID, subject: str, token_iat: int) -> None:
+    """Reject tokens issued before the latest membership session invalidation for this subject.
+
+    The database stores not_before as floor(epoch)+1, so iat from the revoke second fails.
+    Missing membership is rejected by the caller before this check. No live IdP call.
+    """
+    row = conn.execute(
+        """SELECT COALESCE(MAX(not_before_epoch), 0) AS not_before
+           FROM membership_session_invalidations
+           WHERE tenant_id=%s AND subject_id=%s""",
+        (tenant_id, subject),
+    ).fetchone()
+    if token_iat < int(row['not_before']):
+        raise HTTPException(401, 'Session invalidated; re-authenticate', headers={'WWW-Authenticate': 'Bearer'})
+
+
+def authorized_db(
+    tenant_id: UUID = Header(alias='X-Tenant-ID'),
+    subject: str = Depends(verified_subject),
+    token_iat: int = Depends(access_token_iat),
+):
     with tenant_db(tenant_id, subject) as conn:
         membership = conn.execute('SELECT role FROM tenant_memberships WHERE tenant_id=%s AND subject_id=%s FOR SHARE',
                                   (tenant_id, subject)).fetchone()
         if not membership:
             raise HTTPException(403, 'Tenant membership required')
+        enforce_membership_session(conn, tenant_id, subject, token_iat)
         yield conn, membership['role']
 
 
 @app.get('/healthz')
 def health():
     return {'status': 'ok'}
+
+
+@app.post('/v1/tenant/membership-revocations', status_code=200, response_model=MembershipSessionPosture)
+def revoke_tenant_member(
+    payload: MembershipSubject,
+    access=Depends(authorized_db, scope='function'),
+    mfa=Depends(require_mfa),
+):
+    """Owner-only membership revoke with application session invalidation. Does not call a live IdP."""
+    conn, role = access
+    if role != 'owner':
+        raise HTTPException(403, 'Tenant owner permission required')
+    tenant_id = UUID(conn.execute("SELECT current_setting('app.tenant_id') AS tenant").fetchone()['tenant'])
+    not_before = call_trusted(
+        conn,
+        f"SELECT public.revoke_tenant_membership({_TENANT}, %s) AS not_before_epoch",
+        (payload.subject_id,),
+    )['not_before_epoch']
+    return {
+        'tenant_id': tenant_id,
+        'subject_id': payload.subject_id,
+        'not_before_epoch': int(not_before),
+        'reason': 'membership_revoked',
+    }
+
+
+@app.post('/v1/tenant/session-invalidations', status_code=200, response_model=MembershipSessionPosture)
+def invalidate_tenant_member_session(
+    payload: MembershipSubject,
+    access=Depends(authorized_db, scope='function'),
+    mfa=Depends(require_mfa),
+):
+    """Owner-only session kill for a current member without removing membership. No live IdP call."""
+    conn, role = access
+    if role != 'owner':
+        raise HTTPException(403, 'Tenant owner permission required')
+    tenant_id = UUID(conn.execute("SELECT current_setting('app.tenant_id') AS tenant").fetchone()['tenant'])
+    not_before = call_trusted(
+        conn,
+        f"SELECT public.invalidate_tenant_member_sessions({_TENANT}, %s) AS not_before_epoch",
+        (payload.subject_id,),
+    )['not_before_epoch']
+    return {
+        'tenant_id': tenant_id,
+        'subject_id': payload.subject_id,
+        'not_before_epoch': int(not_before),
+        'reason': 'session_kill',
+    }
 
 
 @app.post('/v1/properties', status_code=201, response_model=PropertyRecord)
@@ -442,17 +535,18 @@ def document_meta(conn, property_id, document_id):
     return row
 
 
-def assert_document_writer(tenant_id, subject, property_id):
+def assert_document_writer(tenant_id, subject, property_id, token_iat):
     with tenant_db(tenant_id, subject) as conn:
         membership = conn.execute('SELECT role FROM tenant_memberships WHERE tenant_id=%s AND subject_id=%s FOR SHARE',
                                   (tenant_id, subject)).fetchone()
         if not membership:
             raise HTTPException(403, 'Tenant membership required')
+        enforce_membership_session(conn, tenant_id, subject, token_iat)
         writable_property(conn, property_id)
         require_writer_role(membership['role'])
 
 
-def quarantine_document(tenant_id, subject, property_id, payload, media, key):
+def quarantine_document(tenant_id, subject, property_id, payload, media, key, token_iat):
     """Encrypt and store before any scan or download. The client cannot choose scan_state."""
     document_id = uuid4()
     with tenant_db(tenant_id, subject) as conn:
@@ -460,6 +554,7 @@ def quarantine_document(tenant_id, subject, property_id, payload, media, key):
                                   (tenant_id, subject)).fetchone()
         if not membership:
             raise HTTPException(403, 'Tenant membership required')
+        enforce_membership_session(conn, tenant_id, subject, token_iat)
         parent = writable_property(conn, property_id)
         require_writer_role(membership['role'])
         nonce, ciphertext = seal(key, payload, aad_for(parent['tenant_id'], property_id, document_id, media))
@@ -475,9 +570,10 @@ def quarantine_document(tenant_id, subject, property_id, payload, media, key):
 
 @app.post('/v1/properties/{property_id}/documents', status_code=201, response_model=DocumentRecord)
 async def upload_document(property_id: UUID, request: Request, tenant_id: UUID = Header(alias='X-Tenant-ID'),
-                          subject: str = Depends(verified_subject), mfa=Depends(require_mfa)):
+                          subject: str = Depends(verified_subject), token_iat: int = Depends(access_token_iat),
+                          mfa=Depends(require_mfa)):
     """Quarantine one synthetic file. Nothing in the request can mark it clean."""
-    await anyio.to_thread.run_sync(lambda: assert_document_writer(tenant_id, subject, property_id))
+    await anyio.to_thread.run_sync(lambda: assert_document_writer(tenant_id, subject, property_id, token_iat))
     try:
         reject_declared_length(request.headers.get('content-length'))
         payload = await read_limited(request)
@@ -487,7 +583,9 @@ async def upload_document(property_id: UUID, request: Request, tenant_id: UUID =
         raise HTTPException(exc.status_code, exc.detail) from None
     except StorageUnavailable:
         raise HTTPException(503, 'Document storage not configured') from None
-    return await anyio.to_thread.run_sync(lambda: quarantine_document(tenant_id, subject, property_id, payload, media, key))
+    return await anyio.to_thread.run_sync(
+        lambda: quarantine_document(tenant_id, subject, property_id, payload, media, key, token_iat)
+    )
 
 
 @app.get('/v1/properties/{property_id}/documents/{document_id}', response_model=DocumentRecord)
@@ -610,6 +708,7 @@ _TRUSTED_SQL = {
     'Invalid attribution': (422, 'Invalid attribution'),
     'Invalid request': (422, 'Invalid request'),
     'Document not found': (404, 'Document not found'),
+    'Cannot revoke the last tenant owner': (409, 'Cannot revoke the last tenant owner'),
 }
 _TENANT = "nullif(current_setting('app.tenant_id', true), '')::uuid"
 

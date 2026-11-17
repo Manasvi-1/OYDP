@@ -119,12 +119,14 @@ def test_failed_migration_rolls_back(tmp_path):
 def api(monkeypatch):
     from fastapi.testclient import TestClient
     from psycopg.conninfo import make_conninfo
-    from app.main import app
+    from app.main import app, access_token_iat
     from app.auth import verified_subject, require_mfa
     monkeypatch.setenv('DATABASE_URL', make_conninfo(DSN, user='oydp_app', password=PASSWORD))
     # Cryptographic validation has separate RSA tests. These exercise the real API,
     # trusted membership lookup and PostgreSQL RLS using an injected verified subject.
+    # Fresh synthetic iat keeps membership session posture from blocking fixture subjects.
     app.dependency_overrides[verified_subject] = lambda: 'alice'
+    app.dependency_overrides[access_token_iat] = lambda: 2**31 - 1
     app.dependency_overrides[require_mfa] = lambda: True
     try:
         yield TestClient(app)
@@ -412,7 +414,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql','021_membership_session_posture.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))

@@ -35,10 +35,11 @@ def database():
 def api(monkeypatch):
     from fastapi.testclient import TestClient
     from app.auth import require_mfa, verified_subject
-    from app.main import app
+    from app.main import app, access_token_iat
 
     monkeypatch.setenv('DATABASE_URL', make_conninfo(DSN, user='oydp_app', password=PASSWORD))
     app.dependency_overrides[verified_subject] = lambda: 'idor-alice'
+    app.dependency_overrides[access_token_iat] = lambda: 2**31 - 1
     app.dependency_overrides[require_mfa] = lambda: True
     try:
         yield TestClient(app)

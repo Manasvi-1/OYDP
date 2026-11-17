@@ -2,6 +2,27 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-17 — Membership-revoke session posture (no live IdP)
+
+### Completed
+
+1. Branched `feat/membership-session-posture` from `origin/main` @ `d960308` (PR #38 merged). Open PRs #39 and #40 were left unmerged. Local scratch files and the existing stash were not discarded.
+2. Migration **021** records append-only membership session invalidations. Owner revoke deletes the membership (read/write grants cascade) and sets `not_before` to `floor(epoch)+1`. A tenant advisory lock stops two owners from revoking each other down to zero owners. Session kill invalidates tokens without removing membership.
+3. API **0.18.0**: `POST /v1/tenant/membership-revocations` and `POST /v1/tenant/session-invalidations` are owner-only and MFA-gated. Every authorized request fails closed without a current membership, then rejects `iat < not_before`. No live IdP call.
+4. Portable PostgreSQL 16.15 @ `127.0.0.1:55432`, fresh DB `oydp_membership_session_test`.
+   - `PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests` → **152 passed**, 0 failed, 0 skipped, 1 Starlette deprecation warning.
+   - `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_membership_session_test` + `PYTHONPATH=apps/api;. python -m pytest -q tests/integration` → **116 passed**, 0 failed, 0 skipped, 1 warning.
+   - `python scripts/export_active_openapi.py --check` → Active OpenAPI contract matches.
+   - `python scripts/secret_scan_light.py` → `SECRET_SCAN_HITS 0`.
+   - Web not modified for behavior; npm test/typecheck/build not run.
+5. **T-NEXT-009** PostGIS remains BLOCKED. Live IdP enrollment and provider token revocation remain BLOCKED (SF-006). Not GA.
+
+### Next task (resume here)
+
+Do not merge this PR unless CI is green and a human asks. Then unblocked E01 depth (skip T-NEXT-009): adjudication/dedup or G-WEB-DEPTH. Not GA.
+
+---
+
 ## 2026-11-12 — PR #38 PG acceptance + merge gate
 
 ### Completed

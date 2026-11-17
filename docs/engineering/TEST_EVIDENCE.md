@@ -2,6 +2,20 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-17 — Membership session posture (migration 021)
+
+Branch: `feat/membership-session-posture` from `origin/main` @ `d960308`. Interpreter: repo `.venv` (system `python` is isolated by `python311._pth` and ignores `PYTHONPATH`). Portable PostgreSQL **16.15** @ `127.0.0.1:55432`. Fresh database `oydp_membership_session_test`. Docker not used. Web not modified.
+
+```text
+PYTHONPATH=apps/api;. .\.venv\Scripts\python.exe -m pytest -q apps/api/tests
+TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_membership_session_test
+PYTHONPATH=apps/api;. .\.venv\Scripts\python.exe -m pytest -q tests/integration
+.\.venv\Scripts\python.exe scripts/export_active_openapi.py --check
+.\.venv\Scripts\python.exe scripts/secret_scan_light.py
+```
+
+**Result:** API units **152 passed**, 0 failed, 0 skipped, 1 Starlette/`httpx` deprecation warning. Integration **116 passed**, 0 failed, 0 skipped, 1 warning. OpenAPI contract matches. `SECRET_SCAN_HITS 0`. npm test, typecheck, and web build were not run. PostGIS / T-NEXT-009 not run. Live IdP not run.
+
 ## 2026-11-12 — PR #38 portable PG acceptance (migration 020)
 
 Branch: `security/web-csp-and-repo-presentation` @ `d91c12a` (+ ledger update). Portable PG 16.15 @ `127.0.0.1:55432`, DB `oydp_security_test` recreated. Docker CLI absent.
