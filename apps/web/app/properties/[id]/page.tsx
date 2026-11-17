@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import {
   addDiligenceNote,
+  attributeDocument,
   closeDiligenceRequest,
   correctProperty,
   grantExportConsent,
@@ -62,6 +63,7 @@ interface ClaimItem {
   recorded_at: string
   verification_status: string
   kind: string
+  source_id?: string | null
 }
 
 interface CorrectionItem {
@@ -90,6 +92,10 @@ interface ReviewItem {
   disposition: string
   title_effect: string
   recorded_at: string
+  source_id?: string | null
+  claim_id?: string | null
+  document_id?: string | null
+  identifier_id?: string | null
 }
 
 interface SourceItem {
@@ -107,6 +113,9 @@ interface DocumentItem {
   byte_size: number
   scan_state: string
   created_at: string
+  claim_id?: string | null
+  source_id?: string | null
+  identifier_id?: string | null
 }
 
 interface AuditItem {
@@ -160,6 +169,8 @@ interface EvidenceConflictsPayload {
   multiple_open_unverified_claims: boolean
   identifier_conflicts: IdentifierConflictItem[]
   claims_citing_withdrawn_sources: string[]
+  documents_citing_withdrawn_sources: string[]
+  reviews_citing_withdrawn_sources: string[]
 }
 
 export default async function PropertyPage({ params, searchParams }: {
@@ -210,6 +221,7 @@ export default async function PropertyPage({ params, searchParams }: {
     'consent-recorded': 'Export consent was recorded for this property.',
     'consent-revoked': 'Export consent revocation was submitted.',
     'document-quarantined': 'The file was quarantined. Download stays blocked until a configured scanner marks it clean.',
+    'document-attributed': 'Document attribution was updated. Attribution does not change scan state or title.',
     'diligence-opened': 'Diligence request opened. This is not an offer, payment, or legal agreement.',
     'diligence-noted': 'Diligence note recorded for authorized readers.',
     'diligence-closed': 'Diligence request closed. Closed means workspace status only.',
@@ -227,7 +239,7 @@ export default async function PropertyPage({ params, searchParams }: {
             <span className="mono">{property.created_by}</span>
             <StatusPill label="Unverified record" tone="warn" />
           </div>
-          <p className="lede" style={{ marginTop: '0.75rem' }}>
+          <p className="lede lede-follow">
             User-entered identifiers and claims are not official government verification.
           </p>
         </div>
@@ -245,9 +257,26 @@ export default async function PropertyPage({ params, searchParams }: {
       ) : null}
       {tab === 'identity' ? <IdentityTab propertyId={id} property={property} corrections={corrections} /> : null}
       {tab === 'identifiers' ? <IdentifiersTab propertyId={id} identifiers={identifiers} /> : null}
-      {tab === 'claims' ? <ClaimsTab propertyId={id} claims={claims} reviews={reviews} sources={sources} /> : null}
+      {tab === 'claims' ? (
+        <ClaimsTab
+          propertyId={id}
+          claims={claims}
+          reviews={reviews}
+          sources={sources}
+          documents={documents}
+          identifiers={identifiers}
+        />
+      ) : null}
       {tab === 'graph' ? <GraphTab graph={evidenceGraph} conflicts={evidenceConflicts} /> : null}
-      {tab === 'documents' ? <DocumentsTab propertyId={id} documents={documents} /> : null}
+      {tab === 'documents' ? (
+        <DocumentsTab
+          propertyId={id}
+          documents={documents}
+          claims={claims}
+          sources={sources}
+          identifiers={identifiers}
+        />
+      ) : null}
       {tab === 'access' ? <AccessTab propertyId={id} /> : null}
       {tab === 'diligence' ? <DiligenceTab propertyId={id} session={session} requests={requests} /> : null}
       {tab === 'audit' ? <AuditTab audit={audit} /> : null}
@@ -265,7 +294,7 @@ function OverviewTab({ property, claimsCount, documentsCount, openRequests }: {
     <div className="metric-grid">
       <article className="metric-card">
         <div className="metric-label">Jurisdiction</div>
-        <div className="metric-value" style={{ fontSize: '1.15rem' }}>{property.jurisdiction}</div>
+        <div className="metric-value metric-value-detail">{property.jurisdiction}</div>
         <div className="metric-note">User-entered. Not a cadastral confirmation.</div>
       </article>
       <article className="metric-card">
@@ -389,12 +418,16 @@ function IdentifiersTab({ propertyId, identifiers }: { propertyId: string; ident
   )
 }
 
-function ClaimsTab({ propertyId, claims, reviews, sources }: {
+function ClaimsTab({ propertyId, claims, reviews, sources, documents, identifiers }: {
   propertyId: string
   claims: LoadedPage<PageResult<ClaimItem>>
   reviews: LoadedPage<PageResult<ReviewItem>>
   sources: LoadedPage<PageResult<SourceItem>>
+  documents: LoadedPage<PageResult<DocumentItem>>
+  identifiers: LoadedPage<PageResult<IdentifierItem>>
 }) {
+  const liveSources = (sources.value?.items ?? []).filter((source) => !source.withdrawn_at)
+  const currentIdentifiers = (identifiers.value?.items ?? []).filter((item) => item.status === 'current')
   return (
     <div className="workspace">
       <div className="stack">
@@ -411,6 +444,7 @@ function ClaimsTab({ propertyId, claims, reviews, sources }: {
                   <span>{claim.kind}</span>
                   <span>{formatWhen(claim.recorded_at)}</span>
                 </div>
+                {claim.source_id ? <p className="muted mono">Cites source {claim.source_id}</p> : <p className="muted">No source citation.</p>}
               </article>
             )) : <p className="muted">No claims on this page.</p>}
           </div>
@@ -431,6 +465,15 @@ function ClaimsTab({ propertyId, claims, reviews, sources }: {
                   <span>Title effect: {item.title_effect}</span>
                   <span>{formatWhen(item.recorded_at)}</span>
                 </div>
+                <div className="meta">
+                  {item.source_id ? <span className="mono">source {shortId(item.source_id)}</span> : null}
+                  {item.claim_id ? <span className="mono">claim {shortId(item.claim_id)}</span> : null}
+                  {item.document_id ? <span className="mono">document {shortId(item.document_id)}</span> : null}
+                  {item.identifier_id ? <span className="mono">identifier {shortId(item.identifier_id)}</span> : null}
+                  {!item.source_id && !item.claim_id && !item.document_id && !item.identifier_id ? (
+                    <span className="muted">No citations</span>
+                  ) : null}
+                </div>
               </article>
             )) : <p className="muted">No reviews on this page.</p>}
           </div>
@@ -442,6 +485,15 @@ function ClaimsTab({ propertyId, claims, reviews, sources }: {
           <label>
             Claim statement
             <textarea name="statement" required maxLength={10000} aria-label="Claim statement" />
+          </label>
+          <label>
+            Optional live source citation
+            <select name="sourceId" defaultValue="">
+              <option value="">No source citation</option>
+              {liveSources.map((source) => (
+                <option key={source.id} value={source.id}>{source.name}</option>
+              ))}
+            </select>
           </label>
           <button className="primary" type="submit">Record unverified claim</button>
         </form>
@@ -459,8 +511,40 @@ function ClaimsTab({ propertyId, claims, reviews, sources }: {
             <textarea name="statement" required maxLength={2000} />
           </label>
           <label>
-            Source ID, if you are citing one
-            <input name="sourceId" maxLength={36} autoComplete="off" spellCheck={false} />
+            Optional source citation
+            <select name="sourceId" defaultValue="">
+              <option value="">No source citation</option>
+              {liveSources.map((source) => (
+                <option key={source.id} value={source.id}>{source.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Optional claim citation
+            <select name="claimId" defaultValue="">
+              <option value="">No claim citation</option>
+              {(claims.value?.items ?? []).map((claim) => (
+                <option key={claim.id} value={claim.id}>{claim.statement.slice(0, 80)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Optional document citation
+            <select name="documentId" defaultValue="">
+              <option value="">No document citation</option>
+              {(documents.value?.items ?? []).map((document) => (
+                <option key={document.id} value={document.id}>{document.media_type} · {shortId(document.id)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Optional current identifier citation
+            <select name="identifierId" defaultValue="">
+              <option value="">No identifier citation</option>
+              {currentIdentifiers.map((item) => (
+                <option key={item.id} value={item.id}>{item.scheme}: {item.identifier_value}</option>
+              ))}
+            </select>
           </label>
           <button className="primary" type="submit">Save review</button>
         </form>
@@ -516,31 +600,77 @@ function ClaimsTab({ propertyId, claims, reviews, sources }: {
   )
 }
 
-function DocumentsTab({ propertyId, documents }: { propertyId: string; documents: LoadedPage<PageResult<DocumentItem>> }) {
+function DocumentsTab({ propertyId, documents, claims, sources, identifiers }: {
+  propertyId: string
+  documents: LoadedPage<PageResult<DocumentItem>>
+  claims: LoadedPage<PageResult<ClaimItem>>
+  sources: LoadedPage<PageResult<SourceItem>>
+  identifiers: LoadedPage<PageResult<IdentifierItem>>
+}) {
+  const liveSources = (sources.value?.items ?? []).filter((source) => !source.withdrawn_at)
+  const currentIdentifiers = (identifiers.value?.items ?? []).filter((item) => item.status === 'current')
   return (
     <section className="panel stack" aria-label="Private documents">
       <h2>Private documents</h2>
       <p className="muted">
         Uploaded files are encrypted and quarantined. This workspace has no malware scanner configured.
         Statuses stay truthful: quarantined, rejected, or available for authorized download only when the backend scan state is pass.
+        Attribution links do not change scan state or title.
       </p>
       {documents.error ? <p className="banner">{documents.error}</p> : null}
       <div className="grid">
         {documents.value?.items?.length ? documents.value.items.map((item) => {
           const status = documentStatusLabel(item.scan_state)
           return (
-            <article key={item.id} className="card">
+            <article key={item.id} className="card stack">
               <p>{item.media_type}</p>
               <div className="meta">
                 <StatusPill label={status.label} tone={status.tone} />
                 <span>{item.byte_size} bytes</span>
                 <span>{formatWhen(item.created_at)}</span>
               </div>
+              <div className="meta">
+                {item.claim_id ? <span className="mono">claim {shortId(item.claim_id)}</span> : <span className="muted">No claim link</span>}
+                {item.source_id ? <span className="mono">source {shortId(item.source_id)}</span> : <span className="muted">No source link</span>}
+                {item.identifier_id ? <span className="mono">identifier {shortId(item.identifier_id)}</span> : <span className="muted">No identifier link</span>}
+              </div>
               {item.scan_state === 'pass' ? (
                 <p><a href={`/properties/${propertyId}/documents/${item.id}`}>Download authorized file</a></p>
               ) : (
                 <p className="muted">No download. The API blocks content until scan_state is pass.</p>
               )}
+              <form className="stack" action={attributeDocument.bind(null, propertyId, item.id)}>
+                <h3 className="section-title">Update attribution</h3>
+                <p className="muted">Selected fields replace; leave a field blank to keep the current link.</p>
+                <label>
+                  Claim
+                  <select name="claimId" defaultValue="">
+                    <option value="">Keep current / no change</option>
+                    {(claims.value?.items ?? []).map((claim) => (
+                      <option key={claim.id} value={claim.id}>{claim.statement.slice(0, 80)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Live source
+                  <select name="sourceId" defaultValue="">
+                    <option value="">Keep current / no change</option>
+                    {liveSources.map((source) => (
+                      <option key={source.id} value={source.id}>{source.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Current identifier
+                  <select name="identifierId" defaultValue="">
+                    <option value="">Keep current / no change</option>
+                    {currentIdentifiers.map((identifier) => (
+                      <option key={identifier.id} value={identifier.id}>{identifier.scheme}: {identifier.identifier_value}</option>
+                    ))}
+                  </select>
+                </label>
+                <button className="secondary" type="submit">Save attribution</button>
+              </form>
             </article>
           )
         }) : <p className="muted">No documents on this page.</p>}
@@ -767,6 +897,26 @@ function GraphTab({ graph, conflicts }: {
                   </div>
                 </div>
               ) : <p className="muted">No claims currently cite a withdrawn source.</p>}
+              {conflictBody.documents_citing_withdrawn_sources?.length ? (
+                <div className="stack">
+                  <h3>Documents citing withdrawn sources</h3>
+                  <div className="meta">
+                    {conflictBody.documents_citing_withdrawn_sources.map((documentId) => (
+                      <span key={documentId} className="mono">{shortId(documentId)}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="muted">No documents currently cite a withdrawn source.</p>}
+              {conflictBody.reviews_citing_withdrawn_sources?.length ? (
+                <div className="stack">
+                  <h3>Reviews citing withdrawn sources</h3>
+                  <div className="meta">
+                    {conflictBody.reviews_citing_withdrawn_sources.map((reviewId) => (
+                      <span key={reviewId} className="mono">{shortId(reviewId)}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="muted">No reviews currently cite a withdrawn source.</p>}
             </>
           ) : null}
         </article>

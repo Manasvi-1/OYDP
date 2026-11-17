@@ -19,7 +19,7 @@ export default async function NewPropertyPage({ searchParams }: { searchParams: 
         </div>
       </div>
       {error ? <p className="banner" role="alert">{error}</p> : null}
-      <form className="panel stack" action={createProperty} style={{ maxWidth: '36rem' }}>
+      <form className="panel stack form-narrow" action={createProperty}>
         <label>
           Label
           <input name="label" required maxLength={200} autoComplete="off" />

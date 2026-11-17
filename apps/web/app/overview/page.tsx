@@ -77,7 +77,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         </article>
         <article className="metric-card">
           <div className="metric-label">Title verification</div>
-          <div className="metric-value" style={{ fontSize: '1.1rem' }}>Not claimed</div>
+          <div className="metric-value metric-value-compact">Not claimed</div>
           <div className="metric-note">OYDP does not certify ownership or government status.</div>
         </article>
       </div>

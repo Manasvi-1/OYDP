@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { connection } from 'next/server'
 import { disconnectSession } from './actions'
 import { AppChrome } from './components/app-chrome'
 import { readSession } from '../lib/session'
@@ -10,6 +11,8 @@ export const metadata = {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  // Request boundary so middleware can attach a fresh CSP nonce to this render.
+  await connection()
   const session = await readSession()
   return (
     <html lang="en">

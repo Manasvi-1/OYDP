@@ -19,6 +19,17 @@ from app.documents import (
     reject_declared_length, scan_outcome, seal, storage_key,
 )
 from app.pagination import decode_cursor, page_scope, page_result
+from app.rate_limit import enforce_rate_limit
+
+
+def api_docs_enabled() -> bool:
+    """Interactive docs stay off unless local loopback OIDC or an explicit enable flag is set."""
+    flag = os.getenv('OYDP_ENABLE_API_DOCS')
+    if flag == '1':
+        return True
+    if flag == '0':
+        return False
+    return os.getenv('OYDP_OIDC_DEV_HTTP') == '1'
 
 
 @asynccontextmanager
@@ -27,7 +38,15 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title='OYDP Property Identity API', version='0.15.0', lifespan=lifespan)
+_DOCS = api_docs_enabled()
+app = FastAPI(
+    title='OYDP Property Identity API',
+    version='0.17.0',
+    lifespan=lifespan,
+    docs_url='/docs' if _DOCS else None,
+    redoc_url='/redoc' if _DOCS else None,
+    openapi_url='/openapi.json' if _DOCS else None,
+)
 
 
 @app.middleware('http')
@@ -36,6 +55,17 @@ async def privacy_headers(request, call_next):
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     return response
+
+
+@app.middleware('http')
+async def abuse_throttle(request, call_next):
+    """Process-local throttle for mutating methods. Not a distributed edge limiter."""
+    if request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}:
+        try:
+            enforce_rate_limit(request, request.headers.get('authorization'))
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={'detail': exc.detail})
+    return await call_next(request)
 
 
 @app.exception_handler(RequestValidationError)
@@ -103,8 +133,7 @@ def create_property(payload: PropertyCreate, access=Depends(authorized_db, scope
         raise HTTPException(403, 'Property write permission required')
     row = conn.execute("INSERT INTO properties(tenant_id,label,jurisdiction) VALUES (nullif(current_setting('app.tenant_id', true), '')::uuid,%s,%s) RETURNING *",
                         (payload.label, payload.jurisdiction)).fetchone()
-    conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES (%s,%s,current_setting('app.subject_id'), 'property.created')",
-                 (row['tenant_id'], row['id']))
+    conn.execute("SELECT public.record_property_created_audit(%s, %s)", (row['tenant_id'], row['id']))
     return row
 
 
@@ -439,9 +468,8 @@ def quarantine_document(tenant_id, subject, property_id, payload, media, key):
           VALUES (%s,%s,%s,current_setting('app.subject_id'),%s,%s,%s,'quarantined',%s,%s)
           RETURNING {_DOCUMENT_META}""",
           (document_id, parent['tenant_id'], property_id, media, len(payload), digest_bytes(payload), ciphertext, nonce)).fetchone()
-        conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type,document_id)
-          VALUES (%s,%s,current_setting('app.subject_id'),'document.quarantined',%s)""",
-          (parent['tenant_id'], property_id, document_id))
+        conn.execute("SELECT public.record_document_quarantined_audit(%s, %s, %s)",
+                     (parent['tenant_id'], property_id, document_id))
     return document_view(row)
 
 
@@ -474,8 +502,10 @@ def attribute_document(property_id: UUID, document_id: UUID, payload: DocumentAt
                        access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
     """Link a quarantined document to an unverified claim, live source, and/or current identifier.
 
-    Attribution does not change claim verification, source rights, identifier status, or scan_state.
-    Export packets include these refs and still set title_verified false.
+    Non-null fields in the body replace the matching link; omitted (null) fields keep the
+    current attribution. Attribution does not change claim verification, source rights,
+    identifier status, or scan_state. Export packets include these refs and still set
+    title_verified false.
     """
     conn, role = access
     writable_property(conn, property_id)
@@ -779,6 +809,8 @@ class EvidenceConflicts(BaseModel):
     multiple_open_unverified_claims: bool
     identifier_conflicts: list[IdentifierRecord]
     claims_citing_withdrawn_sources: list[UUID]
+    documents_citing_withdrawn_sources: list[UUID]
+    reviews_citing_withdrawn_sources: list[UUID]
 
 
 class AuditRecord(BaseModel):
@@ -1009,10 +1041,36 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
             (property_id, _CONFLICT_CLAIM_CAP),
         )
     ]
+    withdrawn_document_ids = [
+        row['id']
+        for row in conn.execute(
+            f"""SELECT d.id
+                FROM property_documents d
+                JOIN evidence_sources s ON s.tenant_id=d.tenant_id AND s.id=d.source_id
+                WHERE d.property_id=%s AND d.tenant_id={_TENANT}
+                  AND d.source_id IS NOT NULL AND s.withdrawn_at IS NOT NULL
+                ORDER BY d.created_at DESC, d.id DESC LIMIT %s""",
+            (property_id, _CONFLICT_CLAIM_CAP),
+        )
+    ]
+    withdrawn_review_ids = [
+        row['id']
+        for row in conn.execute(
+            f"""SELECT r.id
+                FROM professional_reviews r
+                JOIN evidence_sources s ON s.tenant_id=r.tenant_id AND s.id=r.source_id
+                WHERE r.property_id=%s AND r.tenant_id={_TENANT}
+                  AND r.source_id IS NOT NULL AND s.withdrawn_at IS NOT NULL
+                ORDER BY r.recorded_at DESC, r.id DESC LIMIT %s""",
+            (property_id, _CONFLICT_CLAIM_CAP),
+        )
+    ]
     unresolved = (
         len(claim_ids) >= 2
         or bool(identifier_conflicts)
         or bool(withdrawn_claim_ids)
+        or bool(withdrawn_document_ids)
+        or bool(withdrawn_review_ids)
     )
     return {
         'property_id': property_id,
@@ -1024,6 +1082,8 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
         'multiple_open_unverified_claims': len(claim_ids) >= 2,
         'identifier_conflicts': identifier_conflicts,
         'claims_citing_withdrawn_sources': withdrawn_claim_ids,
+        'documents_citing_withdrawn_sources': withdrawn_document_ids,
+        'reviews_citing_withdrawn_sources': withdrawn_review_ids,
     }
 
 
@@ -1185,14 +1245,13 @@ class NotePage(BaseModel):
 
 
 def audit_diligence(conn, tenant_id, property_id, event_type):
-    conn.execute("""INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type)
-      VALUES(%s,%s,current_setting('app.subject_id'),%s)""", (tenant_id, property_id, event_type))
+    conn.execute("SELECT public.record_diligence_audit(%s, %s, %s)", (tenant_id, property_id, event_type))
 
 
 @app.post('/v1/properties/{property_id}/requests', status_code=201, response_model=RequestRecord)
 def open_request(property_id: UUID, payload: RequestCreate, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
-    conn, _role = access
-    parent = writable_property(conn, property_id)
+    conn, role = access
+    parent = creator_gate(conn, property_id, role)
     try:
         row = conn.execute("""INSERT INTO diligence_requests(tenant_id,property_id,title,body)
           VALUES(%s,%s,%s,%s) RETURNING *""", (parent['tenant_id'], property_id, payload.title, payload.body)).fetchone()
@@ -1241,8 +1300,8 @@ def list_notes(property_id: UUID, request_id: UUID, access=Depends(authorized_db
 
 @app.post('/v1/properties/{property_id}/requests/{request_id}/close', response_model=RequestRecord)
 def close_request(property_id: UUID, request_id: UUID, access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
-    conn, _role = access
-    parent = writable_property(conn, property_id)
+    conn, role = access
+    parent = creator_gate(conn, property_id, role)
     row = conn.execute("""UPDATE diligence_requests SET status='closed', closed_at=clock_timestamp()
       WHERE id=%s AND property_id=%s AND status='open' RETURNING *""", (request_id, property_id)).fetchone()
     if row is None:

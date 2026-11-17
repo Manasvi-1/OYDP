@@ -90,7 +90,7 @@ def test_request_audit_failure_rolls_back(api):
     headers = {'X-Tenant-ID': str(tenant)}
     property_id = api.post('/v1/properties', headers=headers, json={'label': 'Rollback request', 'jurisdiction': 'KA'}).json()['id']
     with psycopg.connect(DSN) as conn:
-        conn.execute('REVOKE INSERT ON property_audit_events FROM oydp_app')
+        conn.execute('REVOKE EXECUTE ON FUNCTION public.record_diligence_audit(uuid,uuid,text) FROM oydp_app')
     try:
         failed = api.post(f'/v1/properties/{property_id}/requests', headers=headers, json={'title': 'lost', 'body': 'lost'})
         assert failed.status_code == 503
@@ -98,4 +98,4 @@ def test_request_audit_failure_rolls_back(api):
         assert listed.status_code == 200 and listed.json()['items'] == []
     finally:
         with psycopg.connect(DSN) as conn:
-            conn.execute('GRANT INSERT ON property_audit_events TO oydp_app')
+            conn.execute('GRANT EXECUTE ON FUNCTION public.record_diligence_audit(uuid,uuid,text) TO oydp_app')

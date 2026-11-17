@@ -15,7 +15,7 @@ Controlled master blueprint (2026-10-16), 13-engine product specification, and g
 - [x] Private property create/read and read-sharing API with tested contract
 - [x] Paginated property discovery and attributed unverified claims (API 0.4.0; native CI 115 tests)
 - [x] Property update/write delegation and correction workflows
-- [ ] Next.js authenticated property workspace is in `apps/web` and calls the active API. Browser end-to-end coverage and live provider enrollment are still open
+- [x] Next.js authenticated property workspace is in `apps/web` and calls the active API (graph/conflicts + attribution writes on PR #38). Browser e2e coverage and live provider enrollment are still open
 
 ## Milestone 1 — Trusted evidence
 - [x] Versioned property identifiers, source registry, and conflict resolution. `rights_status` stays unknown. API 0.7.0.

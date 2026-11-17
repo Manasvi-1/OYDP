@@ -11,6 +11,7 @@ export function contentSecurityPolicy(nonce, production) {
   const script = production
     ? `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`
     : `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
+  // Style attributes are not covered by nonces; keep styles file-based only.
   return [
     "default-src 'self'",
     script,

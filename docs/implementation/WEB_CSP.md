@@ -1,13 +1,15 @@
 # Nonce-based workspace content security policy
 
-The Next.js request proxy creates a cryptographically random 32-byte nonce for each HTML request and replaces caller-supplied nonce/CSP headers before rendering. It sets the same policy on the response. The root layout waits for a request with `connection()` so the framework can attach the nonce to generated scripts/styles. HTML stays uncached. API forwarding retains its separate allowlisted proxy and authorization behavior.
+Next.js 15 loads `apps/web/middleware.js` on each matched HTML request. That middleware creates a cryptographically random 32-byte nonce, replaces any caller-supplied `x-nonce` / `Content-Security-Policy` headers before rendering, and sets the same policy on the response. `apps/web/proxy.js` is only a compatibility re-export; it is not the framework entrypoint.
 
-Production has no unsafe-inline or unsafe-eval directive. Development explicitly permits eval for framework debugging. Scripts use strict-dynamic; style sources require the nonce or same origin. Frames, objects and base elements are denied. No HTTPS-upgrade directive is forced onto loopback development; private non-loopback operation still requires operator-provided HTTPS.
+The root layout calls `connection()` so the render stays on a request boundary and can receive the middleware nonce. HTML responses stay `Cache-Control: no-store`. API forwarding retains its separate allowlisted server-side client and authorization behavior.
 
-Changed files: apps/web/proxy.js, lib/csp.mjs, next.config.mjs, app/layout.js, tests/csp.test.mjs, e2e/security.spec.mjs and README.md. No API/schema contract or migrations changed.
+Production has no `unsafe-inline` or `unsafe-eval` script directive. Development explicitly permits eval for framework debugging. Scripts use `strict-dynamic`. Styles are file-based (`style-src 'self'`); React `style={{...}}` attributes are avoided so a real CSP does not break the workspace. Frames, objects, and foreign base URIs are denied. No HTTPS-upgrade directive is forced onto loopback development; private non-loopback operation still requires operator-provided HTTPS.
 
-Local validation: ten Node tests passed; Next production build passed with dynamic HTML routes; production HTTP checks passed for independent 256-bit nonces, matching script attributes, replaced forged headers and no-store. Browser acceptance asserts blocked nonce-less/replayed-nonce script injection plus the existing real API/PostgreSQL property, grant, revocation and denial journey. Final commit-linked CI, rather than source presence, determines browser acceptance.
+Changed surfaces: `apps/web/middleware.js`, `apps/web/proxy.js`, `lib/csp.mjs`, `lib/csp-apply.mjs`, `app/layout.tsx`, `tests/middleware.test.mjs`, `tests/csp.test.mjs`, and related CSS class cleanups. No API/schema contract or migrations changed.
+
+Local validation belongs in `npm test`, `npm run typecheck`, and `npm run build` under `apps/web`. Browser acceptance for independent nonces and blocked untrusted scripts remains an e2e concern when the local stack is up. Final commit-linked CI, rather than source presence alone, determines acceptance.
 
 Reference: https://nextjs.org/docs/app/guides/content-security-policy
 
-Still pending: provider-backed browser login, provider MFA freshness, external security review, secure documents and other product release gates. CSP is defense in depth and does not certify XSS absence or production readiness.
+Still pending: provider-backed browser login, provider MFA freshness, external security review, malware-scanned document delivery, and other product release gates. CSP is defense in depth and does not certify XSS absence or production readiness.

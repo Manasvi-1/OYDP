@@ -14,7 +14,7 @@ test('fresh server nonces hydrate the workspace and block untrusted inline scrip
   const html=await first.text();
   expect(html).toContain(`nonce="${nonce}"`);
   await page.goto('/');
-  await expect(page.getByRole('button',{name:'Connect workspace'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Continue'})).toBeVisible();
   const scripts=await page.locator('script').evaluateAll(nodes=>nodes.map(node=>node.nonce));
   expect(scripts.length).toBeGreaterThan(0);
   expect(scripts.every(Boolean)).toBe(true);
@@ -32,7 +32,7 @@ test('fresh server nonces hydrate the workspace and block untrusted inline scrip
     await route.fulfill({response,body:html.replace('</head>',attack+'</head>')});
   });
   await page.goto('/');
-  await expect(page.getByRole('button',{name:'Connect workspace'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Continue'})).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>window.cspViolations.length)).toBeGreaterThanOrEqual(2);
   expect(await page.evaluate(()=>window.untrustedScriptRan)).toBeUndefined();
   expect(await page.evaluate(()=>window.replayedNonceRan)).toBeUndefined();

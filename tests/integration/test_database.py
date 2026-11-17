@@ -82,7 +82,10 @@ def test_context_clears_after_commit():
         assert conn.execute('SELECT id FROM properties').fetchall() == []
 
 
-def test_provenance_cross_tenant_denied():
+def test_legacy_evidence_assertions_frozen_for_runtime():
+    # Active claims use record_property_claim; evidence_assertions DML is revoked.
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES (%s,%s,'claim','test','user_claim')", (A,PA))
     with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
         conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES (%s,%s,'claim','test','user_claim')", (A,PB))
 
@@ -90,14 +93,6 @@ def test_provenance_cross_tenant_denied():
 def test_privileged_path_cannot_break_lineage():
     with pytest.raises(psycopg.errors.ForeignKeyViolation), psycopg.connect(DSN) as conn:
         conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES (%s,%s,'claim','test','user_claim')", (A,PB))
-
-
-def test_valid_provenance():
-    with runtime(A) as conn:
-        conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES (%s,%s,'claim','test','user_claim')", (A,PA))
-        assert conn.execute('SELECT property_id FROM evidence_assertions').fetchall() == [(PA,)]
-    with runtime(B) as conn:
-        assert conn.execute('SELECT id FROM evidence_assertions').fetchall() == []
 
 
 def test_checksum_drift_rejected(tmp_path):
@@ -229,9 +224,9 @@ def test_audit_mutation_denied(statement):
 
 
 def test_audit_failure_rolls_back_property(api):
-    # Abort the audit insert in a disposable DB; verify no orphan property commits.
+    # Abort the gated audit helper; verify no orphan property commits.
     with psycopg.connect(DSN) as conn:
-        conn.execute('REVOKE INSERT ON property_audit_events FROM oydp_app')
+        conn.execute('REVOKE EXECUTE ON FUNCTION public.record_property_created_audit(uuid,uuid) FROM oydp_app')
     try:
         r = api.post('/v1/properties', headers={'X-Tenant-ID':str(A)}, json={'label':'must-rollback','jurisdiction':'KA'})
         assert r.status_code == 503
@@ -239,7 +234,15 @@ def test_audit_failure_rolls_back_property(api):
             assert conn.execute("SELECT id FROM properties WHERE label='must-rollback'").fetchall() == []
     finally:
         with psycopg.connect(DSN) as conn:
-            conn.execute('GRANT INSERT ON property_audit_events TO oydp_app')
+            conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_created_audit(uuid,uuid) TO oydp_app')
+
+
+def test_runtime_cannot_forge_property_audit_events():
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute(
+            "INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",
+            (A, PA),
+        )
 
 
 @pytest.fixture
@@ -409,7 +412,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -428,6 +431,8 @@ def test_downgraded_creator_cannot_share_or_write_evidence(api, private_record):
         assert api.put('/v1/properties/'+pid+'/access',headers=h,json=data).status_code == 404
         with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
             conn.execute("INSERT INTO evidence_assertions(tenant_id,property_id,assertion_type,assertion_text,source_kind) VALUES(%s,%s,'claim','denied after downgrade','user_claim')",(A,pid))
+        with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+            conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','diligence.noted')",(A,pid))
     finally:
         with psycopg.connect(DSN) as conn:
             conn.execute("UPDATE tenant_memberships SET role='owner' WHERE tenant_id=%s AND subject_id='alice'",(A,))
@@ -1284,6 +1289,9 @@ def test_missing_storage_key_does_not_store_plaintext(api, private_record, monke
 
 def _trusted_privileges():
     functions = (
+        'public.record_property_created_audit(uuid,uuid)',
+        'public.record_document_quarantined_audit(uuid,uuid,uuid)',
+        'public.record_diligence_audit(uuid,uuid,text)',
         'public.record_property_identifier(uuid,uuid,text,text,text)',
         'public.register_evidence_source(uuid,text,text,text)',
         'public.withdraw_evidence_source(uuid,uuid,text)',
@@ -1304,6 +1312,7 @@ def _trusted_privileges():
     tables = (
         'property_identifiers', 'evidence_sources', 'professional_reviews',
         'property_consents', 'tenant_audit_events', 'audit_ledger',
+        'property_audit_events', 'evidence_assertions',
     )
     with psycopg.connect(DSN) as conn:
         for name in functions:
@@ -1537,6 +1546,8 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert quiet_body['multiple_open_unverified_claims'] is False
     assert quiet_body['identifier_conflicts'] == []
     assert quiet_body['claims_citing_withdrawn_sources'] == []
+    assert quiet_body['documents_citing_withdrawn_sources'] == []
+    assert quiet_body['reviews_citing_withdrawn_sources'] == []
     source = api.post('/v1/sources', headers=headers, json={
         'name': 'Conflict note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
     })
@@ -1577,6 +1588,8 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert len(body['identifier_conflicts']) == 1
     assert body['identifier_conflicts'][0]['status'] == 'conflict'
     assert set(body['claims_citing_withdrawn_sources']) == {first_id, second_id}
+    assert body['documents_citing_withdrawn_sources'] == []
+    assert body['reviews_citing_withdrawn_sources'] == []
     assert 'First unverified claim' not in signals.text
     assert 'Second unverified claim' not in signals.text
     assert all('statement' not in row for row in body['identifier_conflicts'])

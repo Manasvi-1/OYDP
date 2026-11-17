@@ -2,6 +2,52 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-12 — PR #38 PG acceptance + merge gate
+
+### Completed
+
+1. Verified live state: `origin/main` @ `f350a99` (PR #37 T-NEXT-011 merged). Open PR #38 CI green / MERGEABLE. Working tree clean on `security/web-csp-and-repo-presentation`.
+2. Portable PostgreSQL 16.15 on `127.0.0.1:55432` (trust); recreated `oydp_security_test`.
+3. `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_security_test` + `PYTHONPATH=apps/api;.` → `pytest -q apps/api/tests tests/integration` → **250 passed**, 0 skipped, 0 failed (covers migration 020 + attribution negatives).
+4. `scripts/check_test_report.py` → Acceptance report verified: 250 cases; zero skips/failures. OpenAPI `--check` match. `SECRET_SCAN_HITS 0`.
+5. **T-NEXT-011** closed on main via PR #37 — do not redo. **T-NEXT-009** remains BLOCKED (no Docker/PostGIS).
+
+### Next task (resume here)
+
+Merge PR #38 when CI remains green. Then unblocked security/foundation/E01 depth (skip T-NEXT-009): prefer membership-revoke session posture without live IdP where possible, then E01 adjudication/dedup or G-WEB-DEPTH. Not GA.
+
+---
+
+## 2026-11-12 — PR #38 batch: OpenAPI, T-NEXT-012, conflicts, throttle, docs posture
+
+### Completed
+
+1. Regenerated `apps/api/openapi.json` via `scripts/export_active_openapi.py`; `--check` PASS (AUD-001).
+2. **T-NEXT-012:** web claim optional source citation; review claim/document/identifier citations; document attribution PUT UI + display; notices for success/error via existing bounce path.
+3. Evidence conflicts include `documents_citing_withdrawn_sources` and `reviews_citing_withdrawn_sources` (API **0.17.0**).
+4. Process-local mutation rate limit (`app/rate_limit.py`); interactive `/docs` off unless `OYDP_OIDC_DEV_HTTP=1` or `OYDP_ENABLE_API_DOCS=1`.
+5. Static migration-020 privilege assertions; orphan web clients documented in `apps/web/lib/LEGACY_CLIENTS.md` (kept for unit tests).
+6. Earlier unit-only verification: API **140 passed**; web **48 passed**; typecheck/build OK; `secret_scan_light.py` **0 hits**. PG integration completed in newer ledger entry (250 passed).
+
+### Next task (resume here)
+
+See newer ledger entry (PG acceptance + merge).
+
+---
+
+## 2026-11-12 — CSP middleware + audit forge / source-gate follow-up
+
+### Completed
+
+1. Branched `security/web-csp-and-repo-presentation` from `origin/main`.
+2. Wired Next.js 15 CSP entry as `apps/web/middleware.js` (previous `proxy.js` was not loaded by the framework; middleware-manifest was empty).
+3. Root layout uses `connection()` for a request boundary; removed React inline `style={{...}}` so `style-src 'self'` can enforce.
+4. Aligned README / CONTRIBUTING / SECURITY / docs index; added `docs/README.md` and proprietary `LICENSE`.
+5. Follow-up from API audit: migration **020** closes direct `property_audit_events` INSERT (SECURITY DEFINER helpers), freezes `evidence_assertions` DML, restricts source withdrawal to creator/owner, merges document attribution fields, aligns diligence open/close with creator gate. API **0.16.0** (superseded by 0.17.0 in later entry).
+6. Web hygiene: `apps/web/README.md`, decision bucket label, e2e Continue selectors.
+
+---
+
 ## 2026-11-12 — T-NEXT-011 web evidence graph / conflicts wiring
 
 ### Completed so far

@@ -2,6 +2,20 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-12 — PR #38 portable PG acceptance (migration 020)
+
+Branch: `security/web-csp-and-repo-presentation` @ `d91c12a` (+ ledger update). Portable PG 16.15 @ `127.0.0.1:55432`, DB `oydp_security_test` recreated. Docker CLI absent.
+
+```text
+TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_security_test
+PYTHONPATH=apps/api;. python -m pytest -q apps/api/tests tests/integration --junitxml=test-results/database-local.xml
+python scripts/check_test_report.py test-results/database-local.xml
+python scripts/export_active_openapi.py --check
+python scripts/secret_scan_light.py
+```
+
+**Result:** **250 passed**, 0 skipped, 0 failed; guard verified; OpenAPI matches; `SECRET_SCAN_HITS 0`. PostGIS / T-NEXT-009 still blocked.
+
 ## 2026-11-11 — T-NEXT-004 document attribution
 
 Branch: `feat/document-attribution`. Portable PG 16.15 @ `127.0.0.1:55432`, DB `oydp_security_test` recreated.

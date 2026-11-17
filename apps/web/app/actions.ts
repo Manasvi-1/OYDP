@@ -78,10 +78,18 @@ export async function recordClaim(propertyId: string, formData: FormData) {
   if (!UUID.test(propertyId)) redirect('/properties')
   const session = await readSession()
   if (!session) redirect('/')
+  const body: { statement: string; source_id?: string } = {
+    statement: String(formData.get('statement') ?? ''),
+  }
+  const sourceId = String(formData.get('sourceId') ?? '').trim()
+  if (sourceId) {
+    if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Source ID must be a UUID'))
+    body.source_id = sourceId
+  }
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/claims`, {
       method: 'POST',
-      body: { statement: String(formData.get('statement') ?? '') },
+      body,
     })
   } catch (error) {
     bounce(`/properties/${propertyId}?tab=claims`, error)
@@ -257,14 +265,36 @@ export async function recordReview(propertyId: string, formData: FormData) {
   if (disposition !== 'recorded' && disposition !== 'abstained') {
     bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'A review is recorded or abstained. It is not title.'))
   }
-  const body: { disposition: string; statement: string; source_id?: string } = {
+  const body: {
+    disposition: string
+    statement: string
+    source_id?: string
+    claim_id?: string
+    document_id?: string
+    identifier_id?: string
+  } = {
     disposition,
     statement: String(formData.get('statement') ?? ''),
   }
   const sourceId = String(formData.get('sourceId') ?? '').trim()
+  const claimId = String(formData.get('claimId') ?? '').trim()
+  const documentId = String(formData.get('documentId') ?? '').trim()
+  const identifierId = String(formData.get('identifierId') ?? '').trim()
   if (sourceId) {
     if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Source ID must be a UUID'))
     body.source_id = sourceId
+  }
+  if (claimId) {
+    if (!UUID.test(claimId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Claim ID must be a UUID'))
+    body.claim_id = claimId
+  }
+  if (documentId) {
+    if (!UUID.test(documentId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Document ID must be a UUID'))
+    body.document_id = documentId
+  }
+  if (identifierId) {
+    if (!UUID.test(identifierId)) bounce(`/properties/${propertyId}?tab=claims`, new ApiError(422, 'Identifier ID must be a UUID'))
+    body.identifier_id = identifierId
   }
   try {
     await callPropertyApi(session, `/v1/properties/${propertyId}/reviews`, { method: 'POST', body })
@@ -272,6 +302,40 @@ export async function recordReview(propertyId: string, formData: FormData) {
     bounce(`/properties/${propertyId}?tab=claims`, error)
   }
   redirect(`/properties/${propertyId}?tab=claims&notice=review-recorded`)
+}
+
+export async function attributeDocument(propertyId: string, documentId: string, formData: FormData) {
+  if (!UUID.test(propertyId) || !UUID.test(documentId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  const body: { claim_id?: string; source_id?: string; identifier_id?: string } = {}
+  const claimId = String(formData.get('claimId') ?? '').trim()
+  const sourceId = String(formData.get('sourceId') ?? '').trim()
+  const identifierId = String(formData.get('identifierId') ?? '').trim()
+  if (claimId) {
+    if (!UUID.test(claimId)) bounce(`/properties/${propertyId}?tab=documents`, new ApiError(422, 'Claim ID must be a UUID'))
+    body.claim_id = claimId
+  }
+  if (sourceId) {
+    if (!UUID.test(sourceId)) bounce(`/properties/${propertyId}?tab=documents`, new ApiError(422, 'Source ID must be a UUID'))
+    body.source_id = sourceId
+  }
+  if (identifierId) {
+    if (!UUID.test(identifierId)) bounce(`/properties/${propertyId}?tab=documents`, new ApiError(422, 'Identifier ID must be a UUID'))
+    body.identifier_id = identifierId
+  }
+  if (!body.claim_id && !body.source_id && !body.identifier_id) {
+    bounce(`/properties/${propertyId}?tab=documents`, new ApiError(422, 'Choose at least one attribution reference'))
+  }
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/documents/${documentId}/attribution`, {
+      method: 'PUT',
+      body,
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}?tab=documents`, error)
+  }
+  redirect(`/properties/${propertyId}?tab=documents&notice=document-attributed`)
 }
 
 export async function grantExportConsent(propertyId: string) {

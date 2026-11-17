@@ -32,7 +32,7 @@ def test_privacy_response_headers():
 
 
 def test_correction_contract_isolates_records_and_pages():
-    spec = client.get('/openapi.json').json()
+    spec = app.openapi()
     schemas = spec['components']['schemas']
     correction = schemas['CorrectionRecord']
     assert {'id', 'tenant_id', 'property_id', 'previous_label', 'previous_jurisdiction', 'label', 'jurisdiction', 'actor_subject', 'recorded_at'} <= set(correction['required'])
@@ -62,8 +62,8 @@ def _schema_values(schema):
 
 
 def test_trusted_evidence_contract_does_not_grant_title():
-    spec = client.get('/openapi.json').json()
-    assert spec['info']['version'] == '0.15.0'
+    spec = app.openapi()
+    assert spec['info']['version'] == '0.17.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -103,6 +103,7 @@ def test_trusted_evidence_contract_does_not_grant_title():
         'property_id', 'title_verified', 'notice', 'unresolved',
         'open_unverified_claim_count', 'multiple_open_unverified_claims',
         'identifier_conflicts', 'claims_citing_withdrawn_sources',
+        'documents_citing_withdrawn_sources', 'reviews_citing_withdrawn_sources',
     }
     assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert 'claim_id' in schemas['ReviewCreate']['properties']

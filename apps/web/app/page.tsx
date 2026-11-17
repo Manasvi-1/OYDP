@@ -35,7 +35,7 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
         ) : null}
         {signIn && !signIn.ok ? <p className="banner">{signIn.error}</p> : null}
         {api.ok ? (
-          <form className="stack" action={connectSession} style={{ marginTop: '1rem' }}>
+          <form className="stack form-follow" action={connectSession}>
             <p className="muted">The property service address is set on the server. This form cannot choose another one.</p>
             <label>
               Tenant ID
