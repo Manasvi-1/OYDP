@@ -9,7 +9,7 @@
     "test": "node --test lib/contract.test.mjs lib/session-security.test.mjs lib/oidc.test.mjs lib/auth-callback.test.mjs lib/api-client.test.mjs lib/fields.test.mjs lib/records.test.mjs lib/session-cookie.test.mjs lib/csp.test.mjs tests/proxy.test.mjs tests/csp.test.mjs tests/middleware.test.mjs"
   },
   "dependencies": {
-    "next": "^15.5.4",
+    "next": "^15.5.29",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
