@@ -2,6 +2,28 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-26 — Disposition web UI on evidence conflicts
+
+### Completed
+
+1. Continued on worktree `feat/evidence-conflict-disposition` @ `c8690df` (PR #43 open; API CI already green). Preserved unrelated worktrees/stashes; no force-push; no merge yet.
+2. Wired `apps/web` property **Evidence graph** tab:
+   - Shows disposition annotations beside identifier-conflict and withdrawn-citation signals.
+   - Permitted actions only: `noted` / `kept_unresolved` via server action `recordEvidenceConflictDisposition` → existing authenticated `callPropertyApi` POST.
+   - Success notice, bounce validation/permission/service errors; conflict remains unresolved; no title verification or merge UI.
+3. Added `lib/disposition.mjs` + unit tests for UI contract, error paths, and action visibility.
+4. Web verification (after `npm ci` in `apps/web`):
+   - `npm test` → **52 passed**, 0 failed, 0 skipped.
+   - `npm run typecheck` → exit 0.
+   - `npm run build` → exit 0 (Next.js 15.5.28).
+5. API/DB not changed in this web slice; prior portable PG **273 passed** and OpenAPI/secret scan evidence remain from the API commit. Dedup candidates not started in this slice.
+
+### Next task (resume here)
+
+Push web commit to PR #43; wait for CI green; merge only if merge gates pass. Then property dedup **candidates** (no auto-merge) on a follow-up branch if still in scope. Skip T-NEXT-009 while Docker unavailable. Not GA.
+
+---
+
 ## 2026-11-26 — Evidence conflict disposition (non-title)
 
 ### Completed

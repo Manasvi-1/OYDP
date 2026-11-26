@@ -1,6 +1,6 @@
 # Sprint status
 
-**Sprint focus:** E01 evidence-conflict dispositions (non-title) on API 0.19.0. PR #41 is on main. Do not merge open docs/dependabot PRs unless asked.  
+**Sprint focus:** E01 evidence-conflict dispositions (non-title) API 0.19.0 + web disposition UI on PR #43. PR #41 is on main. Do not merge open docs/dependabot PRs unless asked.  
 **Date:** 2026-11-26.
 
 ## Goals
@@ -16,14 +16,14 @@
 | Process-local rate limit + docs exposure posture | Done (honest non-distributed) |
 | PostGIS IDOR / local PostGIS | **BLOCKED** (`T-NEXT-009`, no Docker) |
 | Membership-revoke session posture | Done on main (PR #41). Live IdP revocation still blocked |
-| Evidence conflict dispositions | TESTED (API 0.19.0, migration 022; 273 passed portable PG) |
+| Evidence conflict dispositions | TESTED (API 0.19.0 + web UI; migration 022; 273 PG + 52 web) |
 | Live Keycloak verification | Blocked |
 | GA readiness | Not in sprint — gates open |
 
 ## In flight
 
-- `feat/evidence-conflict-disposition` — ready for PR when asked.
+- `feat/evidence-conflict-disposition` — PR #43 (API + web disposition UI).
 
 ## Carry-over
 
-- Disposition web UI; property dedup; local PostGIS acceptance; scanner adapter; live IdP; engines E02/E04–E13; independent review; distributed rate limiting.
+- Property dedup candidates (no auto-merge); local PostGIS acceptance; scanner adapter; live IdP; engines E02/E04–E13; independent review; distributed rate limiting.

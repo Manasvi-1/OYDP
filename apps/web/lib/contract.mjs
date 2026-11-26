@@ -150,6 +150,10 @@ export function evidenceConflictsQuery(propertyId) {
   return `/v1/properties/${propertyId}/evidence-conflicts`
 }
 
+export function evidenceConflictDispositionsQuery(propertyId, cursor) {
+  return propertyQuery(propertyId, 'evidence-conflict-dispositions', cursor)
+}
+
 export function sourcesQuery(cursor) {
   const params = new URLSearchParams({ limit: '25' })
   if (cursor) params.set('cursor', cursor)

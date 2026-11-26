@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { ApiError, callPropertyApi, callPropertyUpload, MAX_DOCUMENT_BYTES } from '../lib/api'
 import { parseSessionInput, UUID } from '../lib/contract.mjs'
+import { parseDispositionInput } from '../lib/disposition.mjs'
 import { clearPendingAuth, readPendingAuth } from '../lib/pending-auth'
 import { clearSession, readSession, writeSession } from '../lib/session'
 
@@ -302,6 +303,31 @@ export async function recordReview(propertyId: string, formData: FormData) {
     bounce(`/properties/${propertyId}?tab=claims`, error)
   }
   redirect(`/properties/${propertyId}?tab=claims&notice=review-recorded`)
+}
+
+export async function recordEvidenceConflictDisposition(propertyId: string, formData: FormData) {
+  if (!UUID.test(propertyId)) redirect('/properties')
+  const session = await readSession()
+  if (!session) redirect('/')
+  const parsed = parseDispositionInput({
+    signalKind: String(formData.get('signalKind') ?? ''),
+    signalId: String(formData.get('signalId') ?? ''),
+    outcome: String(formData.get('outcome') ?? ''),
+    reason: String(formData.get('reason') ?? ''),
+  })
+  if (!parsed.ok || !('body' in parsed)) {
+    const message = 'error' in parsed ? String(parsed.error) : 'Invalid disposition'
+    bounce(`/properties/${propertyId}?tab=graph`, new ApiError(422, message))
+  }
+  try {
+    await callPropertyApi(session, `/v1/properties/${propertyId}/evidence-conflict-dispositions`, {
+      method: 'POST',
+      body: parsed.body,
+    })
+  } catch (error) {
+    bounce(`/properties/${propertyId}?tab=graph`, error)
+  }
+  redirect(`/properties/${propertyId}?tab=graph&notice=conflict-disposition-recorded`)
 }
 
 export async function attributeDocument(propertyId: string, documentId: string, formData: FormData) {

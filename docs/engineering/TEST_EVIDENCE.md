@@ -2,6 +2,18 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-26 — Disposition web UI
+
+Branch: `feat/evidence-conflict-disposition` (PR #43) continuing from API tip `c8690df`. Working directory `apps/web` after `npm ci`.
+
+```text
+npm test
+npm run typecheck
+npm run build
+```
+
+**Result:** `npm test` → **52 passed**, 0 failed, 0 skipped. `npm run typecheck` → exit 0. `npm run build` → exit 0 (Next.js 15.5.28). API/DB pytest not re-run (no API/DB change in this web slice). PostGIS / live IdP not run.
+
 ## 2026-11-26 — Evidence conflict disposition (migration 022)
 
 Branch: `feat/evidence-conflict-disposition` from `origin/main` @ `32b348a`. System Python 3.11 with `sys.path` insert for `apps/api` (this interpreter's `python311._pth` ignores `PYTHONPATH`). Portable PostgreSQL **16.15** @ `127.0.0.1:55432`. Fresh database `oydp_disposition_test`. Docker not used. Web not modified.
