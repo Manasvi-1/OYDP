@@ -41,6 +41,19 @@ def test_evidence_conflict_dispositions_fail_closed_without_oidc():
     assert created.status_code == 503
 
 
+def test_dedup_candidates_fail_closed_without_oidc():
+    cid = "00000000-0000-0000-0000-000000000001"
+    assert client.get('/v1/dedup-candidates').status_code == 503
+    assert client.post('/v1/dedup-candidates/generate').status_code == 503
+    assert client.get(f'/v1/dedup-candidates/{cid}').status_code == 503
+    assert client.get(f'/v1/dedup-candidates/{cid}/reviews').status_code == 503
+    created = client.post(
+        f'/v1/dedup-candidates/{cid}/reviews',
+        json={'outcome': 'keep_separate', 'reason': 'Must fail closed without OIDC'},
+    )
+    assert created.status_code == 503
+
+
 def test_privacy_response_headers():
     response=client.get('/healthz')
     assert response.headers['cache-control']=='no-store'
@@ -79,7 +92,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = app.openapi()
-    assert spec['info']['version'] == '0.19.0'
+    assert spec['info']['version'] == '0.20.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -95,6 +108,10 @@ def test_trusted_evidence_contract_does_not_grant_title():
         '/v1/sources/{source_id}/withdrawal',
         '/v1/tenant/membership-revocations',
         '/v1/tenant/session-invalidations',
+        '/v1/dedup-candidates',
+        '/v1/dedup-candidates/generate',
+        '/v1/dedup-candidates/{candidate_id}',
+        '/v1/dedup-candidates/{candidate_id}/reviews',
     ):
         assert path in paths
     schemas = spec['components']['schemas']
@@ -138,6 +155,28 @@ def test_trusted_evidence_contract_does_not_grant_title():
     assert 'post' in paths['/v1/properties/{property_id}/evidence-conflict-dispositions']
     assert 'get' in paths['/v1/properties/{property_id}/evidence-conflict-dispositions']
     assert 'conflict.disposition_recorded' in _schema_values(schemas['AuditRecord']['properties']['event_type'])
+    dedup_create = schemas['DedupReviewCreate']
+    assert dedup_create['additionalProperties'] is False
+    assert set(dedup_create['required']) == {'outcome', 'reason'}
+    assert _schema_values(dedup_create['properties']['outcome']) == {
+        'keep_separate', 'flag_possible_duplicate', 'needs_more_evidence',
+    }
+    assert 'merge' not in _schema_values(dedup_create['properties']['outcome'])
+    assert 'verified' not in _schema_values(dedup_create['properties']['outcome'])
+    dedup_review = schemas['DedupReviewRecord']
+    assert dedup_review['properties']['title_effect']['const'] == 'none'
+    assert dedup_review['properties']['properties_merged']['const'] is False
+    assert dedup_review['properties']['verification_unchanged']['const'] is True
+    assert 'does not merge properties' in dedup_review['properties']['notice']['const'].lower()
+    dedup_comparison = schemas['DedupComparison']
+    assert dedup_comparison['properties']['title_verified']['const'] is False
+    assert dedup_comparison['properties']['properties_merged']['const'] is False
+    assert 'post' in paths['/v1/dedup-candidates/generate']
+    assert 'get' in paths['/v1/dedup-candidates']
+    assert 'get' in paths['/v1/dedup-candidates/{candidate_id}']
+    assert 'post' in paths['/v1/dedup-candidates/{candidate_id}/reviews']
+    assert 'dedup.candidate_recorded' in _schema_values(schemas['AuditRecord']['properties']['event_type'])
+    assert 'dedup.review_recorded' in _schema_values(schemas['AuditRecord']['properties']['event_type'])
     assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert 'claim_id' in schemas['ReviewCreate']['properties']
     assert 'claim_id' in schemas['ReviewRecord']['properties']

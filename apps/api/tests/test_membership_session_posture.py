@@ -33,7 +33,7 @@ def test_session_invalidation_fails_closed_without_oidc():
 
 def test_membership_session_routes_in_openapi_contract():
     spec = app.openapi()
-    assert spec['info']['version'] == '0.19.0'
+    assert spec['info']['version'] == '0.20.0'
     paths = spec['paths']
     assert 'post' in paths['/v1/tenant/membership-revocations']
     assert 'post' in paths['/v1/tenant/session-invalidations']

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { ApiError, callPropertyApi, callPropertyUpload, MAX_DOCUMENT_BYTES } from '../lib/api'
 import { parseSessionInput, UUID } from '../lib/contract.mjs'
+import { parseDedupReviewInput } from '../lib/dedup.mjs'
 import { parseDispositionInput } from '../lib/disposition.mjs'
 import { clearPendingAuth, readPendingAuth } from '../lib/pending-auth'
 import { clearSession, readSession, writeSession } from '../lib/session'
@@ -328,6 +329,40 @@ export async function recordEvidenceConflictDisposition(propertyId: string, form
     bounce(`/properties/${propertyId}?tab=graph`, error)
   }
   redirect(`/properties/${propertyId}?tab=graph&notice=conflict-disposition-recorded`)
+}
+
+export async function generateDedupCandidates() {
+  const session = await readSession()
+  if (!session) redirect('/')
+  try {
+    await callPropertyApi(session, '/v1/dedup-candidates/generate', { method: 'POST' })
+  } catch (error) {
+    bounce('/dedup', error)
+  }
+  redirect('/dedup?notice=dedup-generated')
+}
+
+export async function recordDedupReview(formData: FormData) {
+  const session = await readSession()
+  if (!session) redirect('/')
+  const parsed = parseDedupReviewInput({
+    candidateId: String(formData.get('candidateId') ?? ''),
+    outcome: String(formData.get('outcome') ?? ''),
+    reason: String(formData.get('reason') ?? ''),
+  })
+  if (!parsed.ok || !('body' in parsed) || !('candidateId' in parsed)) {
+    const message = 'error' in parsed ? String(parsed.error) : 'Invalid dedup review'
+    bounce('/dedup', new ApiError(422, message))
+  }
+  try {
+    await callPropertyApi(session, `/v1/dedup-candidates/${parsed.candidateId}/reviews`, {
+      method: 'POST',
+      body: parsed.body,
+    })
+  } catch (error) {
+    bounce(`/dedup?candidate=${parsed.candidateId}`, error)
+  }
+  redirect(`/dedup?candidate=${parsed.candidateId}&notice=dedup-reviewed`)
 }
 
 export async function attributeDocument(propertyId: string, documentId: string, formData: FormData) {

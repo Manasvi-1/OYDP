@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { auditQuery, claimsQuery, correctionsQuery, documentsQuery, evidenceConflictDispositionsQuery, evidenceConflictsQuery, evidenceGraphQuery, identifiersQuery, messageFromApi, parseSessionInput, propertiesQuery, reviewsQuery, sourcesQuery } from './contract.mjs'
+import { auditQuery, claimsQuery, correctionsQuery, dedupCandidateQuery, dedupCandidatesQuery, dedupReviewsQuery, documentsQuery, evidenceConflictDispositionsQuery, evidenceConflictsQuery, evidenceGraphQuery, identifiersQuery, messageFromApi, parseSessionInput, propertiesQuery, reviewsQuery, sourcesQuery } from './contract.mjs'
 
 const tenant = '11111111-1111-4111-8111-111111111111'
 
@@ -45,6 +45,10 @@ test('builds bounded property and claim queries', () => {
     evidenceConflictDispositionsQuery(tenant, undefined),
     `/v1/properties/${tenant}/evidence-conflict-dispositions?limit=25`,
   )
+  assert.equal(dedupCandidatesQuery(undefined), '/v1/dedup-candidates?limit=25')
+  assert.equal(dedupCandidatesQuery('next+1'), '/v1/dedup-candidates?limit=25&cursor=next%2B1')
+  assert.equal(dedupCandidateQuery(tenant), `/v1/dedup-candidates/${tenant}`)
+  assert.equal(dedupReviewsQuery(tenant, undefined), `/v1/dedup-candidates/${tenant}/reviews?limit=25`)
   assert.equal(messageFromApi(403, { detail: 'Export consent required' }), 'Export consent required')
   assert.equal(messageFromApi(422, { detail: 'Source is withdrawn' }), 'Source is withdrawn')
   assert.equal(messageFromApi(422, { detail: 'Identifier resolution required' }), 'Identifier resolution required')

@@ -2,6 +2,28 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-26 — Property dedup candidates (no auto-merge)
+
+### Completed
+
+1. Branched `feat/property-dedup-candidates` from `origin/main` @ `b9acf7f` (PR #44 close-out). Disposition UI left untouched. Frozen `oydp/` / root `migrations/` untouched.
+2. Migration **023** adds same-tenant `property_dedup_candidates` + append-only `property_dedup_reviews`. Match bases: `shared_identifier`, `normalized_label`. Review outcomes only `keep_separate` / `flag_possible_duplicate` / `needs_more_evidence`. Explicit non-merge: no merge helper, `properties_merged=false`, `title_effect=none`, no claim verification or conflict clearing.
+3. API **0.20.0**: MFA-gated `POST /v1/dedup-candidates/generate` and `POST .../reviews`; paginated GET list; `GET .../{id}` evidence comparison; writer/edit gates; RLS via readable property pair; audit `dedup.candidate_recorded` / `dedup.review_recorded`.
+4. Web `/dedup` human review surface (generate + compare + review). Disposition UI not reworked.
+5. Verification (re-confirmed after recovering wedged portable PG on 55432):
+   - `apps/api/tests` → **161 passed**, 0 failed, 0 skipped, 1 Starlette deprecation warning.
+   - Portable PostgreSQL 16.15 @ `127.0.0.1:55432`, fresh DB `oydp_dedup_test` → `tests/integration` **118 passed**, 0 failed, 0 skipped, 1 warning (~47s).
+   - `export_active_openapi.py --check` → match. `secret_scan_light.py` → `SECRET_SCAN_HITS 0`.
+   - `apps/web`: `npm test` → **54 passed**; `npm run typecheck` → exit 0; `npm run build` → exit 0 (Next.js 15.5.28).
+6. Prior agent stall root cause: portable PG stopped accepting connections (connection timeouts / aborted ~71m suite). Restarted `%LOCALAPPDATA%\Temp\oydp-pg` via `pg_ctl`. Earlier single F during that hang was candidate-list race under insert cap; fixed with unique labels + identifier-first ordering before this re-run.
+7. **T-NEXT-009** PostGIS remains BLOCKED. No automatic property merge. Not GA.
+
+### Next task (resume here)
+
+Open/merge this PR only when CI is green and gates re-confirmed. Then unblocked E01 depth or foundation work (skip T-NEXT-009 while Docker unavailable). Not GA.
+
+---
+
 ## 2026-11-26 — PR #43 merged (disposition API + web)
 
 ### Completed
