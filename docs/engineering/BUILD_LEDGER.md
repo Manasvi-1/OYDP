@@ -2,6 +2,21 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-26 — PR #43 merged (disposition API + web)
+
+### Completed
+
+1. Merged PR #43 into `main` with merge commit after gates passed (web UI, local npm test/typecheck/build, PR CI green, diff review: no title verification, no auto-merge, no security weakening).
+2. Merge commit on `origin/main`: `5c103b345b66a7a22a73509bcfcf1b9fe00f9099`.
+3. Feature commits: `c8690df` (API/migration 022) + `ec112db` (web disposition UI).
+4. Property dedup candidates not started in this close-out.
+
+### Next task (resume here)
+
+Property dedup **candidates** only (generation, evidence comparison, human review, explicit non-merge). No automatic property merge. Skip T-NEXT-009 while Docker unavailable. Not GA.
+
+---
+
 ## 2026-11-26 — Disposition web UI on evidence conflicts
 
 ### Completed
