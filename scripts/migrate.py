@@ -105,12 +105,14 @@ def provision_runtime(dsn, password):
         conn.execute('GRANT EXECUTE ON FUNCTION public.attribute_property_document(uuid,uuid,uuid,uuid,uuid,uuid) TO oydp_app')
         # Trusted evidence is readable by the runtime role and writable only through the functions below.
         # The role cannot insert its own ledger rows or call the trigger and edit-check functions.
-        conn.execute('REVOKE ALL ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger FROM oydp_app')
-        conn.execute('GRANT SELECT ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger TO oydp_app')
+        conn.execute('REVOKE ALL ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger, evidence_conflict_dispositions FROM oydp_app')
+        conn.execute('GRANT SELECT ON property_identifiers, evidence_sources, professional_reviews, property_consents, tenant_audit_events, audit_ledger, evidence_conflict_dispositions TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_identifier(uuid,uuid,text,text,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.register_evidence_source(uuid,text,text,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.withdraw_evidence_source(uuid,uuid,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_professional_review(uuid,uuid,text,text,uuid,uuid,uuid,uuid) TO oydp_app')
+        conn.execute('GRANT EXECUTE ON FUNCTION public.record_evidence_conflict_disposition(uuid,uuid,text,uuid,text,text) TO oydp_app')
+        conn.execute('REVOKE ALL ON FUNCTION public.reject_evidence_conflict_disposition_rewrite() FROM oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.record_property_consent(uuid,uuid,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.revoke_property_consent(uuid,uuid,text) TO oydp_app')
         conn.execute('GRANT EXECUTE ON FUNCTION public.authorize_property_export(uuid,uuid) TO oydp_app')

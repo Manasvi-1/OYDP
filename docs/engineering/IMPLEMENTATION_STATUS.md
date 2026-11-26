@@ -5,13 +5,13 @@ Controlling product scope: `docs/reference/06-25_OYDP_Master_Consolidated_Bluepr
 Status labels: `NOT_STARTED` | `IN_PROGRESS` | `IMPLEMENTED` | `TESTED` | `VERIFIED` | `BLOCKED` | `DEFERRED`.  
 Evidence labels for surfaces: planned / UI prototype / static mockup / placeholder / generated source / executable implementation / integration-tested / production-hardened / independently reviewed.
 
-Updated: 2026-11-17. Branch evidence: `feat/membership-session-posture` (from `origin/main` @ `d960308`).
+Updated: 2026-11-26. Branch evidence: `feat/evidence-conflict-disposition` (from `origin/main` @ `32b348a`).
 
 ## Surface status
 
 | Surface | Evidence label | Task status | Notes |
 | --- | --- | --- | --- |
-| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units and portable PG this session) | API 0.18.0 |
+| E01 Property Identity API | executable implementation / integration-tested (partial) | VERIFIED (CI history) + TESTED (units and portable PG this session) | API 0.19.0 |
 | Tenant RLS + membership | integration-tested (CI) | VERIFIED in CI; local DB BLOCKED | |
 | OIDC JWKS validation | executable implementation | TESTED (units) | Live IdP BLOCKED |
 | MFA freshness + SF-008 | executable implementation | TESTED (units + route gates) | Live emission BLOCKED |
@@ -45,7 +45,8 @@ Updated: 2026-11-17. Branch evidence: `feat/membership-session-posture` (from `o
 | T-WEB-022 | 0 | P1 | Keep OIDC session cookies on callback NextResponse | Web OIDC | E01 | `apps/web` callback/auth | n/a | n/a | Y | Session cookie handoff | web CI / e2e scripts | Sign-in reaches `/connect` on loopback | TESTED (CI) | PR #22 |
 | T-SEC-003 | 1 | P2 | Production malware scanner adapter | Scanner infra | E01 | `documents.py` | Y | Y | Y | Fail-closed until pass | integration | Real adapter + CI | BLOCKED | SF-003 |
 | T-SEC-006 | 0 | P2 | Live IdP enrollment + provider token revocation | Docker/IdP | E01 | Keycloak/OIDC | Y | Y | Y | Live tokens | live script | Provider issues `auth_time` and revokes tokens | BLOCKED | SF-006; no Docker. Application posture is T-SEC-011 |
-| T-SEC-011 | 0 | P1 | Membership-revoke session posture without a live IdP | Membership + MFA | E01 | `021_membership_session_posture.sql`, revoke/session routes | Y | Y | n/a | Owner MFA, RLS, fail-closed membership, stale `iat` | unit + integration | Revoked member cannot act; stale `iat` 401; grants cascade; no IdP revoke | TESTED | API 0.18.0; unit 152 passed; integration 116 passed |
+| T-SEC-011 | 0 | P1 | Membership-revoke session posture without a live IdP | Membership + MFA | E01 | `021_membership_session_posture.sql`, revoke/session routes | Y | Y | n/a | Owner MFA, RLS, fail-closed membership, stale `iat` | unit + integration | Revoked member cannot act; stale `iat` 401; grants cascade; no IdP revoke | VERIFIED | PR #41 @ 32b348a |
+| T-E01-DISP-1 | 1 | P1 | Human evidence-conflict dispositions (non-title) | T-NEXT-010 | E01 | `022_evidence_conflict_disposition.sql`, disposition routes | Y | Y | optional | MFA + writer + RLS | unit+integration | noted/kept_unresolved only; signals stay unresolved; title_effect none | TESTED | API 0.19.0; 273 passed portable PG |
 | T-E01-GRAPH | 1 | P2 | Complete evidence graph beyond current identifiers/reviews/export | E01 slice | E01 | API + DB | Y | Y | Y | Provenance | integration | Graph journeys | NOT_STARTED | ENGINE_REGISTER Partial |
 | T-E03-FULL | 2 | P3 | Full transaction/legal workspace | E01/E03 diligence | E03 | TBD | Y | Y | Y | Deterministic policy | e2e | Offers/payments out of scope until designed | NOT_STARTED | Diligence only today |
 | T-E02…E13 | 2–4 | P3 | Remaining engines as bounded launches | Foundation | E02–E13 | TBD | Y | Y | Y | Per-engine | e2e | No silent drop | NOT_STARTED | ROADMAP |
@@ -53,4 +54,4 @@ Updated: 2026-11-17. Branch evidence: `feat/membership-session-posture` (from `o
 
 ## Next eligible task after this session
 
-See `BUILD_LEDGER.md`. **T-NEXT-009 BLOCKED** (no Docker/PostGIS). **T-SEC-011 TESTED** on this branch (application session posture). **T-SEC-006 BLOCKED** (live IdP). Do not fake scanner pass or GA.
+See `BUILD_LEDGER.md`. **T-NEXT-009 BLOCKED** (no Docker/PostGIS). **T-E01-DISP-1 TESTED** on this branch. **T-SEC-006 BLOCKED** (live IdP). Do not fake scanner pass or GA.

@@ -2,7 +2,7 @@
 
 Engineering self-assessment. **Not** an independent audit or production certification.
 
-Updated: 2026-11-11. Companion: `docs/implementation/SECURITY_FINDINGS.md`, `docs/THREAT_MODEL.md`.
+Updated: 2026-11-26. Companion: `docs/implementation/SECURITY_FINDINGS.md`, `docs/THREAT_MODEL.md`.
 
 ## Control summary
 
@@ -15,7 +15,8 @@ Updated: 2026-11-11. Companion: `docs/implementation/SECURITY_FINDINGS.md`, `doc
 | SF-008: max-age 0 refused outside loopback | Implemented + unit/route-tested | `assert_mfa_configuration`, lifespan |
 | Optional ACR allowlist | Implemented + unit-tested | `OYDP_MFA_ACR_VALUES` |
 | Tenant membership FOR SHARE + RLS FORCE | Implemented; CI integration | `infra/db`, `authorized_db` |
-| Cross-tenant IDOR matrix | Implemented; CI verified historically | `test_z_cross_tenant_idor.py` |
+| Cross-tenant IDOR matrix | Implemented; CI verified historically; portable PG this session | `test_z_cross_tenant_idor.py` |
+| Evidence conflict dispositions (non-title) | Implemented + portable PG tested | `022`, disposition routes; MFA + writer + RLS |
 | Grant revoke/expiry | Implemented; CI | SECURITY DEFINER grants |
 | Document encrypt + quarantine + content gate | Implemented; scanner BLOCKED | `documents.py`, `010` |
 | Audit outbox/ledger append controls | Implemented; not external WORM | `013` |

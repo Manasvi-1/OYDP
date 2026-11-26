@@ -2,6 +2,25 @@
 
 Append-only style session ledger for autonomous execution. Newest entry first.
 
+## 2026-11-26 — Evidence conflict disposition (non-title)
+
+### Completed
+
+1. Continued on worktree `feat/evidence-conflict-disposition` from `origin/main` @ `32b348a` (PR #41 merged). Preserved main checkout, stash, and parallel worktrees (`feat/evidence-conflict-adjudication`, docs/security trees). Untracked temps in the main checkout were not discarded.
+2. Migration **022** adds append-only `evidence_conflict_dispositions` for `identifier_conflict` and withdrawn citation signals. Outcomes are only `noted` / `kept_unresolved`. No claim verification change, no identifier conflict clear, no property merge, `title_effect=none`.
+3. API **0.19.0**: MFA-gated `POST /v1/properties/{id}/evidence-conflict-dispositions`; paginated GET; `GET .../evidence-conflicts` includes disposition annotations; audit event `conflict.disposition_recorded`.
+4. Portable PostgreSQL 16.15 @ `127.0.0.1:55432`, fresh DB `oydp_disposition_test`.
+   - Combined active suite → **273 passed**, 0 failed, 0 skipped, 1 Starlette deprecation warning.
+   - `export_active_openapi.py --check` → match. `secret_scan_light.py` → `SECRET_SCAN_HITS 0`.
+   - Web UI for dispositions not wired this slice (API + contract only).
+5. **T-NEXT-009** PostGIS remains BLOCKED. Live IdP / scanner / GA unchanged.
+
+### Next task (resume here)
+
+Open a PR for this branch when asked. Then unblocked E01 depth: property dedup candidates, disposition web display, or G-WEB-DEPTH. Skip T-NEXT-009 while Docker is unavailable. Not GA.
+
+---
+
 ## 2026-11-17 — Membership-revoke session posture (no live IdP)
 
 ### Completed

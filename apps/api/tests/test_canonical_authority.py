@@ -37,8 +37,8 @@ def test_canonical_migrations_live_under_infra_db():
     assert ROOT.is_dir()
     files = sorted(p.name for p in ROOT.glob('[0-9][0-9][0-9]_*.sql'))
     assert files[0] == '001_property_identity.sql'
-    assert files[-1] == '021_membership_session_posture.sql'
-    assert len(files) == 21
+    assert files[-1] == '022_evidence_conflict_disposition.sql'
+    assert len(files) == 22
 
 
 def test_migrate_rejects_reference_migrations_directory():
@@ -54,7 +54,7 @@ def test_reference_package_is_not_mounted_by_active_openapi():
     schema = app.openapi()
     assert schema['info']['title'] == 'OYDP Property Identity API'
     # Diligence routes ship with the active contract; version must stay aligned.
-    assert schema['info']['version'] == '0.18.0'
+    assert schema['info']['version'] == '0.19.0'
     dumped = str(schema)
     assert 'oydp schema' not in dumped.lower()
     assert '/v1/properties' in schema['paths']

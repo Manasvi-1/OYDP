@@ -2,7 +2,7 @@
 
 Honest unfinished / blocked / defective items. Prefer fixing security and foundation before engine expansion.
 
-Updated: 2026-11-17.
+Updated: 2026-11-26.
 
 ## Blocked on external infrastructure or human action
 
@@ -21,7 +21,7 @@ Updated: 2026-11-17.
 | --- | --- | --- | --- |
 | G-MFA-INT | Many integration fixtures override `require_mfa=True` | Medium | Route-level unit gates added (`test_mfa_route_gates.py`); deepen DB-backed non-override cases when useful |
 | G-SESSION | Live IdP token revocation after membership revoke | High (SF-006) | Application not-before checks are implemented (migration 021, API 0.18.0). Provider revocation and live enrollment are not wired. A same-process token issued after `not_before` can still act if membership is restored |
-| G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Attribution edges + read-only graph + conflict signals landed; human adjudication / dedup workflows still open |
+| G-E01-GRAPH | Evidence graph incomplete vs blueprint | Medium | Attribution, graph, conflicts, and non-title human dispositions landed; property dedup / merge workflows and disposition web UI still open |
 | G-ENGINES | E02, E04–E13 not started | Scope | Must remain commitments; do not fake |
 | G-THREAT-DOC | Threat model row for files was stale | Low | Corrected earlier to reflect quarantine + BLOCKED scanner |
 | G-WEB-DEPTH | Web consumes subset of API; engines UI is disclosure-only | Medium | Graph/conflicts on main; CSP + attribution write/display on PR #38 (`T-NEXT-012`); engines UI remains disclosure-only |
@@ -40,7 +40,8 @@ Updated: 2026-11-17.
 | Web CSP middleware unwired (`proxy.js` unused by Next 15) | This branch / PR #38 | `middleware.js` + build manifest matchers |
 | Direct audit INSERT + legacy assertions DML + editor-wide source withdraw | This branch | Migration `020` + API 0.16.0 |
 | Local non-PostGIS PG acceptance for 020 | This branch | Portable PG 250 passed @ 55432 |
-| Application session posture on membership revoke | `feat/membership-session-posture` | Migration 021; API 0.18.0; unit 152 passed; integration 116 passed. Live IdP revocation still open |
+| Application session posture on membership revoke | PR #41 / main | Migration 021; API 0.18.0+. Live IdP revocation still open |
+| Human evidence-conflict dispositions (non-title) | `feat/evidence-conflict-disposition` | Migration 022; API 0.19.0; portable PG **273 passed**. Does not clear conflicts or verify claims |
 
 ## Explicit non-goals this session
 
