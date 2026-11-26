@@ -9,6 +9,7 @@ export const WORKSPACE_NAV: NavItem[] = [
   { href: '/overview', label: 'Overview' },
   { href: '/properties', label: 'Properties' },
   { href: '/evidence', label: 'Evidence' },
+  { href: '/dedup', label: 'Dedup candidates' },
   { href: '/diligence', label: 'Diligence' },
   { href: '/activity', label: 'Activity' },
   { href: '/engines', label: 'Engine directory' },

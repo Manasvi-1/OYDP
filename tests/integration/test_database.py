@@ -357,6 +357,12 @@ def test_no_mfa_sensitive_routes_denied(api, private_record):
             'reason': 'MFA required for conflict disposition',
         },
     ).status_code == 403
+    assert api.post('/v1/dedup-candidates/generate', headers=h).status_code == 403
+    assert api.post(
+        '/v1/dedup-candidates/'+str(uuid4())+'/reviews',
+        headers=h,
+        json={'outcome': 'keep_separate', 'reason': 'MFA required for dedup review'},
+    ).status_code == 403
     assert api.post('/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
     assert api.request('DELETE', '/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
     denied_export = api.post('/v1/properties/'+pid+'/exports', headers=h)
@@ -424,7 +430,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql','021_membership_session_posture.sql','022_evidence_conflict_disposition.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql','021_membership_session_posture.sql','022_evidence_conflict_disposition.sql','023_property_dedup_candidates.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1313,6 +1319,8 @@ def _trusted_privileges():
         'public.record_property_consent(uuid,uuid,text)',
         'public.revoke_property_consent(uuid,uuid,text)',
         'public.authorize_property_export(uuid,uuid)',
+        'public.generate_property_dedup_candidates(uuid)',
+        'public.record_property_dedup_review(uuid,uuid,text,text)',
     )
     hidden = (
         'public.actor_can_edit_property(uuid,uuid)',
@@ -1320,11 +1328,15 @@ def _trusted_privileges():
         'public.copy_property_audit()',
         'public.copy_tenant_audit()',
         'public.reject_ledger_rewrite()',
+        'public.reject_property_dedup_rewrite()',
+        'public.reject_property_dedup_review_rewrite()',
+        'public.reject_property_dedup_candidate_unsafe_update()',
     )
     tables = (
         'property_identifiers', 'evidence_sources', 'professional_reviews',
         'property_consents', 'tenant_audit_events', 'audit_ledger',
         'property_audit_events', 'evidence_assertions',
+        'property_dedup_candidates', 'property_dedup_reviews',
     )
     with psycopg.connect(DSN) as conn:
         for name in functions:
@@ -1781,6 +1793,177 @@ def test_evidence_conflict_disposition_stays_non_title(api, private_record, monk
         assert denied_mfa.status_code == 403
     finally:
         app.dependency_overrides[require_mfa] = lambda: True
+
+
+def test_property_dedup_candidates_stay_non_merge(api, private_record):
+    """Same-tenant evidence similarity candidates; human review never merges or verifies."""
+    pid, peer, headers, share, as_subject = private_record
+    # Unique labels avoid combinatorial label matches from earlier private_record uses
+    # exhausting the generate insert cap before this identifier pair is recorded.
+    unique = str(uuid4())
+    twin = api.post(
+        '/v1/properties',
+        headers=headers,
+        json={'label': f'Dedup twin {unique}', 'jurisdiction': 'KA'},
+    )
+    assert twin.status_code == 201, twin.text
+    pid_b = twin.json()['id']
+    assert api.patch(
+        f'/v1/properties/{pid}',
+        headers=headers,
+        json={'label': f'Dedup primary {unique}', 'jurisdiction': 'KA'},
+    ).status_code == 200
+    shared_value = f'DEDUP-{unique[:8]}'
+    for property_id in (pid, pid_b):
+        recorded = api.post(
+            f'/v1/properties/{property_id}/identifiers',
+            headers=headers,
+            json={'scheme': 'survey', 'identifier_value': shared_value},
+        )
+        assert recorded.status_code == 200, recorded.text
+
+    generated = api.post('/v1/dedup-candidates/generate', headers=headers)
+    assert generated.status_code == 200, generated.text
+    body = generated.json()
+    assert body['created_count'] >= 1
+    assert body['properties_merged'] is False
+    assert body['title_effect'] == 'none'
+    assert 'not title proof' in body['notice'].lower()
+
+    items = []
+    cursor = None
+    for _ in range(20):
+        listed = api.get(
+            '/v1/dedup-candidates',
+            headers=headers,
+            params={'limit': 100, **({'cursor': cursor} if cursor else {})},
+        )
+        assert listed.status_code == 200, listed.text
+        assert listed.json()['notice']
+        items.extend(listed.json()['items'])
+        cursor = listed.json()['next_cursor']
+        if not cursor:
+            break
+    matches = [
+        row for row in items
+        if {row['property_a_id'], row['property_b_id']} == {pid, pid_b}
+    ]
+    assert matches, {
+        'created': body,
+        'pair': {pid, pid_b},
+        'sample': items[:5],
+        'count': len(items),
+    }
+    candidate = next(row for row in matches if row['match_basis'] == 'shared_identifier')
+    assert candidate['properties_merged'] is False
+    assert candidate['title_effect'] == 'none'
+    assert candidate['match_value_normalized'] == shared_value.lower()
+    cid = candidate['id']
+
+    compared = api.get(f'/v1/dedup-candidates/{cid}', headers=headers)
+    assert compared.status_code == 200, compared.text
+    comparison = compared.json()
+    assert comparison['title_verified'] is False
+    assert comparison['properties_merged'] is False
+    assert comparison['property_a']['property_id'] in {pid, pid_b}
+    assert comparison['property_b']['property_id'] in {pid, pid_b}
+    assert comparison['property_a']['property_id'] != comparison['property_b']['property_id']
+
+    for outcome in ('merge', 'merged', 'verified', 'title', 'same_title', 'accepted'):
+        rejected = api.post(
+            f'/v1/dedup-candidates/{cid}/reviews',
+            headers=headers,
+            json={'outcome': outcome, 'reason': 'Merge-like outcomes must be rejected'},
+        )
+        assert rejected.status_code == 422, rejected.text
+
+    reviewed = api.post(
+        f'/v1/dedup-candidates/{cid}/reviews',
+        headers=headers,
+        json={
+            'outcome': 'keep_separate',
+            'reason': 'Human keep-separate review; do not merge these properties',
+        },
+    )
+    assert reviewed.status_code == 201, reviewed.text
+    review_body = reviewed.json()
+    assert review_body['properties_merged'] is False
+    assert review_body['title_effect'] == 'none'
+    assert review_body['verification_unchanged'] is True
+    assert review_body['candidate_status'] == 'reviewed_keep_separate'
+    assert 'does not merge properties' in review_body['notice'].lower()
+
+    flagged = api.post(
+        f'/v1/dedup-candidates/{cid}/reviews',
+        headers=headers,
+        json={
+            'outcome': 'flag_possible_duplicate',
+            'reason': 'Possible duplicate flagged without merging records',
+        },
+    )
+    assert flagged.status_code == 201, flagged.text
+    assert flagged.json()['candidate_status'] == 'reviewed_possible_duplicate'
+
+    after = api.get(f'/v1/dedup-candidates/{cid}', headers=headers)
+    assert after.status_code == 200
+    assert after.json()['candidate']['status'] == 'reviewed_possible_duplicate'
+    assert after.json()['properties_merged'] is False
+
+    assert api.get(f'/v1/properties/{pid}', headers=headers).status_code == 200
+    assert api.get(f'/v1/properties/{pid_b}', headers=headers).status_code == 200
+    claims_a = api.get(f'/v1/properties/{pid}/claims', headers=headers)
+    assert claims_a.status_code == 200
+
+    reviews = api.get(f'/v1/dedup-candidates/{cid}/reviews', headers=headers)
+    assert reviews.status_code == 200
+    assert len(reviews.json()['items']) >= 2
+    assert all(item['properties_merged'] is False for item in reviews.json()['items'])
+
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=share).status_code == 200
+    as_subject(peer)
+    viewer_list = api.get('/v1/dedup-candidates', headers=headers)
+    assert viewer_list.status_code == 200
+    # Viewer cannot read property_b, so the pair stays hidden under candidate RLS.
+    assert all(item['id'] != cid for item in viewer_list.json()['items'])
+    viewer_generate = api.post('/v1/dedup-candidates/generate', headers=headers)
+    assert viewer_generate.status_code == 403
+    viewer_review = api.post(
+        f'/v1/dedup-candidates/{cid}/reviews',
+        headers=headers,
+        json={'outcome': 'needs_more_evidence', 'reason': 'Viewer must not review'},
+    )
+    assert viewer_review.status_code in (403, 404)
+
+    as_subject('alice')
+    from app.main import app
+    from app.auth import require_mfa
+    from fastapi import HTTPException
+
+    def denied_mfa_dep():
+        raise HTTPException(403, 'MFA required')
+
+    app.dependency_overrides[require_mfa] = denied_mfa_dep
+    try:
+        denied_mfa = api.post(
+            f'/v1/dedup-candidates/{cid}/reviews',
+            headers=headers,
+            json={'outcome': 'needs_more_evidence', 'reason': 'MFA denial path'},
+        )
+        assert denied_mfa.status_code == 403
+    finally:
+        app.dependency_overrides[require_mfa] = lambda: True
+
+    with psycopg.connect(DSN) as owner:
+        assert owner.execute(
+            "SELECT to_regprocedure('public.merge_properties(uuid,uuid,uuid)')"
+        ).fetchone()[0] is None
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), runtime(A) as conn:
+        conn.execute(
+            "INSERT INTO property_dedup_candidates "
+            "(tenant_id, property_a_id, property_b_id, match_basis, match_scheme, "
+            "match_value_normalized, generated_by) VALUES (%s,%s,%s,'normalized_label','','x','alice')",
+            (A, pid, pid_b),
+        )
 
 
 def test_evidence_graph_projects_attribution_edges_without_title(api, private_record, monkeypatch):

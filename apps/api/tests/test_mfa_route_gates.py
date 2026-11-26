@@ -102,6 +102,17 @@ def _headers(token: str):
                 }
             },
         ),
+        ('post', '/v1/dedup-candidates/generate', {}),
+        (
+            'post',
+            '/v1/dedup-candidates/{cid}/reviews',
+            {
+                'json': {
+                    'outcome': 'keep_separate',
+                    'reason': 'MFA gate must reject password-only tokens',
+                }
+            },
+        ),
         ('post', '/v1/tenant/membership-revocations', {'json': {'subject_id': 'bob'}}),
         ('post', '/v1/tenant/session-invalidations', {'json': {'subject_id': 'bob'}}),
     ],
@@ -109,7 +120,7 @@ def _headers(token: str):
 def test_high_risk_routes_reject_password_only_amr(mfa_client, method, path, kwargs):
     client, token, now = mfa_client
     pid = str(uuid4())
-    target = path.format(pid=pid, did=str(uuid4()))
+    target = path.format(pid=pid, did=str(uuid4()), cid=str(uuid4()))
     response = getattr(client, method)(
         target,
         headers=_headers(token(amr=['pwd'], auth_time=now)),

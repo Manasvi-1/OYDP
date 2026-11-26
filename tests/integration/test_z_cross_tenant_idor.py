@@ -223,6 +223,40 @@ def test_grants_reviews_consent_export_cross_tenant(api, tenants):
         ),
         secret,
     )
+
+    # Seed a tenant-A dedup candidate, then probe from tenant B without leaking it.
+    t['as_subject'](t['subjects']['a_owner'])
+    twin = api.post(
+        '/v1/properties',
+        headers=t['headers_a'],
+        json={'label': 'Tenant A vault', 'jurisdiction': 'Bengaluru Urban'},
+    )
+    assert twin.status_code == 201, twin.text
+    generated = api.post('/v1/dedup-candidates/generate', headers=t['headers_a'])
+    assert generated.status_code == 200, generated.text
+    listed_a = api.get('/v1/dedup-candidates', headers=t['headers_a'])
+    assert listed_a.status_code == 200, listed_a.text
+    assert listed_a.json()['items'], listed_a.text
+    candidate_id = listed_a.json()['items'][0]['id']
+
+    t['as_subject'](t['subjects']['b_owner'])
+    listed_b = api.get('/v1/dedup-candidates', headers=hb)
+    assert listed_b.status_code == 200
+    assert all(item['id'] != candidate_id for item in listed_b.json()['items'])
+    assert secret not in listed_b.text
+    _assert_hidden(api.get(f'/v1/dedup-candidates/{candidate_id}', headers=hb), secret)
+    _assert_hidden(api.get(f'/v1/dedup-candidates/{candidate_id}/reviews', headers=hb), secret)
+    _assert_hidden(
+        api.post(
+            f'/v1/dedup-candidates/{candidate_id}/reviews',
+            headers=hb,
+            json={
+                'outcome': 'keep_separate',
+                'reason': 'Cross-tenant dedup review must fail',
+            },
+        ),
+        secret,
+    )
     _assert_hidden(
         api.post(f'/v1/properties/{pid}/consents', headers=hb, json={'purpose': 'passport_export'}),
         secret,

@@ -10,7 +10,7 @@ This is an engineering draft; it is not an independent security assessment.
 | Collaborator escalates or reshares access | Creator-only management, bounded expiry, active same-tenant recipients, audited mutations | Negative tests and audited SECURITY DEFINER function; see PROPERTY_ACCESS.md for trust assumptions and non-cascading revocation |
 | Property read permission leaks all deeds | Explicit resource grant and scanning gate | Unit policy tested |
 | Malicious file exploits preview or scanner | Quarantine, byte caps, MIME detection, sandbox scanner, no active-content execution | Encrypted quarantine + fail-closed download gate implemented; production malware scanner adapter BLOCKED (`get_document_scanner()` returns None) |
-| Duplicate property creates false title conclusion | Candidate identity, unresolved matches, attributed assertions, human correction | Candidate creation and unverified claims persisted; deduplication and correction workflow pending |
+| Duplicate property creates false title conclusion | Candidate identity, unresolved matches, attributed assertions, human correction | Dedup **candidates** + human review persist without merge or title assertion; automatic merge still pending / out of scope |
 | Reviewer impersonation | Verify professional credentials separately from authentication | Not implemented |
 | AI prompt injection changes access | Policy outside AI; untrusted document content; scoped retrieval | No AI implementation |
 | Partial write loses audit | Commit mutation and outbox atomically; independent immutable delivery | Transactional outbox and rollback tested; independent immutable sink pending |

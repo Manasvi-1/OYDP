@@ -154,6 +154,22 @@ export function evidenceConflictDispositionsQuery(propertyId, cursor) {
   return propertyQuery(propertyId, 'evidence-conflict-dispositions', cursor)
 }
 
+export function dedupCandidatesQuery(cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/dedup-candidates?${params.toString()}`
+}
+
+export function dedupCandidateQuery(candidateId) {
+  return `/v1/dedup-candidates/${candidateId}`
+}
+
+export function dedupReviewsQuery(candidateId, cursor) {
+  const params = new URLSearchParams({ limit: '25' })
+  if (cursor) params.set('cursor', cursor)
+  return `/v1/dedup-candidates/${candidateId}/reviews?${params.toString()}`
+}
+
 export function sourcesQuery(cursor) {
   const params = new URLSearchParams({ limit: '25' })
   if (cursor) params.set('cursor', cursor)

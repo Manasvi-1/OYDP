@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
 _DOCS = api_docs_enabled()
 app = FastAPI(
     title='OYDP Property Identity API',
-    version='0.19.0',
+    version='0.20.0',
     lifespan=lifespan,
     docs_url='/docs' if _DOCS else None,
     redoc_url='/redoc' if _DOCS else None,
@@ -699,6 +699,14 @@ DISPOSITION_NOTICE = (
     'Human evidence-conflict disposition only. Not a title certificate; does not verify claims; '
     'does not clear identifier conflict status; does not merge properties.'
 )
+DEDUP_NOTICE = (
+    'Property deduplication candidate only. Same-tenant evidence similarity is not title proof; '
+    'candidates never merge properties, verify claims, clear conflicts, or assert ownership.'
+)
+DEDUP_REVIEW_NOTICE = (
+    'Human deduplication review only. Not a title certificate; does not merge properties; '
+    'does not verify claims; does not clear identifier conflict status.'
+)
 _PACKET_CAP = 100
 _GRAPH_EDGE_CAP = 500
 _CONFLICT_CLAIM_CAP = 100
@@ -712,6 +720,7 @@ _TRUSTED_SQL = {
     'Invalid claim': (422, 'Invalid claim'),
     'Invalid attribution': (422, 'Invalid attribution'),
     'Invalid conflict disposition': (422, 'Invalid conflict disposition'),
+    'Invalid dedup review': (422, 'Invalid dedup review'),
     'Invalid request': (422, 'Invalid request'),
     'Document not found': (404, 'Document not found'),
     'Cannot revoke the last tenant owner': (409, 'Cannot revoke the last tenant owner'),
@@ -970,6 +979,90 @@ class EvidenceConflicts(BaseModel):
     dispositions: list[EvidenceConflictDispositionAnnotation]
 
 
+class DedupGenerateResult(BaseModel):
+    created_count: int
+    skipped_existing: int
+    considered_pairs: int
+    properties_merged: Literal[False]
+    title_effect: Literal['none']
+    notice: Literal[DEDUP_NOTICE] = DEDUP_NOTICE
+
+
+class DedupCandidateRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_a_id: UUID
+    property_b_id: UUID
+    match_basis: Literal['shared_identifier', 'normalized_label']
+    match_scheme: Literal['', 'internal', 'survey', 'municipal', 'khata']
+    match_value_normalized: str
+    status: Literal[
+        'open',
+        'reviewed_keep_separate',
+        'reviewed_possible_duplicate',
+        'reviewed_needs_more_evidence',
+    ]
+    generated_by: str
+    generated_at: datetime
+    properties_merged: Literal[False] = False
+    title_effect: Literal['none'] = 'none'
+    notice: Literal[DEDUP_NOTICE] = DEDUP_NOTICE
+
+
+class DedupCandidatePage(BaseModel):
+    items: list[DedupCandidateRecord]
+    next_cursor: str | None
+    notice: Literal[DEDUP_NOTICE] = DEDUP_NOTICE
+
+
+class DedupEvidenceSide(BaseModel):
+    property_id: UUID
+    label: str
+    jurisdiction: str
+    created_by: str
+    identifiers: list[IdentifierRecord]
+
+
+class DedupComparison(BaseModel):
+    candidate: DedupCandidateRecord
+    property_a: DedupEvidenceSide
+    property_b: DedupEvidenceSide
+    shared_identifier_values: list[str]
+    properties_merged: Literal[False] = False
+    title_verified: Literal[False] = False
+    notice: Literal[DEDUP_NOTICE] = DEDUP_NOTICE
+
+
+class DedupReviewCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    outcome: Literal['keep_separate', 'flag_possible_duplicate', 'needs_more_evidence']
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class DedupReviewRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    candidate_id: UUID
+    outcome: Literal['keep_separate', 'flag_possible_duplicate', 'needs_more_evidence']
+    reason: str
+    recorded_by: str
+    recorded_at: datetime
+    candidate_status: Literal[
+        'reviewed_keep_separate',
+        'reviewed_possible_duplicate',
+        'reviewed_needs_more_evidence',
+    ]
+    properties_merged: Literal[False]
+    title_effect: Literal['none']
+    verification_unchanged: Literal[True]
+    notice: Literal[DEDUP_REVIEW_NOTICE] = DEDUP_REVIEW_NOTICE
+
+
+class DedupReviewPage(BaseModel):
+    items: list[DedupReviewRecord]
+    next_cursor: str | None
+
+
 class AuditRecord(BaseModel):
     event_type: Literal[
         'property.created', 'access.granted', 'access.revoked', 'claim.recorded', 'property.corrected',
@@ -978,6 +1071,7 @@ class AuditRecord(BaseModel):
         'identifier.recorded', 'identifier.conflict', 'review.recorded', 'consent.recorded', 'consent.revoked',
         'packet.exported', 'diligence.opened', 'diligence.noted', 'diligence.closed',
         'conflict.disposition_recorded',
+        'dedup.candidate_recorded', 'dedup.review_recorded',
     ]
     actor_subject: str
     recorded_at: datetime
@@ -1310,6 +1404,177 @@ def list_evidence_conflict_dispositions(
     ).fetchall()
     page = page_result(rows, limit, scope, 'recorded_at')
     page['items'] = [present_conflict_disposition(row) for row in page['items']]
+    return page
+
+
+def present_dedup_candidate(row):
+    return {
+        **row,
+        'properties_merged': False,
+        'title_effect': 'none',
+        'notice': DEDUP_NOTICE,
+    }
+
+
+def present_dedup_review(row):
+    return {
+        **row,
+        'properties_merged': False,
+        'title_effect': 'none',
+        'verification_unchanged': True,
+        'notice': DEDUP_REVIEW_NOTICE,
+    }
+
+
+def load_readable_dedup_candidate(conn, candidate_id):
+    row = conn.execute(
+        f"""SELECT id, tenant_id, property_a_id, property_b_id, match_basis, match_scheme,
+               match_value_normalized, status, generated_by, generated_at
+            FROM property_dedup_candidates
+            WHERE id=%s AND tenant_id={_TENANT}""",
+        (candidate_id,),
+    ).fetchone()
+    if row is None:
+        raise HTTPException(404, 'Not found')
+    # Fail closed if either property is not readable under private RLS.
+    readable_property(conn, row['property_a_id'])
+    readable_property(conn, row['property_b_id'])
+    return row
+
+
+def dedup_evidence_side(conn, property_id):
+    prop = readable_property(conn, property_id)
+    identifiers = conn.execute(
+        f"""SELECT id, tenant_id, property_id, scheme, identifier_value, version, status,
+               recorded_by, recorded_at
+            FROM property_identifiers
+            WHERE property_id=%s AND tenant_id={_TENANT}
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _PACKET_CAP),
+    ).fetchall()
+    return {
+        'property_id': prop['id'],
+        'label': prop['label'],
+        'jurisdiction': prop['jurisdiction'],
+        'created_by': prop['created_by'],
+        'identifiers': identifiers,
+    }
+
+
+@app.post('/v1/dedup-candidates/generate', response_model=DedupGenerateResult)
+def generate_dedup_candidates(access=Depends(authorized_db, scope='function'), mfa=Depends(require_mfa)):
+    """Scan editable same-tenant properties for evidence similarity. Never merges records."""
+    conn, role = access
+    require_writer_role(role)
+    row = call_trusted(conn, f"""SELECT * FROM public.generate_property_dedup_candidates({_TENANT})""", ())
+    return {
+        **row,
+        'properties_merged': False,
+        'title_effect': 'none',
+        'notice': DEDUP_NOTICE,
+    }
+
+
+@app.get('/v1/dedup-candidates', response_model=DedupCandidatePage)
+def list_dedup_candidates(
+    access=Depends(authorized_db, scope='function'),
+    limit: int = Query(25, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=512),
+):
+    conn, _role = access
+    scope, at, record_id = cursor_context(conn, 'dedup_candidates', cursor)
+    rows = conn.execute(
+        f"""SELECT id, tenant_id, property_a_id, property_b_id, match_basis, match_scheme,
+               match_value_normalized, status, generated_by, generated_at
+            FROM property_dedup_candidates
+            WHERE tenant_id={_TENANT}
+              AND (%s::timestamptz IS NULL OR (generated_at, id)<(%s::timestamptz, %s::uuid))
+            ORDER BY generated_at DESC, id DESC LIMIT %s""",
+        (at, at, record_id, limit + 1),
+    ).fetchall()
+    page = page_result(rows, limit, scope, 'generated_at')
+    page['items'] = [present_dedup_candidate(row) for row in page['items']]
+    page['notice'] = DEDUP_NOTICE
+    return page
+
+
+@app.get('/v1/dedup-candidates/{candidate_id}', response_model=DedupComparison)
+def compare_dedup_candidate(candidate_id: UUID, access=Depends(authorized_db, scope='function')):
+    """Evidence comparison for one candidate. Similarity is not title proof."""
+    conn, _role = access
+    candidate = present_dedup_candidate(load_readable_dedup_candidate(conn, candidate_id))
+    side_a = dedup_evidence_side(conn, candidate['property_a_id'])
+    side_b = dedup_evidence_side(conn, candidate['property_b_id'])
+    values_a = {
+        (row['scheme'], row['identifier_value'].strip().lower())
+        for row in side_a['identifiers']
+        if row['status'] in ('current', 'conflict')
+    }
+    values_b = {
+        (row['scheme'], row['identifier_value'].strip().lower())
+        for row in side_b['identifiers']
+        if row['status'] in ('current', 'conflict')
+    }
+    shared = sorted(f'{scheme}:{value}' for scheme, value in (values_a & values_b))
+    return {
+        'candidate': candidate,
+        'property_a': side_a,
+        'property_b': side_b,
+        'shared_identifier_values': shared,
+        'properties_merged': False,
+        'title_verified': False,
+        'notice': DEDUP_NOTICE,
+    }
+
+
+@app.post(
+    '/v1/dedup-candidates/{candidate_id}/reviews',
+    status_code=201,
+    response_model=DedupReviewRecord,
+)
+def record_dedup_review(
+    candidate_id: UUID,
+    payload: DedupReviewCreate,
+    access=Depends(authorized_db, scope='function'),
+    mfa=Depends(require_mfa),
+):
+    """Append a human review. Never merges properties or verifies claims."""
+    conn, role = access
+    require_writer_role(role)
+    load_readable_dedup_candidate(conn, candidate_id)
+    row = call_trusted(
+        conn,
+        f"""SELECT * FROM public.record_property_dedup_review({_TENANT}, %s, %s, %s)""",
+        (candidate_id, payload.outcome, payload.reason),
+    )
+    return present_dedup_review(row)
+
+
+@app.get('/v1/dedup-candidates/{candidate_id}/reviews', response_model=DedupReviewPage)
+def list_dedup_reviews(
+    candidate_id: UUID,
+    access=Depends(authorized_db, scope='function'),
+    limit: int = Query(25, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=512),
+):
+    conn, _role = access
+    load_readable_dedup_candidate(conn, candidate_id)
+    scope, at, record_id = cursor_context(conn, 'dedup_reviews', cursor, candidate_id)
+    rows = conn.execute(
+        f"""SELECT id, tenant_id, candidate_id, outcome, reason, recorded_by, recorded_at,
+               CASE outcome
+                 WHEN 'keep_separate' THEN 'reviewed_keep_separate'
+                 WHEN 'flag_possible_duplicate' THEN 'reviewed_possible_duplicate'
+                 ELSE 'reviewed_needs_more_evidence'
+               END AS candidate_status
+            FROM property_dedup_reviews
+            WHERE candidate_id=%s AND tenant_id={_TENANT}
+              AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (candidate_id, at, at, record_id, limit + 1),
+    ).fetchall()
+    page = page_result(rows, limit, scope, 'recorded_at')
+    page['items'] = [present_dedup_review(row) for row in page['items']]
     return page
 
 
