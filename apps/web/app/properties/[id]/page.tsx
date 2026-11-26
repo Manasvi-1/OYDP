@@ -8,6 +8,7 @@ import {
   grantExportConsent,
   openDiligenceRequest,
   recordClaim,
+  recordEvidenceConflictDisposition,
   recordIdentifier,
   recordReview,
   registerSource,
@@ -17,6 +18,12 @@ import {
   uploadDocument,
   withdrawSource,
 } from '../../actions'
+import {
+  DISPOSITION_SUCCESS_NOTICE,
+  dispositionActionLabels,
+  dispositionsForSignal,
+  visibleDispositionOutcomes,
+} from '../../../lib/disposition.mjs'
 import { ApiError, callPropertyApi } from '../../../lib/api'
 import {
   auditQuery,
@@ -159,6 +166,14 @@ interface IdentifierConflictItem {
   recorded_at: string
 }
 
+interface DispositionAnnotation {
+  id: string
+  signal_kind: string
+  signal_id: string
+  outcome: string
+  recorded_at: string
+}
+
 interface EvidenceConflictsPayload {
   property_id: string
   title_verified: boolean
@@ -171,6 +186,7 @@ interface EvidenceConflictsPayload {
   claims_citing_withdrawn_sources: string[]
   documents_citing_withdrawn_sources: string[]
   reviews_citing_withdrawn_sources: string[]
+  dispositions?: DispositionAnnotation[]
 }
 
 export default async function PropertyPage({ params, searchParams }: {
@@ -225,6 +241,7 @@ export default async function PropertyPage({ params, searchParams }: {
     'diligence-opened': 'Diligence request opened. This is not an offer, payment, or legal agreement.',
     'diligence-noted': 'Diligence note recorded for authorized readers.',
     'diligence-closed': 'Diligence request closed. Closed means workspace status only.',
+    'conflict-disposition-recorded': DISPOSITION_SUCCESS_NOTICE,
   }[query.notice ?? ''] ?? ''
 
   return (
@@ -267,7 +284,7 @@ export default async function PropertyPage({ params, searchParams }: {
           identifiers={identifiers}
         />
       ) : null}
-      {tab === 'graph' ? <GraphTab graph={evidenceGraph} conflicts={evidenceConflicts} /> : null}
+      {tab === 'graph' ? <GraphTab propertyId={id} graph={evidenceGraph} conflicts={evidenceConflicts} /> : null}
       {tab === 'documents' ? (
         <DocumentsTab
           propertyId={id}
@@ -824,12 +841,76 @@ function shortId(value: string) {
   return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value
 }
 
-function GraphTab({ graph, conflicts }: {
+function SignalDispositions({
+  propertyId,
+  signalKind,
+  signalId,
+  dispositions,
+}: {
+  propertyId: string
+  signalKind: string
+  signalId: string
+  dispositions: DispositionAnnotation[]
+}) {
+  const matched = dispositionsForSignal(dispositions, signalKind, signalId) as DispositionAnnotation[]
+  const labels = dispositionActionLabels()
+  const outcomes = visibleDispositionOutcomes()
+  return (
+    <div className="stack">
+      {matched.length ? (
+        <div className="stack">
+          <h4 className="section-title">Recorded dispositions</h4>
+          {matched.map((row) => (
+            <div key={row.id} className="meta">
+              <StatusPill label={row.outcome} tone="info" />
+              <span>{formatWhen(row.recorded_at)}</span>
+              <span className="mono">{shortId(row.id)}</span>
+            </div>
+          ))}
+          <p className="muted">A disposition does not clear this signal or verify title.</p>
+        </div>
+      ) : (
+        <p className="muted">No disposition recorded for this signal yet.</p>
+      )}
+      <form className="stack" action={recordEvidenceConflictDisposition.bind(null, propertyId)}>
+        <input type="hidden" name="signalKind" value={signalKind} />
+        <input type="hidden" name="signalId" value={signalId} />
+        <h4 className="section-title">Record disposition</h4>
+        <p className="muted">
+          Writer role with fresh MFA is required by the API. Only note or keep-unresolved is allowed.
+          The conflict stays unresolved.
+        </p>
+        <label>
+          Outcome
+          <select name="outcome" required defaultValue="noted" aria-label={`Disposition outcome for ${signalKind}`}>
+            {outcomes.map((outcome) => (
+              <option key={outcome} value={outcome}>{labels[outcome as keyof typeof labels] ?? outcome}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Reason
+          <textarea
+            name="reason"
+            required
+            maxLength={500}
+            aria-label={`Disposition reason for ${signalKind}`}
+          />
+        </label>
+        <button className="secondary" type="submit">Submit disposition</button>
+      </form>
+    </div>
+  )
+}
+
+function GraphTab({ propertyId, graph, conflicts }: {
+  propertyId: string
   graph: LoadedPage<EvidenceGraphPayload>
   conflicts: LoadedPage<EvidenceConflictsPayload>
 }) {
   const conflictBody = conflicts.value
   const graphBody = graph.value
+  const dispositions = conflictBody?.dispositions ?? []
   return (
     <div className="workspace">
       <div className="stack">
@@ -837,6 +918,7 @@ function GraphTab({ graph, conflicts }: {
           <h2 id="conflicts-heading">Unresolved evidence signals</h2>
           <p className="muted">
             Server-side signals only. This is not title verification, and unresolved signals are not adjudication.
+            Human dispositions may note or keep a signal unresolved; they never clear conflicts or merge properties.
           </p>
           {conflicts.error ? <p className="banner" role="alert">{conflicts.error}</p> : null}
           {!conflicts.error && !conflictBody ? <p className="muted">Conflict signals are still loading.</p> : null}
@@ -852,6 +934,7 @@ function GraphTab({ graph, conflicts }: {
                   tone={conflictBody.unresolved ? 'warn' : 'ok'}
                 />
                 <span>{conflictBody.open_unverified_claim_count} open unverified claim(s)</span>
+                <span>{dispositions.length} disposition annotation(s)</span>
               </div>
               <p className="muted">{conflictBody.notice}</p>
               {conflictBody.multiple_open_unverified_claims ? (
@@ -874,7 +957,7 @@ function GraphTab({ graph, conflicts }: {
                   <h3>Identifier conflict rows</h3>
                   <div className="grid">
                     {conflictBody.identifier_conflicts.map((item) => (
-                      <article key={item.id} className="card">
+                      <article key={item.id} className="card stack">
                         <div className="meta">
                           <StatusPill label={item.status} tone="warn" />
                           <span>{item.scheme}</span>
@@ -882,6 +965,12 @@ function GraphTab({ graph, conflicts }: {
                           <span>v{item.version}</span>
                         </div>
                         <p className="muted">Conflict status is not ownership proof. Recorded {formatWhen(item.recorded_at)}.</p>
+                        <SignalDispositions
+                          propertyId={propertyId}
+                          signalKind="identifier_conflict"
+                          signalId={item.id}
+                          dispositions={dispositions}
+                        />
                       </article>
                     ))}
                   </div>
@@ -890,9 +979,17 @@ function GraphTab({ graph, conflicts }: {
               {conflictBody.claims_citing_withdrawn_sources.length ? (
                 <div className="stack">
                   <h3>Claims citing withdrawn sources</h3>
-                  <div className="meta">
+                  <div className="grid">
                     {conflictBody.claims_citing_withdrawn_sources.map((claimId) => (
-                      <span key={claimId} className="mono">{shortId(claimId)}</span>
+                      <article key={claimId} className="card stack">
+                        <span className="mono">{shortId(claimId)}</span>
+                        <SignalDispositions
+                          propertyId={propertyId}
+                          signalKind="withdrawn_claim_citation"
+                          signalId={claimId}
+                          dispositions={dispositions}
+                        />
+                      </article>
                     ))}
                   </div>
                 </div>
@@ -900,9 +997,17 @@ function GraphTab({ graph, conflicts }: {
               {conflictBody.documents_citing_withdrawn_sources?.length ? (
                 <div className="stack">
                   <h3>Documents citing withdrawn sources</h3>
-                  <div className="meta">
+                  <div className="grid">
                     {conflictBody.documents_citing_withdrawn_sources.map((documentId) => (
-                      <span key={documentId} className="mono">{shortId(documentId)}</span>
+                      <article key={documentId} className="card stack">
+                        <span className="mono">{shortId(documentId)}</span>
+                        <SignalDispositions
+                          propertyId={propertyId}
+                          signalKind="withdrawn_document_citation"
+                          signalId={documentId}
+                          dispositions={dispositions}
+                        />
+                      </article>
                     ))}
                   </div>
                 </div>
@@ -910,9 +1015,17 @@ function GraphTab({ graph, conflicts }: {
               {conflictBody.reviews_citing_withdrawn_sources?.length ? (
                 <div className="stack">
                   <h3>Reviews citing withdrawn sources</h3>
-                  <div className="meta">
+                  <div className="grid">
                     {conflictBody.reviews_citing_withdrawn_sources.map((reviewId) => (
-                      <span key={reviewId} className="mono">{shortId(reviewId)}</span>
+                      <article key={reviewId} className="card stack">
+                        <span className="mono">{shortId(reviewId)}</span>
+                        <SignalDispositions
+                          propertyId={propertyId}
+                          signalKind="withdrawn_review_citation"
+                          signalId={reviewId}
+                          dispositions={dispositions}
+                        />
+                      </article>
                     ))}
                   </div>
                 </div>

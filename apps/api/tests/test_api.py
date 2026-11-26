@@ -25,6 +25,22 @@ def test_evidence_conflicts_fails_closed_without_oidc():
     assert r.status_code == 503
 
 
+def test_evidence_conflict_dispositions_fail_closed_without_oidc():
+    pid = "00000000-0000-0000-0000-000000000001"
+    listed = client.get(f"/v1/properties/{pid}/evidence-conflict-dispositions")
+    assert listed.status_code == 503
+    created = client.post(
+        f"/v1/properties/{pid}/evidence-conflict-dispositions",
+        json={
+            'signal_kind': 'identifier_conflict',
+            'signal_id': pid,
+            'outcome': 'noted',
+            'reason': 'Must fail closed without OIDC',
+        },
+    )
+    assert created.status_code == 503
+
+
 def test_privacy_response_headers():
     response=client.get('/healthz')
     assert response.headers['cache-control']=='no-store'
@@ -63,7 +79,7 @@ def _schema_values(schema):
 
 def test_trusted_evidence_contract_does_not_grant_title():
     spec = app.openapi()
-    assert spec['info']['version'] == '0.18.0'
+    assert spec['info']['version'] == '0.19.0'
     paths = spec['paths']
     for path in (
         '/v1/properties/{property_id}/identifiers',
@@ -72,6 +88,7 @@ def test_trusted_evidence_contract_does_not_grant_title():
         '/v1/properties/{property_id}/exports',
         '/v1/properties/{property_id}/evidence-graph',
         '/v1/properties/{property_id}/evidence-conflicts',
+        '/v1/properties/{property_id}/evidence-conflict-dispositions',
         '/v1/properties/{property_id}/documents',
         '/v1/properties/{property_id}/audit',
         '/v1/sources',
@@ -106,7 +123,21 @@ def test_trusted_evidence_contract_does_not_grant_title():
         'open_unverified_claim_count', 'multiple_open_unverified_claims',
         'identifier_conflicts', 'claims_citing_withdrawn_sources',
         'documents_citing_withdrawn_sources', 'reviews_citing_withdrawn_sources',
+        'dispositions',
     }
+    disposition_create = schemas['EvidenceConflictDispositionCreate']
+    assert disposition_create['additionalProperties'] is False
+    assert set(disposition_create['required']) == {'signal_kind', 'signal_id', 'outcome', 'reason'}
+    assert _schema_values(disposition_create['properties']['outcome']) == {'noted', 'kept_unresolved'}
+    assert 'verified' not in _schema_values(disposition_create['properties']['outcome'])
+    assert 'title' not in _schema_values(disposition_create['properties']['outcome'])
+    disposition = schemas['EvidenceConflictDispositionRecord']
+    assert disposition['properties']['title_effect']['const'] == 'none'
+    assert disposition['properties']['verification_unchanged']['const'] is True
+    assert 'Not a title certificate' in disposition['properties']['notice']['const']
+    assert 'post' in paths['/v1/properties/{property_id}/evidence-conflict-dispositions']
+    assert 'get' in paths['/v1/properties/{property_id}/evidence-conflict-dispositions']
+    assert 'conflict.disposition_recorded' in _schema_values(schemas['AuditRecord']['properties']['event_type'])
     assert schemas['ReviewRecord']['properties']['title_effect']['const'] == 'none'
     assert 'claim_id' in schemas['ReviewCreate']['properties']
     assert 'claim_id' in schemas['ReviewRecord']['properties']

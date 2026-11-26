@@ -90,6 +90,18 @@ def _headers(token: str):
             '/v1/properties/{pid}/documents/{did}/attribution',
             {'json': {'claim_id': str(uuid4())}},
         ),
+        (
+            'post',
+            '/v1/properties/{pid}/evidence-conflict-dispositions',
+            {
+                'json': {
+                    'signal_kind': 'identifier_conflict',
+                    'signal_id': str(uuid4()),
+                    'outcome': 'noted',
+                    'reason': 'MFA gate must reject password-only tokens',
+                }
+            },
+        ),
         ('post', '/v1/tenant/membership-revocations', {'json': {'subject_id': 'bob'}}),
         ('post', '/v1/tenant/session-invalidations', {'json': {'subject_id': 'bob'}}),
     ],

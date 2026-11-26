@@ -2,6 +2,31 @@
 
 Only executed results are recorded. Skipped suites are named. Passing tests are not production approval.
 
+## 2026-11-26 — Disposition web UI
+
+Branch: `feat/evidence-conflict-disposition` (PR #43) continuing from API tip `c8690df`. Working directory `apps/web` after `npm ci`.
+
+```text
+npm test
+npm run typecheck
+npm run build
+```
+
+**Result:** `npm test` → **52 passed**, 0 failed, 0 skipped. `npm run typecheck` → exit 0. `npm run build` → exit 0 (Next.js 15.5.28). API/DB pytest not re-run (no API/DB change in this web slice). PostGIS / live IdP not run.
+
+## 2026-11-26 — Evidence conflict disposition (migration 022)
+
+Branch: `feat/evidence-conflict-disposition` from `origin/main` @ `32b348a`. System Python 3.11 with `sys.path` insert for `apps/api` (this interpreter's `python311._pth` ignores `PYTHONPATH`). Portable PostgreSQL **16.15** @ `127.0.0.1:55432`. Fresh database `oydp_disposition_test`. Docker not used. Web not modified.
+
+```text
+python -c "...pytest.main(['-q','apps/api/tests','tests/integration'])"
+# with TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/oydp_disposition_test
+python scripts/export_active_openapi.py --check
+python scripts/secret_scan_light.py
+```
+
+**Result:** Combined active suite **273 passed**, 0 failed, 0 skipped, 1 Starlette/`httpx` deprecation warning. OpenAPI contract matches. `SECRET_SCAN_HITS 0`. npm test/typecheck/build not run. PostGIS / T-NEXT-009 not run. Live IdP not run.
+
 ## 2026-11-17 — Membership session posture (migration 021)
 
 Branch: `feat/membership-session-posture` from `origin/main` @ `d960308`. Interpreter: repo `.venv` (system `python` is isolated by `python311._pth` and ignores `PYTHONPATH`). Portable PostgreSQL **16.15** @ `127.0.0.1:55432`. Fresh database `oydp_membership_session_test`. Docker not used. Web not modified.

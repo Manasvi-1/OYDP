@@ -201,11 +201,25 @@ def test_grants_reviews_consent_export_cross_tenant(api, tenants):
     _assert_hidden(api.get(f'/v1/properties/{pid}/reviews', headers=hb), secret)
     _assert_hidden(api.get(f'/v1/properties/{pid}/evidence-graph', headers=hb), secret)
     _assert_hidden(api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=hb), secret)
+    _assert_hidden(api.get(f'/v1/properties/{pid}/evidence-conflict-dispositions', headers=hb), secret)
     _assert_hidden(
         api.post(
             f'/v1/properties/{pid}/reviews',
             headers=hb,
             json={'disposition': 'recorded', 'statement': 'Cross-tenant review must fail'},
+        ),
+        secret,
+    )
+    _assert_hidden(
+        api.post(
+            f'/v1/properties/{pid}/evidence-conflict-dispositions',
+            headers=hb,
+            json={
+                'signal_kind': 'identifier_conflict',
+                'signal_id': '00000000-0000-0000-0000-000000000099',
+                'outcome': 'noted',
+                'reason': 'Cross-tenant disposition must fail',
+            },
         ),
         secret,
     )

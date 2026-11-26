@@ -347,6 +347,16 @@ def test_no_mfa_sensitive_routes_denied(api, private_record):
     assert api.post('/v1/sources', headers=h, json={'name':'Blocked source','origin':'user_supplied','jurisdiction':'KA'}).status_code == 403
     assert api.post('/v1/sources/'+str(uuid4())+'/withdrawal', headers=h, json={'reason':'Blocked'}).status_code == 403
     assert api.post('/v1/properties/'+pid+'/reviews', headers=h, json={'disposition':'recorded','statement':'Not title'}).status_code == 403
+    assert api.post(
+        '/v1/properties/'+pid+'/evidence-conflict-dispositions',
+        headers=h,
+        json={
+            'signal_kind': 'identifier_conflict',
+            'signal_id': str(uuid4()),
+            'outcome': 'noted',
+            'reason': 'MFA required for conflict disposition',
+        },
+    ).status_code == 403
     assert api.post('/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
     assert api.request('DELETE', '/v1/properties/'+pid+'/consents', headers=h, json={'purpose':'passport_export'}).status_code == 403
     denied_export = api.post('/v1/properties/'+pid+'/exports', headers=h)
@@ -414,7 +424,7 @@ def test_migration_attributes_only_audited_records(tmp_path):
             for pid in (known,unknown):
                 conn.execute("INSERT INTO properties(id,tenant_id,label,jurisdiction) VALUES(%s,%s,'Legacy','KA')",(pid,A))
             conn.execute("INSERT INTO property_audit_events(tenant_id,property_id,actor_subject,event_type) VALUES(%s,%s,'alice','property.created')",(A,known))
-        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql','021_membership_session_posture.sql']
+        assert migrate(upgrade)==['006_private_property_access.sql','007_attributed_claims.sql','008_property_corrections.sql','009_correction_single_record.sql','010_document_quarantine.sql','011_write_grant_pages.sql','012_trusted_evidence.sql','013_audit_outbox.sql','014_diligence_requests.sql','015_claim_source_attribution.sql','016_document_attribution.sql','017_document_identifier_attribution.sql','018_review_claim_attribution.sql','019_review_document_identifier_attribution.sql','020_runtime_audit_and_source_gates.sql','021_membership_session_posture.sql','022_evidence_conflict_disposition.sql']
         provision_runtime(upgrade,PASSWORD)
         with psycopg.connect(make_conninfo(upgrade,user='oydp_app',password=PASSWORD)) as conn:
             conn.execute("SELECT set_config('app.tenant_id',%s,true),set_config('app.subject_id','alice',true)",(str(A),))
@@ -1550,6 +1560,7 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert quiet_body['claims_citing_withdrawn_sources'] == []
     assert quiet_body['documents_citing_withdrawn_sources'] == []
     assert quiet_body['reviews_citing_withdrawn_sources'] == []
+    assert quiet_body['dispositions'] == []
     source = api.post('/v1/sources', headers=headers, json={
         'name': 'Conflict note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
     })
@@ -1592,6 +1603,7 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     assert set(body['claims_citing_withdrawn_sources']) == {first_id, second_id}
     assert body['documents_citing_withdrawn_sources'] == []
     assert body['reviews_citing_withdrawn_sources'] == []
+    assert body['dispositions'] == []
     assert 'First unverified claim' not in signals.text
     assert 'Second unverified claim' not in signals.text
     assert all('statement' not in row for row in body['identifier_conflicts'])
@@ -1616,6 +1628,159 @@ def test_evidence_conflicts_and_export_sources_stay_unverified(api, private_reco
     unauth = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
     assert unauth.status_code in (401, 503)
     app.dependency_overrides[verified_subject] = lambda: 'alice'
+
+
+def test_evidence_conflict_disposition_stays_non_title(api, private_record, monkeypatch):
+    """Append-only noted/kept_unresolved marks; never verify claims or clear conflict status."""
+    _storage(monkeypatch)
+    pid, peer, headers, share, as_subject = private_record
+    source = api.post('/v1/sources', headers=headers, json={
+        'name': 'Disposition note', 'origin': 'user_supplied', 'jurisdiction': 'Bengaluru Urban',
+    })
+    assert source.status_code == 201, source.text
+    source_id = source.json()['id']
+    claim = api.post(f'/v1/properties/{pid}/claims', headers=headers, json={
+        'statement': 'Unverified disposition claim', 'source_id': source_id,
+    })
+    assert claim.status_code == 201, claim.text
+    claim_id = claim.json()['id']
+    first_id = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'survey', 'identifier_value': 'DISP-1'},
+    )
+    assert first_id.status_code == 200, first_id.text
+    conflict_mark = api.post(
+        f'/v1/properties/{pid}/identifiers',
+        headers=headers,
+        json={'scheme': 'survey', 'identifier_value': 'DISP-2', 'resolution': 'conflict'},
+    )
+    assert conflict_mark.status_code == 200, conflict_mark.text
+    conflict_id = conflict_mark.json()['id']
+    assert conflict_mark.json()['status'] == 'conflict'
+    withdrawn = api.post(f'/v1/sources/{source_id}/withdrawal', headers=headers, json={'reason': 'Retired note'})
+    assert withdrawn.status_code == 200
+
+    noted = api.post(
+        f'/v1/properties/{pid}/evidence-conflict-dispositions',
+        headers=headers,
+        json={
+            'signal_kind': 'identifier_conflict',
+            'signal_id': conflict_id,
+            'outcome': 'noted',
+            'reason': 'Human noted the identifier conflict without clearing it',
+        },
+    )
+    assert noted.status_code == 201, noted.text
+    noted_body = noted.json()
+    assert noted_body['title_effect'] == 'none'
+    assert noted_body['verification_unchanged'] is True
+    assert noted_body['outcome'] == 'noted'
+    assert 'Not a title certificate' in noted_body['notice']
+
+    kept = api.post(
+        f'/v1/properties/{pid}/evidence-conflict-dispositions',
+        headers=headers,
+        json={
+            'signal_kind': 'withdrawn_claim_citation',
+            'signal_id': claim_id,
+            'outcome': 'kept_unresolved',
+            'reason': 'Keep the withdrawn-source citation unresolved',
+        },
+    )
+    assert kept.status_code == 201, kept.text
+    assert kept.json()['outcome'] == 'kept_unresolved'
+
+    for outcome in ('verified', 'accepted', 'title', 'superseded', 'resolved'):
+        rejected = api.post(
+            f'/v1/properties/{pid}/evidence-conflict-dispositions',
+            headers=headers,
+            json={
+                'signal_kind': 'identifier_conflict',
+                'signal_id': conflict_id,
+                'outcome': outcome,
+                'reason': 'Title-like outcomes must be rejected',
+            },
+        )
+        assert rejected.status_code == 422, rejected.text
+
+    forged = api.post(
+        f'/v1/properties/{pid}/evidence-conflict-dispositions',
+        headers=headers,
+        json={
+            'signal_kind': 'identifier_conflict',
+            'signal_id': str(uuid4()),
+            'outcome': 'noted',
+            'reason': 'Unknown signal must fail',
+        },
+    )
+    assert forged.status_code == 422
+    assert forged.json()['detail'] == 'Invalid conflict disposition'
+
+    signals = api.get(f'/v1/properties/{pid}/evidence-conflicts', headers=headers)
+    assert signals.status_code == 200, signals.text
+    body = signals.json()
+    assert body['title_verified'] is False
+    assert body['unresolved'] is True
+    assert len(body['dispositions']) >= 2
+    assert {row['id'] for row in body['dispositions']} >= {noted_body['id'], kept.json()['id']}
+    assert all(row['signal_id'] in {conflict_id, claim_id} for row in body['dispositions'])
+
+    listed = api.get(f'/v1/properties/{pid}/evidence-conflict-dispositions', headers=headers)
+    assert listed.status_code == 200, listed.text
+    items = listed.json()['items']
+    assert {item['id'] for item in items} >= {noted_body['id'], kept.json()['id']}
+    assert all(item['title_effect'] == 'none' for item in items)
+    assert all(item['verification_unchanged'] is True for item in items)
+
+    claim_after = api.get(f'/v1/properties/{pid}/claims', headers=headers)
+    assert claim_after.status_code == 200
+    assert claim_after.json()['items'][0]['verification_status'] == 'unverified'
+    identifiers = api.get(f'/v1/properties/{pid}/identifiers', headers=headers)
+    assert identifiers.status_code == 200
+    conflict_rows = [row for row in identifiers.json()['items'] if row['id'] == conflict_id]
+    assert conflict_rows and conflict_rows[0]['status'] == 'conflict'
+
+    assert api.put(f'/v1/properties/{pid}/access', headers=headers, json=share).status_code == 200
+    as_subject(peer)
+    viewer_list = api.get(f'/v1/properties/{pid}/evidence-conflict-dispositions', headers=headers)
+    assert viewer_list.status_code == 200
+    assert any(item['id'] == noted_body['id'] for item in viewer_list.json()['items'])
+    viewer_write = api.post(
+        f'/v1/properties/{pid}/evidence-conflict-dispositions',
+        headers=headers,
+        json={
+            'signal_kind': 'identifier_conflict',
+            'signal_id': conflict_id,
+            'outcome': 'noted',
+            'reason': 'Viewer must not dispose',
+        },
+    )
+    assert viewer_write.status_code == 404
+
+    as_subject('alice')
+    from app.main import app
+    from app.auth import require_mfa
+    from fastapi import HTTPException
+
+    def denied_mfa_dep():
+        raise HTTPException(403, 'MFA required')
+
+    app.dependency_overrides[require_mfa] = denied_mfa_dep
+    try:
+        denied_mfa = api.post(
+            f'/v1/properties/{pid}/evidence-conflict-dispositions',
+            headers=headers,
+            json={
+                'signal_kind': 'identifier_conflict',
+                'signal_id': conflict_id,
+                'outcome': 'noted',
+                'reason': 'MFA denial path',
+            },
+        )
+        assert denied_mfa.status_code == 403
+    finally:
+        app.dependency_overrides[require_mfa] = lambda: True
 
 
 def test_evidence_graph_projects_attribution_edges_without_title(api, private_record, monkeypatch):

@@ -41,7 +41,7 @@ async def lifespan(_app: FastAPI):
 _DOCS = api_docs_enabled()
 app = FastAPI(
     title='OYDP Property Identity API',
-    version='0.18.0',
+    version='0.19.0',
     lifespan=lifespan,
     docs_url='/docs' if _DOCS else None,
     redoc_url='/redoc' if _DOCS else None,
@@ -692,7 +692,12 @@ GRAPH_NOTICE = (
 )
 CONFLICT_NOTICE = (
     'Unresolved evidence signals only. Not a title certificate; conflicts are not adjudicated; '
+    'human dispositions note or keep signals unresolved without verifying claims or clearing conflict status; '
     'claims remain unverified; identifier conflict status is not ownership proof.'
+)
+DISPOSITION_NOTICE = (
+    'Human evidence-conflict disposition only. Not a title certificate; does not verify claims; '
+    'does not clear identifier conflict status; does not merge properties.'
 )
 _PACKET_CAP = 100
 _GRAPH_EDGE_CAP = 500
@@ -706,6 +711,7 @@ _TRUSTED_SQL = {
     'Invalid review': (422, 'Invalid review'),
     'Invalid claim': (422, 'Invalid claim'),
     'Invalid attribution': (422, 'Invalid attribution'),
+    'Invalid conflict disposition': (422, 'Invalid conflict disposition'),
     'Invalid request': (422, 'Invalid request'),
     'Document not found': (404, 'Document not found'),
     'Cannot revoke the last tenant owner': (409, 'Cannot revoke the last tenant owner'),
@@ -898,6 +904,57 @@ class EvidenceGraph(BaseModel):
     edges: list[EvidenceGraphEdge]
 
 
+class EvidenceConflictDispositionCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    signal_kind: Literal[
+        'identifier_conflict',
+        'withdrawn_claim_citation',
+        'withdrawn_document_citation',
+        'withdrawn_review_citation',
+    ]
+    signal_id: UUID
+    outcome: Literal['noted', 'kept_unresolved']
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class EvidenceConflictDispositionRecord(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    property_id: UUID
+    signal_kind: Literal[
+        'identifier_conflict',
+        'withdrawn_claim_citation',
+        'withdrawn_document_citation',
+        'withdrawn_review_citation',
+    ]
+    signal_id: UUID
+    outcome: Literal['noted', 'kept_unresolved']
+    reason: str
+    recorded_by: str
+    recorded_at: datetime
+    title_effect: Literal['none']
+    verification_unchanged: Literal[True]
+    notice: Literal[DISPOSITION_NOTICE] = DISPOSITION_NOTICE
+
+
+class EvidenceConflictDispositionPage(BaseModel):
+    items: list[EvidenceConflictDispositionRecord]
+    next_cursor: str | None
+
+
+class EvidenceConflictDispositionAnnotation(BaseModel):
+    id: UUID
+    signal_kind: Literal[
+        'identifier_conflict',
+        'withdrawn_claim_citation',
+        'withdrawn_document_citation',
+        'withdrawn_review_citation',
+    ]
+    signal_id: UUID
+    outcome: Literal['noted', 'kept_unresolved']
+    recorded_at: datetime
+
+
 class EvidenceConflicts(BaseModel):
     property_id: UUID
     title_verified: Literal[False]
@@ -910,6 +967,7 @@ class EvidenceConflicts(BaseModel):
     claims_citing_withdrawn_sources: list[UUID]
     documents_citing_withdrawn_sources: list[UUID]
     reviews_citing_withdrawn_sources: list[UUID]
+    dispositions: list[EvidenceConflictDispositionAnnotation]
 
 
 class AuditRecord(BaseModel):
@@ -919,6 +977,7 @@ class AuditRecord(BaseModel):
         'document.attributed',
         'identifier.recorded', 'identifier.conflict', 'review.recorded', 'consent.recorded', 'consent.revoked',
         'packet.exported', 'diligence.opened', 'diligence.noted', 'diligence.closed',
+        'conflict.disposition_recorded',
     ]
     actor_subject: str
     recorded_at: datetime
@@ -1171,6 +1230,13 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
         or bool(withdrawn_document_ids)
         or bool(withdrawn_review_ids)
     )
+    dispositions = conn.execute(
+        f"""SELECT id, signal_kind, signal_id, outcome, recorded_at
+            FROM evidence_conflict_dispositions
+            WHERE property_id=%s AND tenant_id={_TENANT}
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, _PACKET_CAP),
+    ).fetchall()
     return {
         'property_id': property_id,
         'title_verified': False,
@@ -1183,7 +1249,68 @@ def get_evidence_conflicts(property_id: UUID, access=Depends(authorized_db, scop
         'claims_citing_withdrawn_sources': withdrawn_claim_ids,
         'documents_citing_withdrawn_sources': withdrawn_document_ids,
         'reviews_citing_withdrawn_sources': withdrawn_review_ids,
+        'dispositions': dispositions,
     }
+
+
+def present_conflict_disposition(row):
+    return {
+        **row,
+        'title_effect': 'none',
+        'verification_unchanged': True,
+        'notice': DISPOSITION_NOTICE,
+    }
+
+
+@app.post(
+    '/v1/properties/{property_id}/evidence-conflict-dispositions',
+    status_code=201,
+    response_model=EvidenceConflictDispositionRecord,
+)
+def record_evidence_conflict_disposition(
+    property_id: UUID,
+    payload: EvidenceConflictDispositionCreate,
+    access=Depends(authorized_db, scope='function'),
+    mfa=Depends(require_mfa),
+):
+    """Append a human note or keep-unresolved mark. Does not verify claims or clear conflicts."""
+    conn, role = access
+    writable_property(conn, property_id)
+    require_writer_role(role)
+    row = call_trusted(
+        conn,
+        f"""SELECT * FROM public.record_evidence_conflict_disposition(
+              {_TENANT}, %s, %s, %s, %s, %s)""",
+        (property_id, payload.signal_kind, payload.signal_id, payload.outcome, payload.reason),
+    )
+    return present_conflict_disposition(row)
+
+
+@app.get(
+    '/v1/properties/{property_id}/evidence-conflict-dispositions',
+    response_model=EvidenceConflictDispositionPage,
+)
+def list_evidence_conflict_dispositions(
+    property_id: UUID,
+    access=Depends(authorized_db, scope='function'),
+    limit: int = Query(25, ge=1, le=100),
+    cursor: str | None = Query(None, max_length=512),
+):
+    conn, _role = access
+    readable_property(conn, property_id)
+    scope, at, record_id = cursor_context(conn, 'conflict_dispositions', cursor, property_id)
+    rows = conn.execute(
+        f"""SELECT id, tenant_id, property_id, signal_kind, signal_id, outcome, reason,
+               recorded_by, recorded_at
+            FROM evidence_conflict_dispositions
+            WHERE property_id=%s AND tenant_id={_TENANT}
+              AND (%s::timestamptz IS NULL OR (recorded_at, id)<(%s::timestamptz, %s::uuid))
+            ORDER BY recorded_at DESC, id DESC LIMIT %s""",
+        (property_id, at, at, record_id, limit + 1),
+    ).fetchall()
+    page = page_result(rows, limit, scope, 'recorded_at')
+    page['items'] = [present_conflict_disposition(row) for row in page['items']]
+    return page
 
 
 @app.post('/v1/properties/{property_id}/consents', response_model=ConsentRecord)

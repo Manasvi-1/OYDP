@@ -24,6 +24,8 @@ Companion: `docs/implementation/TRACEABILITY.md` (historical). This file is the 
 | Authenticated web workspace | `apps/web` | web CI; e2e scripts | partial TESTED |
 | Loopback OIDC cookie handoff | callback `NextResponse` cookies | PR #22 web CI | TESTED (CI) |
 | No title / government / valuation claims | OpenAPI consts; notices | contract tests | TESTED |
+| Human conflict dispositions stay non-title | `022_evidence_conflict_disposition.sql`; disposition routes | unit + portable PG integration + IDOR + MFA gates | TESTED |
+| Membership revoke session not-before (no live IdP) | `021`; revoke/session routes | unit + portable PG integration | VERIFIED (PR #41) |
 | Active vs reference backend separation | `test_canonical_authority.py`; migrate reject | unit | TESTED |
 | E02 AI advisor | — | — | NOT_STARTED |
 | E04–E13 product workflows | — | — | NOT_STARTED |

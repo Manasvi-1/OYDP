@@ -8,7 +8,7 @@ Updated: 2026-11-12.
 
 | Gate | State | Evidence |
 | --- | --- | --- |
-| Functional vertical slice (E01 partial + bounded E03) | Partial pass | API 0.18.0 + web workspace (graph/conflicts + attribution writes + application membership-session checks); not all blueprint E01 journeys |
+| Functional vertical slice (E01 partial + bounded E03) | Partial pass | API 0.19.0 + web workspace (graph/conflicts + attribution writes + application membership-session checks + non-title conflict dispositions); not all blueprint E01 journeys |
 | All 13 engine end-to-end workflows | FAIL | E02, E04–E13 planned only |
 | Live IdP enrollment | FAIL / BLOCKED | SF-006. Application session posture is not provider revocation |
 | MFA freshness in production IdP tokens | FAIL / BLOCKED | Code ready; live unverified |
