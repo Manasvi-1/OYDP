@@ -22,7 +22,7 @@
 
 ## In flight
 
-- `feat/evidence-conflict-disposition` — PR #43 (API + web disposition UI).
+- None for dispositions — PR #43 merged to `main` @ `5c103b3`.
 
 ## Carry-over
 
